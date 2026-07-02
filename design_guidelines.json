@@ -1,0 +1,189 @@
+{
+  "app_name": "ProximityRadar",
+  "personality": "6 Glass / Luxe",
+  "personality_one_liner": "A cinematic, mysterious, and high-end radar experience that makes serendipitous connections feel like fate.",
+  "color": {
+    "surface": "#0D110F",
+    "onSurface": "#F3F4F3",
+    "surfaceSecondary": "#161B18",
+    "onSurfaceSecondary": "#8A9992",
+    "surfaceTertiary": "#202724",
+    "onSurfaceTertiary": "#B2C2BB",
+    "surfaceInverse": "#F3F4F3",
+    "onSurfaceInverse": "#0D110F",
+    "brand": "#059669",
+    "brandPrimary": "#10B981",
+    "onBrandPrimary": "#022C1E",
+    "brandSecondary": "#047857",
+    "onBrandSecondary": "#D1FAE5",
+    "brandTertiary": "#064E3B",
+    "onBrandTertiary": "#A7F3D0",
+    "success": "#10B981",
+    "onSuccess": "#022C1E",
+    "warning": "#F59E0B",
+    "onWarning": "#451A03",
+    "error": "#E11D48",
+    "onError": "#4C0519",
+    "info": "#0D9488",
+    "onInfo": "#CCFBF1",
+    "border": "#252E2A",
+    "borderStrong": "#3B4A43",
+    "divider": "#1C2420"
+  },
+  "typography": {
+    "displayFontFamily": "Fraunces",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Cinematic and generous. Avoid cramming elements. Use lg/xl padding to create breathing room around text and UI controls.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "blur replaces shadow",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do_s": [
+      "Use heavy glass on the bottom sheet over the map",
+      "Floating action pills/buttons overlaying the map must be glass",
+      "Pair blur with a 75%+ opacity tint of surfaceSecondary to ensure text contrast",
+      "Match alert overlay should use a full screen blur"
+    ],
+    "dont_s": [
+      "No blur on form inputs or dense text areas",
+      "Do not rely solely on blur for contrast; always underlay a tint",
+      "Never blur body text"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler",
+    "map": "react-native-maps",
+    "canvas": "@shopify/react-native-skia"
+  },
+  "screens": [
+    {
+      "name": "Onboarding / Auth",
+      "purpose": "Introduce the cinematic vibe and get the user logged in.",
+      "states": {
+        "loading": "Centered brandPrimary spinner over the dark spheres image",
+        "empty": "N/A",
+        "error": "Standard alert toast"
+      },
+      "layout": "Full-bleed background image (`onboarding_bg`). Mandatory vertical linear gradient scrim (transparent to 80% surfaceInverse (#0D110F) at the bottom). Large Fraunces title at the top, bottom 30% holds login/signup buttons."
+    },
+    {
+      "name": "Radar Map (Home)",
+      "purpose": "The core proximity experience showing nearby users via a sweeping animation.",
+      "states": {
+        "loading": "Map loads with skeleton grid or gentle pulsing center",
+        "empty": "Map shows 'No one in radius', radar keeps spinning gently",
+        "error": "Glass toast 'Location services disabled'"
+      },
+      "layout": "Full-bleed react-native-maps instance. Map style strictly custom dark JSON (hiding text/roads). Overlay a Skia canvas for concentric distance rings (using border) and a rotating radar sweep arc (conical gradient, brandPrimary to transparent). Top floating pill (safe area) for current Status. Bottom holds the Nearby People bottom-sheet."
+    },
+    {
+      "name": "Nearby People (Bottom Sheet)",
+      "purpose": "List density view of users found by the radar.",
+      "states": {
+        "loading": "Skeleton list rows",
+        "empty": "Illustration/Icon with 'Sweep found no one. Increase your radius.'",
+        "error": "Retry text"
+      },
+      "layout": "Lives inside @gorhom/bottom-sheet over the Map. Sheet background is expo-blur heavily tinted with surfaceSecondary (75%+). Header 'Nearby' in Fraunces. Scrollable list: User avatar (left), Name & Distance (center), colored dot for status (right). Items separated by divider."
+    },
+    {
+      "name": "Status Broadcasting (Modal)",
+      "purpose": "Allow user to pick their real-life availability.",
+      "states": {
+        "loading": "Spinner on submit",
+        "empty": "N/A",
+        "error": "Glass toast"
+      },
+      "layout": "Bottom-sheet or full screen blur modal. 'What's your vibe?' title. A stack of large pressable cards. Each card has a subtle icon, bold title, and description. Active card gets a borderStrong outline and a subtle brandTertiary tint. Action button sticky at bottom."
+    },
+    {
+      "name": "Match Alert (Icebreaker)",
+      "purpose": "A dramatic, low-pressure cue that a complementary status is nearby.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Full screen overlay (absolute fill, heavy blur). Center content: user's avatar and the match's avatar overlapping slightly, connected by a glowing ring. Large Fraunces heading 'Paths Crossed'. A primary CTA 'Say Hi' and secondary CTA 'Dismiss'."
+    },
+    {
+      "name": "Privacy Controls",
+      "purpose": "Adjust visibility, radius, and location sharing.",
+      "states": {
+        "loading": "Ghosting toggles",
+        "empty": "N/A",
+        "error": "Red text under failed toggle"
+      },
+      "layout": "Standard scrolling view. surface canvas. Generous spacing. Rows of settings with toggles. A slider for 'Discovery Radius'. Use glass surfaces for the input cards. Floating CTA to save changes."
+    }
+  ],
+  "images": {
+    "avatar_1": {
+      "url": "https://images.unsplash.com/photo-1782116673361-ee0d595c9fde?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Young black woman in white t-shirt standing on a street."
+    },
+    "avatar_2": {
+      "url": "https://images.unsplash.com/photo-1779997744346-a04b046a7e3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Young woman sitting against a dark brick wall in sunlight."
+    },
+    "avatar_3": {
+      "url": "https://images.unsplash.com/photo-1567934859879-9addfb1e07f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "man wearing white crew-neck shirt and blue faded denim jacket"
+    },
+    "onboarding_bg": {
+      "url": "https://images.unsplash.com/photo-1709377195538-5522ed0f9e10?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBnbG93aW5nJTIwc3BoZXJlcyUyMGJsdXJ8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
+      "dark": "https://images.unsplash.com/photo-1709377195538-5522ed0f9e10?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBnbG93aW5nJTIwc3BoZXJlcyUyMGJsdXJ8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "amber and dark curves on black"
+    }
+  },
+  "haptics": {
+    "button_press": "impactLight",
+    "radar_sweep_ping": "impactMedium",
+    "match_alert_trigger": "notificationSuccess",
+    "toggle_switch": "selection",
+    "status_select": "impactMedium"
+  },
+  "instructions_to_main_agent": [
+    "Follow the 6 Glass / Luxe personality strictly. The app should feel like a cinematic, premium radar, NOT a tactical military tracker.",
+    "Implement the radar sweep using @shopify/react-native-skia over react-native-maps. The sweep arc should be a conical gradient rotating via Reanimated.",
+    "Map must use a custom JSON style to strip out POIs, labels, and roads, matching the `#0D110F` surface color to blend seamlessly with the app background.",
+    "Every frosted glass surface (like the Bottom Sheet) MUST include a background tint (`backgroundColor: '#161B18'` at `0.75` opacity) beneath the blur layer to ensure foreground text is readable.",
+    "Apply the gradient scrim (transparent to 80% surfaceInverse/black) behind text on the onboarding background image.",
+    "No blue or purple hues allowed. Status colors are mapped to Success (Emerald), Error (Rose/Burgundy), Warning (Amber), Info (Teal).",
+    "Cap all font weights at 500 max. Rely on the display font (Fraunces) size for hierarchy.",
+    "Implement haptics on status selection, button presses, and when the radar detects a new match (radar_sweep_ping)."
+  ]
+}
