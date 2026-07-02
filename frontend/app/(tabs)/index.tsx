@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRadar, NearbyUser } from "@/src/context/RadarContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -18,6 +19,7 @@ import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function RadarScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user } = useAuth();
   const { coords, permission, nearby, statusMap, requestLocation, refresh } = useRadar();
   const [selected, setSelected] = useState<NearbyUser | null>(null);
@@ -87,9 +89,9 @@ export default function RadarScreen() {
         )}
 
         {!user?.status && (
-          <Pressable style={styles.hint} testID="radar-set-status-hint">
+          <Pressable style={styles.hint} testID="radar-set-status-hint" onPress={() => router.push("/status")}>
             <Text style={styles.hintText}>
-              Tap the pill above to broadcast your vibe and start matching.
+              Tap here to broadcast your vibe and start matching.
             </Text>
           </Pressable>
         )}
