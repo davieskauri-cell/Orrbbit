@@ -20,7 +20,7 @@ export default function Onboarding() {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.top}>
-        <Text style={styles.brand}>ProximityRadar</Text>
+        <Text style={styles.brand}>Intro</Text>
       </View>
       <View style={styles.bottom}>
         <Text style={styles.title}>Real connections,{"\n"}right where you are.</Text>

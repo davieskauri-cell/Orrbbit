@@ -179,7 +179,7 @@ MOCK_USERS = [
 # ----------------------------- Auth routes -----------------------------
 @api_router.get("/")
 async def root():
-    return {"message": "ProximityRadar API"}
+    return {"message": "Intro API"}
 
 
 @api_router.post("/auth/register")

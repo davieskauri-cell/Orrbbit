@@ -46,7 +46,7 @@ export default function PersonDetail({ user, statusMap, onClose }: Props) {
           <View style={styles.reminder}>
             <Ionicons name="lock-closed" size={13} color={colors.onSurfaceSecondary} />
             <Text style={styles.reminderText}>
-              ProximityRadar has no chat — connections happen face to face, in the moment.
+              Intro has no chat — connections happen face to face, in the moment.
             </Text>
           </View>
 

@@ -19,7 +19,7 @@ export default function NativeMap(_props: Props) {
       <Ionicons name="map-outline" size={44} color={colors.onSurfaceSecondary} />
       <Text style={styles.title}>Live map is device-only</Text>
       <Text style={styles.text}>
-        Open ProximityRadar on your phone to see nearby people on a live map. The list below
+        Open Intro on your phone to see nearby people on a live map. The list below
         shows everyone in your radius.
       </Text>
     </View>
