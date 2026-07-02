@@ -94,7 +94,7 @@ def public_user(u: dict) -> dict:
         "avatar_url": u.get("avatar_url"),
         "status": u.get("status"),
         "visible": u.get("visible", True),
-        "radius": u.get("radius", 150),
+        "radius": min(u.get("radius", 50) or 50, 50),
     }
 
 
@@ -152,10 +152,10 @@ MATCH_GRAPH = {
 }
 
 DEFAULT_STATUSES = [
-    {"key": "open_to_chat", "label": "Open to Chat", "description": "Up for a friendly conversation with anyone nearby.", "color": "#10B981", "icon": "chatbubble-ellipses", "is_default": True},
-    {"key": "looking_for_relationship", "label": "Looking for a Relationship", "description": "Hoping to meet someone special right now.", "color": "#E11D48", "icon": "heart", "is_default": True},
-    {"key": "struggling", "label": "Struggling / Need Advice", "description": "Could use a listening ear or some guidance.", "color": "#0D9488", "icon": "help-buoy", "is_default": True},
-    {"key": "busy", "label": "Busy", "description": "Around but not available to connect right now.", "color": "#8A9992", "icon": "moon", "is_default": True},
+    {"key": "open_to_chat", "label": "Open to Chat", "description": "Up for a friendly conversation with anyone nearby.", "color": "#14B8A6", "icon": "chatbubble-ellipses", "is_default": True},
+    {"key": "looking_for_relationship", "label": "Looking for a Relationship", "description": "Hoping to meet someone special right now.", "color": "#FB7185", "icon": "heart", "is_default": True},
+    {"key": "struggling", "label": "Struggling / Need Advice", "description": "Could use a listening ear or some guidance.", "color": "#F59E0B", "icon": "help-buoy", "is_default": True},
+    {"key": "busy", "label": "Busy", "description": "Around but not available to connect right now.", "color": "#94A3B8", "icon": "moon", "is_default": True},
 ]
 
 AVATARS = [
@@ -166,13 +166,13 @@ AVATARS = [
 
 # fixed relative offsets so mock users always appear around the requester
 MOCK_USERS = [
-    {"id": "mock-1", "display_name": "Aria", "status": "looking_for_relationship", "dist": 42, "bearing": 25, "bio": "New in town, love live music.", "avatar_url": AVATARS[0]},
-    {"id": "mock-2", "display_name": "Leo", "status": "open_to_chat", "dist": 68, "bearing": 110, "bio": "Grabbing coffee, say hi!", "avatar_url": AVATARS[2]},
-    {"id": "mock-3", "display_name": "Maya", "status": "struggling", "dist": 95, "bearing": 200, "bio": "Rough week, could use a chat.", "avatar_url": AVATARS[1]},
-    {"id": "mock-4", "display_name": "Sam", "status": "busy", "dist": 55, "bearing": 300, "bio": "Heads down, working.", "avatar_url": AVATARS[2]},
-    {"id": "mock-5", "display_name": "Noa", "status": "open_to_chat", "dist": 130, "bearing": 60, "bio": "Exploring the city solo.", "avatar_url": AVATARS[0]},
-    {"id": "mock-6", "display_name": "Kai", "status": "looking_for_relationship", "dist": 160, "bearing": 245, "bio": "Foodie searching for a partner in crime.", "avatar_url": AVATARS[2]},
-    {"id": "mock-7", "display_name": "Ivy", "status": "struggling", "dist": 180, "bearing": 155, "bio": "Feeling a bit lost lately.", "avatar_url": AVATARS[1]},
+    {"id": "mock-1", "display_name": "Aria", "status": "looking_for_relationship", "dist": 8, "bearing": 25, "bio": "New in town, love live music.", "avatar_url": AVATARS[0]},
+    {"id": "mock-2", "display_name": "Leo", "status": "open_to_chat", "dist": 22, "bearing": 110, "bio": "Grabbing coffee, say hi!", "avatar_url": AVATARS[2]},
+    {"id": "mock-3", "display_name": "Maya", "status": "struggling", "dist": 31, "bearing": 200, "bio": "Rough week, could use a chat.", "avatar_url": AVATARS[1]},
+    {"id": "mock-4", "display_name": "Sam", "status": "busy", "dist": 16, "bearing": 300, "bio": "Heads down, working.", "avatar_url": AVATARS[2]},
+    {"id": "mock-5", "display_name": "Noa", "status": "open_to_chat", "dist": 44, "bearing": 60, "bio": "Exploring the city solo.", "avatar_url": AVATARS[0]},
+    {"id": "mock-6", "display_name": "Kai", "status": "looking_for_relationship", "dist": 49, "bearing": 245, "bio": "Foodie searching for a partner in crime.", "avatar_url": AVATARS[2]},
+    {"id": "mock-7", "display_name": "Ivy", "status": "struggling", "dist": 38, "bearing": 155, "bio": "Feeling a bit lost lately.", "avatar_url": AVATARS[1]},
 ]
 
 
@@ -198,7 +198,7 @@ async def register(body: RegisterIn):
         "lat": None,
         "lng": None,
         "visible": True,
-        "radius": 150,
+        "radius": 50,
         "created_at": now_iso(),
         "last_active": now_iso(),
     }
@@ -233,6 +233,9 @@ async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_u
 @api_router.put("/users/me/state")
 async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
+    if "radius" in fields:
+        # Intro is strictly a 50-metre experience
+        fields["radius"] = max(10, min(int(fields["radius"]), 50))
     fields["last_active"] = now_iso()
     await db.users.update_one({"id": user["id"]}, {"$set": fields})
     user = await db.users.find_one({"id": user["id"]})
@@ -259,9 +262,11 @@ async def add_status(body: StatusOptionIn, user: dict = Depends(get_current_user
 async def nearby(
     lat: float = Query(...),
     lng: float = Query(...),
-    radius: int = Query(150),
+    radius: int = Query(50),
     user: dict = Depends(get_current_user),
 ):
+    # hard cap: nobody beyond 50 metres is ever revealed
+    radius = max(1, min(radius, 50))
     my_status = user.get("status")
     complements = MATCH_GRAPH.get(my_status, []) if my_status else []
     results = []

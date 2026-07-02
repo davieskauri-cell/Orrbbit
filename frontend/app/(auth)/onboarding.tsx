@@ -1,32 +1,28 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable, Dimensions } from "react-native";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { LogoMark } from "@/src/components/Logo";
 import { colors, spacing, radius, font } from "@/src/theme";
-
-const { height } = Dimensions.get("window");
-const BG =
-  "https://images.unsplash.com/photo-1709377195538-5522ed0f9e10?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBnbG93aW5nJTIwc3BoZXJlcyUyMGJsdXJ8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85";
 
 export default function Onboarding() {
   const router = useRouter();
   return (
     <View style={styles.container} testID="onboarding-screen">
-      <Image source={{ uri: BG }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      <LinearGradient
-        colors={["rgba(13,17,15,0.2)", "rgba(13,17,15,0.7)", "rgba(13,17,15,0.98)"]}
-        locations={[0, 0.5, 0.85]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.top}>
+      <View style={styles.hero}>
+        <View style={[styles.ring, styles.ringOuter]} />
+        <View style={[styles.ring, styles.ringMid]} />
+        <View style={[styles.ring, styles.ringInner]} />
+        <View style={styles.accentDot} />
+        <View style={styles.accentDotSmall} />
+        <LogoMark size={116} />
         <Text style={styles.brand}>Intro</Text>
+        <Text style={styles.tagline}>Your 50-metre social radar</Text>
       </View>
       <View style={styles.bottom}>
         <Text style={styles.title}>Real connections,{"\n"}right where you are.</Text>
         <Text style={styles.sub}>
-          Share your vibe with people nearby and let serendipity spark a face-to-face
-          conversation.
+          Share your vibe with people within 50 metres and let serendipity spark a
+          face-to-face conversation.
         </Text>
         <Pressable
           testID="onboarding-get-started"
@@ -47,10 +43,61 @@ export default function Onboarding() {
   );
 }
 
+const RING = (size: number) => ({
+  width: size,
+  height: size,
+  borderRadius: size / 2,
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, justifyContent: "space-between" },
-  top: { paddingTop: height * 0.09, paddingHorizontal: spacing.xl },
-  brand: { color: colors.onSurface, fontSize: font.xl, fontWeight: "500", letterSpacing: 0.5 },
+  hero: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  ring: {
+    position: "absolute",
+    borderWidth: 1.5,
+    borderColor: colors.brandPrimary,
+  },
+  ringOuter: { ...RING(480), opacity: 0.12 },
+  ringMid: { ...RING(340), opacity: 0.2 },
+  ringInner: { ...RING(210), opacity: 0.3 },
+  accentDot: {
+    position: "absolute",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    top: "22%",
+    right: "24%",
+  },
+  accentDotSmall: {
+    position: "absolute",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.brandPrimary,
+    bottom: "18%",
+    left: "20%",
+    opacity: 0.7,
+  },
+  brand: {
+    color: colors.onSurface,
+    fontSize: 40,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+    marginTop: spacing.lg,
+  },
+  tagline: {
+    color: colors.brand,
+    fontSize: font.base,
+    fontWeight: "500",
+    letterSpacing: 1,
+    marginTop: spacing.xs,
+  },
   bottom: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
   title: { color: colors.onSurface, fontSize: font.display, fontWeight: "500", lineHeight: 42 },
   sub: {
@@ -66,7 +113,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     alignItems: "center",
   },
-  primaryText: { color: colors.onBrandPrimary, fontSize: font.lg, fontWeight: "500" },
+  primaryText: { color: colors.onBrandPrimary, fontSize: font.lg, fontWeight: "600" },
   secondaryBtn: { paddingVertical: spacing.lg, alignItems: "center", marginTop: spacing.xs },
   secondaryText: { color: colors.onSurfaceTertiary, fontSize: font.base },
 });

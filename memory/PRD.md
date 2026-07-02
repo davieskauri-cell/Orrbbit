@@ -1,7 +1,14 @@
 # ProximityRadar — PRD
 
 ## Original Problem Statement
-A proximity-based social radar app revealing users' real-time social availability (Open to Chat, Busy, Looking for a Relationship, Struggling/Need Advice). Uses location to show status only to others within a radius (~100-200m), acting as a real-life icebreaker for organic, face-to-face interactions. Match alerts when complementary statuses cross paths. Privacy: opt-in temporary location, adjustable radius, toggle visibility off.
+A proximity-based social radar app revealing users' real-time social availability (Open to Chat, Busy, Looking for a Relationship, Struggling/Need Advice). Uses location to show status only to others within a radius (hard-capped at 50m; selectable 10/25/50m), acting as a real-life icebreaker for organic, face-to-face interactions. Match alerts when complementary statuses cross paths. Privacy: opt-in temporary location, adjustable radius, toggle visibility off.
+
+## Latest updates (June 2026)
+- 50m hard cap: backend clamps radius in /api/nearby and /users/me/state (10–50m); public_user caps stored values; mock personas repositioned within 8–49m; frontend defaults 50m.
+- Radius selector in You tab: segmented chips 10m / 25m / 50m (replaced 50–300m slider).
+- New welcoming light theme: soft teal/mint (#F4FAF7 surface, #14B8A6 brand) with warm orange accent (#FB923C); light map style; light match-alert overlay; dark status bar.
+- New "Intro" logo: playful radar/wave mark (react-native-svg, src/components/Logo.tsx) used on onboarding + Radar header; regenerated app icons/splash/favicon via /app/scripts/gen_icons.py; app.json name "Intro", teal adaptive icon bg, mint splash bg.
+- Default status colors refreshed: teal/rose/amber/slate.
 
 ## User Choices
 - Auth: JWT email/password + profile setup

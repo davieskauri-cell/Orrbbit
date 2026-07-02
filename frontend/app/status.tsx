@@ -18,7 +18,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { api } from "@/src/lib/api";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const CUSTOM_COLORS = ["#10B981", "#E11D48", "#0D9488", "#F59E0B", "#8A9992"];
+const CUSTOM_COLORS = ["#14B8A6", "#FB7185", "#FB923C", "#F59E0B", "#8B5CF6"];
 
 export default function StatusModal() {
   const router = useRouter();
@@ -70,7 +70,7 @@ export default function StatusModal() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>What's your vibe?</Text>
+        <Text style={styles.title}>{"What's your vibe?"}</Text>
         <Pressable testID="status-close" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="close" size={26} color={colors.onSurface} />
         </Pressable>

@@ -116,7 +116,7 @@ export function RadarProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const radius = user?.radius || 150;
+      const radius = Math.min(user?.radius || 50, 50);
       const res = await api<{ users: NearbyUser[] }>(
         `/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=${radius}`,
         { token }

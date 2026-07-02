@@ -20,7 +20,7 @@ export default function MapScreen() {
       <View style={styles.mapArea}>
         <NativeMap
           coords={coords}
-          radius={user?.radius || 150}
+          radius={user?.radius || 50}
           nearby={nearby}
           statusMap={statusMap}
           onSelect={setSelected}

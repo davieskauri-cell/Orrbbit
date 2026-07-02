@@ -15,7 +15,7 @@ export default function MatchAlert() {
 
   return (
     <Modal visible transparent animationType="fade" testID="match-alert-modal">
-      <BlurView intensity={40} tint="dark" style={styles.fill}>
+      <BlurView intensity={40} tint="light" style={styles.fill}>
         <View style={styles.overlayTint} />
         <View style={styles.content}>
           <Text style={styles.kicker}>ICEBREAKER</Text>
@@ -58,7 +58,7 @@ export default function MatchAlert() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, alignItems: "center", justifyContent: "center" },
-  overlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(13,17,15,0.7)" },
+  overlayTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(244,250,247,0.72)" },
   content: { alignItems: "center", paddingHorizontal: spacing.xl, width: "100%" },
   kicker: {
     color: colors.brandPrimary,

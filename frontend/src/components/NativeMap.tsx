@@ -5,12 +5,12 @@ import MapView, { Marker, Circle } from "react-native-maps";
 import { colors, spacing, font } from "@/src/theme";
 import type { NearbyUser, StatusOption } from "@/src/context/RadarContext";
 
-const DARK_MAP = [
-  { elementType: "geometry", stylers: [{ color: "#0D110F" }] },
+const LIGHT_MAP = [
+  { elementType: "geometry", stylers: [{ color: "#E8F1ED" }] },
   { elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "road", stylers: [{ color: "#161B18" }] },
+  { featureType: "road", stylers: [{ color: "#FFFFFF" }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "water", stylers: [{ color: "#08110D" }] },
+  { featureType: "water", stylers: [{ color: "#BFE3DA" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
 
@@ -34,7 +34,7 @@ export default function NativeMap({ coords, radius, nearby, statusMap, onSelect 
     <MapView
       testID="map-view"
       style={StyleSheet.absoluteFill}
-      customMapStyle={DARK_MAP}
+      customMapStyle={LIGHT_MAP}
       initialRegion={{
         latitude: coords.lat,
         longitude: coords.lng,
@@ -47,8 +47,8 @@ export default function NativeMap({ coords, radius, nearby, statusMap, onSelect 
       <Circle
         center={{ latitude: coords.lat, longitude: coords.lng }}
         radius={radius}
-        strokeColor="rgba(16,185,129,0.5)"
-        fillColor="rgba(16,185,129,0.08)"
+        strokeColor="rgba(20,184,166,0.55)"
+        fillColor="rgba(20,184,166,0.10)"
       />
       {nearby.map((u) => (
         <Marker

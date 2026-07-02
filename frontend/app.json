@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Intro",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +17,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#14B8A6"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -38,7 +38,7 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#F4FAF7"
         }
       ]
     ],

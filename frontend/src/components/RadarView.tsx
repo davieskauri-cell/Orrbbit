@@ -63,7 +63,7 @@ export default function RadarView({ users, maxDistance, statusMap, onSelect }: P
         {/* rotating sweep beam */}
         <Animated.View style={[styles.sweep, { transform: [{ rotate }] }]}>
           <LinearGradient
-            colors={["rgba(16,185,129,0.45)", "rgba(16,185,129,0.0)"]}
+            colors={["rgba(20,184,166,0.38)", "rgba(20,184,166,0.0)"]}
             start={{ x: 1, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.sweepGrad}

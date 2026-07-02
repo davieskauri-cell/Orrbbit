@@ -15,6 +15,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import RadarView from "@/src/components/RadarView";
 import PersonDetail from "@/src/components/PersonDetail";
 import StatusPill from "@/src/components/StatusPill";
+import { LogoMark } from "@/src/components/Logo";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function RadarScreen() {
@@ -42,7 +43,10 @@ export default function RadarScreen() {
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.kicker}>PROXIMITY</Text>
+          <View style={styles.brandRow}>
+            <LogoMark size={16} />
+            <Text style={styles.kicker}>INTRO</Text>
+          </View>
           <Text style={styles.title}>Radar</Text>
         </View>
         <StatusPill />
@@ -57,7 +61,7 @@ export default function RadarScreen() {
       >
         <RadarView
           users={nearby}
-          maxDistance={user?.radius || 150}
+          maxDistance={user?.radius || 50}
           statusMap={statusMap}
           onSelect={setSelected}
         />
@@ -74,7 +78,7 @@ export default function RadarScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statBox}>
-            <Text style={styles.statNum}>{user?.radius || 150}m</Text>
+            <Text style={styles.statNum}>{user?.radius || 50}m</Text>
             <Text style={styles.statLabel}>Radius</Text>
           </View>
         </View>
@@ -118,6 +122,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   kicker: { color: colors.brandPrimary, fontSize: font.sm, letterSpacing: 2, fontWeight: "500" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { color: colors.onSurface, fontSize: font.xxl, fontWeight: "500" },
   body: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   stats: {

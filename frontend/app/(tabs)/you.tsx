@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,12 +19,16 @@ import { useRadar } from "@/src/context/RadarContext";
 import { api } from "@/src/lib/api";
 import { colors, spacing, radius, font } from "@/src/theme";
 
+const RADIUS_OPTIONS = [10, 25, 50];
+
 export default function YouScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, token, signOut, setUser, refreshUser } = useAuth();
   const { statusMap, setVisible, setRadius } = useRadar();
-  const [radiusLocal, setRadiusLocal] = useState(user?.radius || 150);
+  const [radiusLocal, setRadiusLocal] = useState(
+    RADIUS_OPTIONS.includes(user?.radius as number) ? (user?.radius as number) : 50
+  );
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.display_name || "");
   const [bio, setBio] = useState(user?.bio || "");
@@ -139,24 +142,32 @@ export default function YouScreen() {
 
         <View style={styles.sliderBlock}>
           <View style={styles.sliderHeader}>
-            <Text style={styles.toggleTitle}>Discovery radius</Text>
+            <Text style={styles.toggleTitle}>Discovery range</Text>
             <Text style={styles.radiusVal}>{radiusLocal}m</Text>
           </View>
-          <Slider
-            testID="radius-slider"
-            style={{ width: "100%", height: 40 }}
-            minimumValue={50}
-            maximumValue={300}
-            step={10}
-            value={radiusLocal}
-            onValueChange={setRadiusLocal}
-            onSlidingComplete={(v) => setRadius(Math.round(v))}
-            minimumTrackTintColor={colors.brandPrimary}
-            maximumTrackTintColor={colors.surfaceTertiary}
-            thumbTintColor={colors.brandPrimary}
-          />
+          <View style={styles.rangeRow}>
+            {RADIUS_OPTIONS.map((r) => {
+              const active = radiusLocal === r;
+              return (
+                <Pressable
+                  key={r}
+                  testID={`radius-option-${r}`}
+                  onPress={() => {
+                    setRadiusLocal(r);
+                    setRadius(r);
+                  }}
+                  style={[styles.rangeChip, active && styles.rangeChipActive]}
+                >
+                  <Text style={[styles.rangeChipText, active && styles.rangeChipTextActive]}>
+                    {r}m
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Text style={styles.toggleDesc}>
-            Only people within {radiusLocal} metres can see you and appear on your radar.
+            Only people within {radiusLocal} metres can see you. Intro caps at 50m so every
+            connection stays truly face-to-face.
           </Text>
         </View>
       </View>
@@ -230,6 +241,22 @@ const styles = StyleSheet.create({
   sliderBlock: {},
   sliderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   radiusVal: { color: colors.brandPrimary, fontSize: font.lg, fontWeight: "500" },
+  rangeRow: { flexDirection: "row", gap: spacing.md, marginVertical: spacing.md },
+  rangeChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  rangeChipActive: {
+    backgroundColor: colors.brandPrimary,
+    borderColor: colors.brandPrimary,
+  },
+  rangeChipText: { color: colors.onSurfaceTertiary, fontSize: font.base, fontWeight: "500" },
+  rangeChipTextActive: { color: colors.onBrandPrimary },
   logout: {
     flexDirection: "row",
     alignItems: "center",
