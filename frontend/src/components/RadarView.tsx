@@ -1,97 +1,123 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated, Easing, Pressable, Dimensions } from "react-native";
-import { Image } from "expo-image";
+import { View, Text, StyleSheet, Animated, Easing, Pressable, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, radius } from "@/src/theme";
-import type { NearbyUser, StatusOption } from "@/src/context/RadarContext";
+import Avatar from "@/src/components/Avatar";
+import { colors } from "@/src/theme";
+import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
 const { width } = Dimensions.get("window");
-const SIZE = Math.min(width - 48, 320);
+const SIZE = Math.min(width - 40, 330);
 const CENTER = SIZE / 2;
-const MAX_R = CENTER - 22;
+const MAX_R = CENTER - 24;
+const MAX_DIST = 100; // radar always spans the 100m hard cap
 
 type Props = {
   users: NearbyUser[];
-  maxDistance: number;
-  statusMap: Record<string, StatusOption>;
+  vibeMap: Record<string, Vibe>;
   onSelect: (u: NearbyUser) => void;
+  meUri?: string | null;
+  meName?: string | null;
+  radiusSetting: number;
 };
 
-export default function RadarView({ users, maxDistance, statusMap, onSelect }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 3600,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
+      Animated.timing(spin, { toValue: 1, duration: 4000, easing: Easing.linear, useNativeDriver: true })
     ).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 1400, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
   }, [spin, pulse]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.15] });
-  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0.1] });
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.2] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.05] });
+
+  const rings = [25, 50, 75, 100];
 
   return (
     <View style={styles.wrap}>
       <View style={styles.radar}>
-        {/* concentric rings */}
-        {[1, 0.66, 0.33].map((f, i) => (
-          <View
-            key={i}
-            style={[
-              styles.ring,
-              {
-                width: MAX_R * 2 * f,
-                height: MAX_R * 2 * f,
-                borderRadius: MAX_R * f,
-              },
-            ]}
-          />
+        {rings.map((m) => {
+          const f = m / MAX_DIST;
+          const active = m <= radiusSetting;
+          return (
+            <View
+              key={m}
+              style={[
+                styles.ring,
+                {
+                  width: MAX_R * 2 * f,
+                  height: MAX_R * 2 * f,
+                  borderRadius: MAX_R * f,
+                  borderColor: active ? colors.teal + "55" : colors.border,
+                },
+              ]}
+            />
+          );
+        })}
+        {rings.map((m) => (
+          <Text
+            key={`label-${m}`}
+            style={[styles.ringLabel, { top: CENTER - (m / MAX_DIST) * MAX_R - 14 }]}
+          >
+            {m}m
+          </Text>
         ))}
 
-        {/* rotating sweep beam */}
+        {/* selected radius fill */}
+        <View
+          style={[
+            styles.radiusFill,
+            {
+              width: MAX_R * 2 * (radiusSetting / MAX_DIST),
+              height: MAX_R * 2 * (radiusSetting / MAX_DIST),
+              borderRadius: MAX_R * (radiusSetting / MAX_DIST),
+            },
+          ]}
+        />
+
+        {/* rotating sweep */}
         <Animated.View style={[styles.sweep, { transform: [{ rotate }] }]}>
           <LinearGradient
-            colors={["rgba(20,184,166,0.38)", "rgba(20,184,166,0.0)"]}
+            colors={["rgba(32,178,170,0.35)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
             start={{ x: 1, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.sweepGrad}
           />
         </Animated.View>
 
-        {/* center pulse (you) */}
+        {/* center pulse + me */}
         <Animated.View
           style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
         />
-        <View style={styles.centerDot} />
+        <View style={styles.me}>
+          <Avatar uri={meUri} name={meName} size={44} ringColor={colors.orange} />
+        </View>
 
-        {/* blips */}
+        {/* nearby blips */}
         {users.map((u) => {
-          const r = Math.min(u.distance / maxDistance, 1) * MAX_R;
+          const r = Math.min(u.distance / MAX_DIST, 1) * MAX_R;
           const rad = (u.bearing * Math.PI) / 180;
-          const x = CENTER + r * Math.sin(rad) - 16;
-          const y = CENTER - r * Math.cos(rad) - 16;
-          const color = (u.status && statusMap[u.status]?.color) || colors.onSurfaceSecondary;
+          const x = CENTER + r * Math.sin(rad) - 19;
+          const y = CENTER - r * Math.cos(rad) - 19;
+          const color = (u.vibe && vibeMap[u.vibe]?.color) || colors.grey;
           return (
             <Pressable
               key={u.id}
               testID={`radar-blip-${u.id}`}
               onPress={() => onSelect(u)}
-              style={[styles.blip, { left: x, top: y, borderColor: color }]}
+              style={[styles.blip, { left: x, top: y }]}
             >
-              <Image source={{ uri: u.avatar_url || undefined }} style={styles.blipImg} />
-              {u.is_match && <View style={[styles.matchRing, { borderColor: color }]} />}
+              <Avatar uri={u.photo_url} name={u.name} size={38} ringColor={color} />
+              {u.compatible && <View style={[styles.compatDot, { backgroundColor: color }]} />}
             </Pressable>
           );
         })}
@@ -102,17 +128,18 @@ export default function RadarView({ users, maxDistance, statusMap, onSelect }: P
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center" },
-  radar: {
-    width: SIZE,
-    height: SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ring: {
+  radar: { width: SIZE, height: SIZE, alignItems: "center", justifyContent: "center" },
+  ring: { position: "absolute", borderWidth: 1.5 },
+  ringLabel: {
     position: "absolute",
-    borderWidth: 1,
-    borderColor: colors.border,
+    alignSelf: "center",
+    color: colors.textTertiary,
+    fontSize: 10,
+    fontWeight: "600",
+    backgroundColor: colors.surface,
+    paddingHorizontal: 4,
   },
+  radiusFill: { position: "absolute", backgroundColor: "rgba(32,178,170,0.06)" },
   sweep: {
     position: "absolute",
     width: MAX_R,
@@ -124,37 +151,21 @@ const styles = StyleSheet.create({
   sweepGrad: { flex: 1, borderTopRightRadius: MAX_R },
   centerPulse: {
     position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.brandPrimary,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.teal,
   },
-  centerDot: {
+  me: { position: "absolute" },
+  blip: { position: "absolute" },
+  compatDot: {
     position: "absolute",
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.brandPrimary,
+    top: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: colors.surface,
-  },
-  blip: {
-    position: "absolute",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceTertiary,
-  },
-  blipImg: { width: "100%", height: "100%" },
-  matchRing: {
-    position: "absolute",
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 20,
-    borderWidth: 1.5,
   },
 });

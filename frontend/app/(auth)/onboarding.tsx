@@ -1,119 +1,138 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LogoMark } from "@/src/components/Logo";
-import { colors, spacing, radius, font } from "@/src/theme";
+import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
+import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
-export default function Onboarding() {
+const HERO =
+  "https://images.unsplash.com/photo-1543269865-cbf427effbad?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
+
+const STEPS = [
+  { icon: "sparkles", text: "Set your intention" },
+  { icon: "resize", text: "Adjust your visibility" },
+  { icon: "people", text: "See who's nearby" },
+  { icon: "notifications", text: "Get a ping when there's a match" },
+  { icon: "shield-checkmark", text: "Stay safe and in control" },
+];
+
+const MINI_VIBES = [
+  { label: "Networking", color: colors.teal },
+  { label: "Coffee / Drinks", color: colors.orange },
+  { label: "Need Advice", color: colors.purple },
+  { label: "Relationship", color: colors.pink },
+  { label: "Gym Buddy", color: colors.success },
+];
+
+export default function Welcome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.container} testID="onboarding-screen">
-      <View style={styles.hero}>
-        <View style={[styles.ring, styles.ringOuter]} />
-        <View style={[styles.ring, styles.ringMid]} />
-        <View style={[styles.ring, styles.ringInner]} />
-        <View style={styles.accentDot} />
-        <View style={styles.accentDotSmall} />
-        <LogoMark size={116} />
-        <Text style={styles.brand}>Intro</Text>
-        <Text style={styles.tagline}>Your 50-metre social radar</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: spacing.xxl }}
+      showsVerticalScrollIndicator={false}
+      testID="onboarding-screen"
+    >
+      <View style={styles.center}>
+        <LogoMark size={84} />
+        <Text style={styles.brand}>INTRO</Text>
+        <Text style={styles.tagline}>Real people. Real moments.</Text>
       </View>
-      <View style={styles.bottom}>
-        <Text style={styles.title}>Real connections,{"\n"}right where you are.</Text>
-        <Text style={styles.sub}>
-          Share your vibe with people within 50 metres and let serendipity spark a
-          face-to-face conversation.
-        </Text>
-        <Pressable
+
+      <Text style={styles.headline}>{"See who's open to connecting nearby, right now."}</Text>
+      <Text style={styles.sub}>Your social radar for real-life conversations.</Text>
+
+      <View style={styles.heroCard}>
+        <Image source={{ uri: HERO }} style={styles.heroImg} contentFit="cover" transition={200} />
+        <View style={styles.heroBadge}>
+          <Ionicons name="location" size={14} color={colors.orange} />
+          <Text style={styles.heroBadgeText}>Within 100m only</Text>
+        </View>
+      </View>
+
+      <View style={styles.chipsRow}>
+        {MINI_VIBES.map((v) => (
+          <View key={v.label} style={[styles.miniChip, { backgroundColor: v.color + "15" }]}>
+            <Text style={[styles.miniChipText, { color: v.color }]}>{v.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.howCard}>
+        <Text style={styles.howTitle}>How Intro works</Text>
+        {STEPS.map((s) => (
+          <View key={s.text} style={styles.stepRow}>
+            <View style={styles.stepIcon}>
+              <Ionicons name={s.icon as any} size={16} color={colors.teal} />
+            </View>
+            <Text style={styles.stepText}>{s.text}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
+        <PrimaryButton
           testID="onboarding-get-started"
-          style={styles.primaryBtn}
+          title="Get Started"
           onPress={() => router.push("/(auth)/register")}
-        >
-          <Text style={styles.primaryText}>Get Started</Text>
-        </Pressable>
-        <Pressable
+        />
+        <SecondaryButton
           testID="onboarding-login"
-          style={styles.secondaryBtn}
+          title="Log In"
           onPress={() => router.push("/(auth)/login")}
-        >
-          <Text style={styles.secondaryText}>I already have an account</Text>
-        </Pressable>
+        />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
-const RING = (size: number) => ({
-  width: size,
-  height: size,
-  borderRadius: size / 2,
-});
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface, justifyContent: "space-between" },
-  hero: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
+  center: { alignItems: "center", marginBottom: spacing.xl },
+  brand: { color: colors.text, fontSize: 34, fontWeight: "800", letterSpacing: 4, marginTop: spacing.md },
+  tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: 4 },
+  headline: { color: colors.text, fontSize: font.xxl, fontWeight: "800", lineHeight: 33 },
+  sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.sm },
+  heroCard: { marginTop: spacing.lg, borderRadius: radius.lg, overflow: "hidden", ...shadow.card },
+  heroImg: { width: "100%", height: 170 },
+  heroBadge: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#FFFFFFEE",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  heroBadgeText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
+  miniChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
+  miniChipText: { fontSize: font.sm, fontWeight: "700" },
+  howCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  howTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginBottom: spacing.xs },
+  stepRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  stepIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.tealSoft,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
-  ring: {
-    position: "absolute",
-    borderWidth: 1.5,
-    borderColor: colors.brandPrimary,
-  },
-  ringOuter: { ...RING(480), opacity: 0.12 },
-  ringMid: { ...RING(340), opacity: 0.2 },
-  ringInner: { ...RING(210), opacity: 0.3 },
-  accentDot: {
-    position: "absolute",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    top: "22%",
-    right: "24%",
-  },
-  accentDotSmall: {
-    position: "absolute",
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.brandPrimary,
-    bottom: "18%",
-    left: "20%",
-    opacity: 0.7,
-  },
-  brand: {
-    color: colors.onSurface,
-    fontSize: 40,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    marginTop: spacing.lg,
-  },
-  tagline: {
-    color: colors.brand,
-    fontSize: font.base,
-    fontWeight: "500",
-    letterSpacing: 1,
-    marginTop: spacing.xs,
-  },
-  bottom: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
-  title: { color: colors.onSurface, fontSize: font.display, fontWeight: "500", lineHeight: 42 },
-  sub: {
-    color: colors.onSurfaceTertiary,
-    fontSize: font.lg,
-    lineHeight: 24,
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  primaryBtn: {
-    backgroundColor: colors.brandPrimary,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.lg,
-    alignItems: "center",
-  },
-  primaryText: { color: colors.onBrandPrimary, fontSize: font.lg, fontWeight: "600" },
-  secondaryBtn: { paddingVertical: spacing.lg, alignItems: "center", marginTop: spacing.xs },
-  secondaryText: { color: colors.onSurfaceTertiary, fontSize: font.base },
+  stepText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "500", flex: 1 },
 });

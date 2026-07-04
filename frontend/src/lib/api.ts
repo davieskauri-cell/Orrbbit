@@ -1,3 +1,5 @@
+import { getSessionToken } from "@/src/lib/session";
+
 const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
 
 type Options = {
@@ -8,7 +10,8 @@ type Options = {
 
 export async function api<T = any>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
+  const tok = opts.token !== undefined ? opts.token : getSessionToken();
+  if (tok) headers["Authorization"] = `Bearer ${tok}`;
 
   const res = await fetch(`${BASE}${path}`, {
     method: opts.method || "GET",

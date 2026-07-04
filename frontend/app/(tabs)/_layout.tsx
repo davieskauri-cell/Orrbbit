@@ -8,17 +8,17 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brandPrimary,
-        tabBarInactiveTintColor: colors.onSurfaceSecondary,
+        tabBarActiveTintColor: colors.orange,
+        tabBarInactiveTintColor: colors.textTertiary,
         sceneStyle: { backgroundColor: colors.surface },
         tabBarStyle: {
-          backgroundColor: colors.surfaceSecondary,
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
           height: Platform.OS === "ios" ? 88 : 66,
           paddingTop: spacing.sm,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "500" },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
       <Tabs.Screen
@@ -29,13 +29,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="map"
-        options={{
-          title: "Map",
-          tabBarIcon: ({ color, size }) => <Ionicons name="map" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="nearby"
         options={{
           title: "Nearby",
@@ -43,9 +36,25 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="you"
+        name="pings"
         options={{
-          title: "You",
+          title: "Pings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="encounters"
+        options={{
+          title: "Encounters",
+          tabBarIcon: ({ color, size }) => <Ionicons name="footsteps" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle" size={size} color={color} />
           ),

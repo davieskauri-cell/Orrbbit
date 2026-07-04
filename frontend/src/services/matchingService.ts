@@ -1,0 +1,19 @@
+import { api } from "@/src/lib/api";
+import type { NearbyUser } from "@/src/context/AppContext";
+
+export const MAX_RADIUS = 100;
+
+export async function getUsersWithinRadius(coords: { lat: number; lng: number }) {
+  const res = await api<{ users: NearbyUser[]; count: number; radius: number }>(
+    `/nearby?lat=${coords.lat}&lng=${coords.lng}`
+  );
+  return res;
+}
+
+export const calculateCompatibility = (u: NearbyUser) => u.compatible;
+
+export const getCompatibleUsers = (users: NearbyUser[]) =>
+  users.filter((u) => u.compatible);
+
+export const createMatch = (userId: string) =>
+  api("/matches", { method: "POST", body: { user_id: userId } });

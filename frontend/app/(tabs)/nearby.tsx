@@ -1,23 +1,29 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRadar, NearbyUser } from "@/src/context/RadarContext";
-import PersonRow from "@/src/components/PersonRow";
-import PersonDetail from "@/src/components/PersonDetail";
-import StatusPill from "@/src/components/StatusPill";
+import { useApp } from "@/src/context/AppContext";
+import { useAuth } from "@/src/context/AuthContext";
+import UserRow from "@/src/components/UserRow";
+import EmptyState from "@/src/components/EmptyState";
 import { colors, spacing, font } from "@/src/theme";
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "open_to_chat", label: "Open to Chat" },
+  { key: "relationship", label: "Relationship" },
+  { key: "coffee_drinks", label: "Coffee" },
+  { key: "networking", label: "Networking" },
+  { key: "need_advice", label: "Need Advice" },
+  { key: "gym_buddy", label: "Gym Buddy" },
+];
 
 export default function NearbyScreen() {
   const insets = useSafeAreaInsets();
-  const { nearby, statusMap, refresh } = useRadar();
-  const [selected, setSelected] = useState<NearbyUser | null>(null);
+  const router = useRouter();
+  const { user } = useAuth();
+  const { nearby, vibeMap, refresh } = useApp();
+  const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -26,65 +32,86 @@ export default function NearbyScreen() {
     setRefreshing(false);
   };
 
+  const data = filter === "all" ? nearby : nearby.filter((n) => n.vibe === filter);
+  const hidden = !user?.visible || user?.ghost_mode || user?.paused;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.kicker}>IN YOUR RADIUS</Text>
-          <Text style={styles.title}>Nearby</Text>
-        </View>
-        <StatusPill />
+      <Text style={styles.title}>Nearby</Text>
+      <Text style={styles.sub}>Within {user?.radius || 50}m of you</Text>
+
+      <View style={{ height: 52 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+        >
+          {FILTERS.map((f) => {
+            const active = filter === f.key;
+            return (
+              <Pressable
+                key={f.key}
+                testID={`filter-${f.key}`}
+                onPress={() => setFilter(f.key)}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
       <FlatList
-        data={nearby}
+        data={data}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brandPrimary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />
         }
         ItemSeparatorComponent={() => <View style={styles.divider} />}
         renderItem={({ item }) => (
-          <PersonRow user={item} statusMap={statusMap} onPress={setSelected} />
+          <UserRow user={item} vibeMap={vibeMap} onPress={(u) => router.push(`/person/${u.id}`)} />
         )}
         ListEmptyComponent={
-          <View style={styles.empty} testID="nearby-empty">
-            <Ionicons name="compass-outline" size={40} color={colors.onSurfaceSecondary} />
-            <Text style={styles.emptyTitle}>No one in range</Text>
-            <Text style={styles.emptyText}>
-              The sweep found no one nearby. Try widening your radius in the You tab.
-            </Text>
-          </View>
+          hidden ? (
+            <EmptyState
+              testID="nearby-invisible"
+              icon="eye-off"
+              title="You are invisible."
+              text="Turn visibility on to see who's nearby."
+            />
+          ) : (
+            <EmptyState
+              testID="nearby-empty"
+              icon="compass"
+              title="No one nearby right now."
+              text="Try increasing your radius up to 100m or changing your vibe."
+            />
+          )
         }
       />
-
-      <PersonDetail user={selected} statusMap={statusMap} onClose={() => setSelected(null)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
+  title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl },
+  sub: { color: colors.textSecondary, fontSize: font.base, paddingHorizontal: spacing.xl, marginTop: 2, marginBottom: spacing.md },
+  filters: { paddingHorizontal: spacing.xl, gap: spacing.sm, alignItems: "center" },
+  filterChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
   },
-  kicker: { color: colors.brandPrimary, fontSize: font.sm, letterSpacing: 2, fontWeight: "500" },
-  title: { color: colors.onSurface, fontSize: font.xxl, fontWeight: "500" },
+  filterChipActive: { backgroundColor: colors.orange, borderColor: colors.orange },
+  filterText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
+  filterTextActive: { color: "#FFF" },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, flexGrow: 1 },
-  divider: { height: 1, backgroundColor: colors.divider },
-  empty: { alignItems: "center", justifyContent: "center", paddingTop: spacing.xxxl * 2 },
-  emptyTitle: { color: colors.onSurface, fontSize: font.xl, fontWeight: "500", marginTop: spacing.lg },
-  emptyText: {
-    color: colors.onSurfaceSecondary,
-    fontSize: font.base,
-    textAlign: "center",
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    lineHeight: 20,
-  },
+  divider: { height: 1, backgroundColor: colors.border },
 });

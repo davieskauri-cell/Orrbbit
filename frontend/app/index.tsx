@@ -4,17 +4,19 @@ import { useAuth } from "@/src/context/AuthContext";
 import { colors } from "@/src/theme";
 
 export default function Index() {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
 
   if (loading) {
     return (
       <View style={styles.center} testID="app-loading">
-        <ActivityIndicator color={colors.brandPrimary} size="large" />
+        <ActivityIndicator color={colors.teal} size="large" />
       </View>
     );
   }
 
-  return <Redirect href={token ? "/(tabs)" : "/(auth)/onboarding"} />;
+  if (!token) return <Redirect href="/(auth)/onboarding" />;
+  if (!user?.vibe) return <Redirect href="/(auth)/choose-vibe" />;
+  return <Redirect href="/(tabs)" />;
 }
 
 const styles = StyleSheet.create({

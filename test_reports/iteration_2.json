@@ -1,0 +1,55 @@
+{
+  "summary": "INTRO end-to-end testing complete. Backend: 22/22 pytest cases pass (auth demo-login/register 18+/login, profile+state radius clamp 500->100, nearby radius 50=7 demos + radius 100=9 with Ryan/Emily + radius 10=0 demos, ping generate closest compatible + 2-min throttle + list/dismiss/accept->match, matches, meetups start/active with James 32m/end, encounters with compatible flag, vibes=8, demo-accounts=10, blocks hide user + reports — all via a throwaway registered user so demo accounts stay clean). Frontend (mobile 390x844): onboarding renders with Get Started + Log In, demo login as Kauri lands on Radar showing 7 nearby / 4 open to connect / 50m + Sarah 25m in Nearby Now, ping-modal (Olivia 41m 'wants to network') appears within ~2.5s on Radar with View/Dismiss buttons, Pings tab shows NEW (Sarah) + DISMISSED (James) sections, Encounters shows 9 Crossed Paths and 5 Mutual Vibes (Sarah/Sophie/Olivia/James/Ryan), Profile shows Kauri card + full menu, Privacy radius-option-100 + save-privacy successfully persists (Radar re-renders 9/5/100m + Ryan visible in radar), Demo Accounts screen lists all 10 and switching to James returns to Radar, Visibility toggle hides radar and shows invisible-empty then restores, Log Out returns to Welcome onboarding. No deprecated Expo packages detected. Backend URL: EXPO_PUBLIC_BACKEND_URL from frontend/.env.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/safety.tsx", "issue": "Report/Block user picker relies on AppContext `nearby` array which is only populated when the Radar tab has mounted at least once. If a user navigates Profile -> Safety -> Report directly without visiting Radar first (or if visibility was toggled off), the picker shows 'No one nearby right now.' Consider fetching nearby on demand when Safety opens, or preloading nearby in AppContext on login. Reference: /app/frontend/app/safety.tsx:120", "testID": "safety-report / safety-pick-<id>", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Radar", "issues": ["Because the ping-generation poll runs on the Radar screen every few seconds and the ping-modal covers the bottom of the screen (Nearby Now card + tab bar buttons), rapid navigation can be blocked by an active modal until dismissed. Consider auto-dismissing the ping-modal on tab change or on route.push, or only surfacing pings on the Pings tab badge."]},
+      {"screen": "Nearby", "issues": ["Filter chips row is a horizontal ScrollView — 'Networking' chip is off-screen on narrow devices until user scrolls. Consider a persistent 'All' + top-priority chips or a compact wrap layout."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL (Low): Preload /api/nearby in AppContext at login (or fetch on demand in safety.tsx) so Safety -> Report picker always has users, even if Radar tab hasn't been opened yet.",
+    "OPTIONAL (Low): Auto-dismiss ping-modal on route change or tab switch to avoid it covering navigation and Nearby Now controls.",
+    "OPTIONAL (Low): Consider filtering GET /api/nearby by last_active recency for real (non-demo) users to keep radars clean between test/dev sessions — stale registered users at Melbourne coords otherwise pollute results (already flagged in iteration_1).",
+    "NOTE: Backend register endpoint returns 422 (Pydantic email validation) for reserved TLDs like `.test`; tests use `.example` domain to avoid this. Not a bug — expected FastAPI/pydantic behaviour."
+  ],
+  "critical_code_review_comments": [
+    "server.py 651 lines, single-file, under 700-line threshold — clean structure with clear section comments.",
+    "public_user helper correctly excludes hashed_password and Mongo _id from responses.",
+    "State update endpoint correctly clamps radius: max(10, min(fields['radius'], 100)) — verified with radius=500 -> 100.",
+    "Ping throttle uses 2-minute window via created_at cutoff — verified with repeat generate call.",
+    "Meetup start deactivates any existing active meetup for the user before creating new (idempotent).",
+    "Meetup expires_at auto-check returns None when expired (implicitly ended).",
+    "COMPAT map correctly encodes vibe compatibility; networking + open_to_chat + need_advice all mutually compatible with networking as required.",
+    "Blocks endpoint uses upsert so double-block is safe; blocks are bidirectional via $or query on blocker_id/blocked_id.",
+    "MAX_RADIUS=100 enforced in both /api/nearby (dist > MAX_RADIUS filter) and /api/users/me/state (clamp) — good defence-in-depth.",
+    "Demo users use demo_dist/demo_bearing (relative) so radar always shows users regardless of requester's actual GPS — key for web preview demo mode.",
+    "All testIDs from the review request are present in code (73 total). Interactive elements properly annotated.",
+    "No deprecated Expo packages (no expo-av, expo-barcode-scanner, expo-background-fetch)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (rewrote for INTRO app — was leftover from prior ProximityRadar iteration)",
+    "/app/test_reports/pytest/pytest_results.xml (regenerated)"
+  ],
+  "success_rate": {
+    "backend": "100% (22/22)",
+    "frontend": "~95% — all critical flows verified via UI: onboarding, demo login, radar+stats+nearby-now, ping-modal, Pings NEW/Dismissed, Encounters crossed+mutual, Profile+menu, Privacy radius 100 saves and radar reflects 9/5/100m + Ryan, Demo Accounts switch to James, Visibility toggle+restore, Logout. Meetup match+timer flow verified via backend API (create_match, meetups, active meetup with James at 32m, end); UI attempts were preempted intermittently by ping-modal covering the CTA — recommend main agent self-verify the visible match/meetup UI countdown."
+  },
+  "seed_data_creation": "Registered throwaway users (TEST_user_<hex>@intro.example, TEST_block_<hex>@intro.example) via pytest. These were auto-hidden (visible=false, lat=null, lng=null) at end of block test so they don't pollute Kauri's radar. Additionally cleaned up stale non-demo users from prior iteration_1 runs (6 hidden) and reset Kauri state at end of testing (vibe=networking, radius=50, visible=true; cleared Kauri's pings/matches/meetups/blocks) as requested.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL: read EXPO_PUBLIC_BACKEND_URL from /app/frontend/.env (this session: https://nearby-connect-93.preview.emergentagent.com). Demo password: Intro123!. Empty POST /api/auth/demo-login -> Kauri. Web preview always uses Melbourne CBD (-37.8136, 144.9631) fallback because browsers deny geolocation — a demo banner is shown. Radius options 10/25/50/100m (clamped server-side to MAX_RADIUS=100). Demo user distances are fixed relative to requester via demo_dist/demo_bearing. Backend tests: `pytest /app/backend/tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. If polluted by residual non-demo registered users at Melbourne coords, run the cleanup snippet: update_many({'is_demo': {'$ne': True}}, {'$set': {'visible': False, 'lat': None, 'lng': None}}). Register endpoint rejects reserved TLDs (`.test`) with 422 — use `.example` for throwaway users.",
+  "rca_of_issue": "N/A — no blocking bugs. Two low-priority UX observations: (1) safety-report picker depends on nearby being cached from Radar visit; (2) ping-modal can cover navigation until dismissed. Both are minor UX polish items, not defects."
+}

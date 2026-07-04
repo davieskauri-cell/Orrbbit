@@ -1,31 +1,48 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { storage } from "@/src/utils/storage";
 import { api } from "@/src/lib/api";
+import { setSessionToken } from "@/src/lib/session";
 
 const TOKEN_KEY = "auth_token";
 
 export type User = {
   id: string;
   email: string;
-  display_name: string;
+  name: string | null;
+  age: number | null;
   bio: string;
-  avatar_url: string | null;
-  status: string | null;
+  photo_url: string | null;
+  interests: string[];
+  vibe: string | null;
   visible: boolean;
   radius: number;
+  ghost_mode: boolean;
+  paused: boolean;
+  only_same_vibe: boolean;
+  verified_only: boolean;
+  who_can_see: string;
+  visible_for: number;
+  verified: boolean;
+  is_demo: boolean;
+};
+
+export type RegisterPayload = {
+  email: string;
+  password: string;
+  name: string;
+  age: number;
+  bio?: string;
+  interests?: string[];
+  photo_url?: string | null;
 };
 
 type AuthValue = {
   token: string | null;
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  register: (payload: {
-    email: string;
-    password: string;
-    display_name: string;
-    bio?: string;
-  }) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<User>;
+  register: (payload: RegisterPayload) => Promise<User>;
+  demoLogin: (email?: string) => Promise<User>;
   signOut: () => Promise<void>;
   setUser: (u: User) => void;
   refreshUser: () => Promise<void>;
@@ -44,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (saved && typeof saved === "string") {
         try {
           const me = await api<User>("/auth/me", { token: saved });
+          setSessionToken(saved);
           setToken(saved);
           setUser(me);
         } catch {
@@ -56,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const persist = async (t: string, u: User) => {
     await storage.secureSet(TOKEN_KEY, t);
+    setSessionToken(t);
     setToken(t);
     setUser(u);
   };
@@ -66,21 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: { email, password },
     });
     await persist(res.access_token, res.user);
+    return res.user;
   }, []);
 
-  const register = useCallback(
-    async (payload: { email: string; password: string; display_name: string; bio?: string }) => {
-      const res = await api<{ access_token: string; user: User }>("/auth/register", {
-        method: "POST",
-        body: payload,
-      });
-      await persist(res.access_token, res.user);
-    },
-    []
-  );
+  const register = useCallback(async (payload: RegisterPayload) => {
+    const res = await api<{ access_token: string; user: User }>("/auth/register", {
+      method: "POST",
+      body: payload,
+    });
+    await persist(res.access_token, res.user);
+    return res.user;
+  }, []);
+
+  const demoLogin = useCallback(async (email?: string) => {
+    const res = await api<{ access_token: string; user: User }>("/auth/demo-login", {
+      method: "POST",
+      body: email ? { email } : {},
+    });
+    await persist(res.access_token, res.user);
+    return res.user;
+  }, []);
 
   const signOut = useCallback(async () => {
     await storage.secureRemove(TOKEN_KEY);
+    setSessionToken(null);
     setToken(null);
     setUser(null);
   }, []);
@@ -93,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, user, loading, signIn, register, signOut, setUser, refreshUser }}
+      value={{ token, user, loading, signIn, register, demoLogin, signOut, setUser, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

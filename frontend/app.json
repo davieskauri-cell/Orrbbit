@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "See people open to connect near you"
-      }
+      },
+      "bundleIdentifier": "com.emergent.nearbyconnect.n08ian"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,8 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "package": "com.emergent.nearbyconnect.n08ian"
     },
     "web": {
       "bundler": "metro",

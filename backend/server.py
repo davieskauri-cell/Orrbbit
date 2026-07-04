@@ -40,9 +40,11 @@ logger = logging.getLogger(__name__)
 class RegisterIn(BaseModel):
     email: EmailStr
     password: str
-    display_name: str
+    name: str
+    age: int
     bio: Optional[str] = ""
-    avatar_url: Optional[str] = None
+    interests: Optional[List[str]] = []
+    photo_url: Optional[str] = None
 
 
 class LoginIn(BaseModel):
@@ -50,25 +52,48 @@ class LoginIn(BaseModel):
     password: str
 
 
+class DemoLoginIn(BaseModel):
+    email: Optional[EmailStr] = None
+
+
 class ProfileUpdate(BaseModel):
-    display_name: Optional[str] = None
+    name: Optional[str] = None
+    age: Optional[int] = None
     bio: Optional[str] = None
-    avatar_url: Optional[str] = None
+    interests: Optional[List[str]] = None
+    photo_url: Optional[str] = None
 
 
 class StateUpdate(BaseModel):
-    status: Optional[str] = None
+    vibe: Optional[str] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
     visible: Optional[bool] = None
     radius: Optional[int] = None
+    ghost_mode: Optional[bool] = None
+    paused: Optional[bool] = None
+    only_same_vibe: Optional[bool] = None
+    verified_only: Optional[bool] = None
+    who_can_see: Optional[str] = None
+    visible_for: Optional[int] = None
 
 
-class StatusOptionIn(BaseModel):
-    label: str
-    description: str
-    color: str
-    icon: str
+class MatchIn(BaseModel):
+    user_id: str
+
+
+class MeetupIn(BaseModel):
+    user_id: str
+
+
+class BlockIn(BaseModel):
+    user_id: str
+
+
+class ReportIn(BaseModel):
+    user_id: str
+    reason: str
+    details: Optional[str] = ""
 
 
 # ----------------------------- Helpers -----------------------------
@@ -85,16 +110,29 @@ def create_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
+MAX_RADIUS = 100  # Intro never reveals anyone beyond 100 metres
+
+
 def public_user(u: dict) -> dict:
     return {
         "id": u["id"],
         "email": u["email"],
-        "display_name": u.get("display_name"),
+        "name": u.get("name"),
+        "age": u.get("age"),
         "bio": u.get("bio", ""),
-        "avatar_url": u.get("avatar_url"),
-        "status": u.get("status"),
+        "photo_url": u.get("photo_url"),
+        "interests": u.get("interests", []),
+        "vibe": u.get("vibe"),
         "visible": u.get("visible", True),
-        "radius": min(u.get("radius", 50) or 50, 50),
+        "radius": min(u.get("radius", 50) or 50, MAX_RADIUS),
+        "ghost_mode": u.get("ghost_mode", False),
+        "paused": u.get("paused", False),
+        "only_same_vibe": u.get("only_same_vibe", False),
+        "verified_only": u.get("verified_only", False),
+        "who_can_see": u.get("who_can_see", "everyone"),
+        "visible_for": u.get("visible_for", 60),
+        "verified": u.get("verified", False),
+        "is_demo": u.get("is_demo", False),
     }
 
 
@@ -143,47 +181,55 @@ def destination_point(lat, lng, distance_m, bearing_deg):
     return math.degrees(p2), math.degrees(l2)
 
 
-# complementary status matching graph
-MATCH_GRAPH = {
-    "open_to_chat": ["open_to_chat", "looking_for_relationship", "struggling"],
-    "looking_for_relationship": ["looking_for_relationship", "open_to_chat"],
-    "struggling": ["struggling", "open_to_chat"],
+# ----------------------------- Vibes & demo data -----------------------------
+VIBES = [
+    {"key": "open_to_chat", "label": "Open to Chat", "description": "Make new connections", "color": "#20B2AA", "icon": "chatbubble-ellipses", "ping_title": "Someone nearby is open to chat 👋", "action": "Say Hi"},
+    {"key": "relationship", "label": "Looking for a Relationship", "description": "Find something real", "color": "#FF2D55", "icon": "heart", "ping_title": "Someone nearby has the same intention ❤️", "action": "I'm Interested"},
+    {"key": "coffee_drinks", "label": "Coffee / Drinks", "description": "Grab a coffee or drink", "color": "#FF5A1F", "icon": "cafe", "ping_title": "Someone nearby is up for coffee ☕", "action": "Grab a Coffee"},
+    {"key": "networking", "label": "Networking", "description": "Meet professionals", "color": "#20B2AA", "icon": "briefcase", "ping_title": "Someone nearby wants to network 💼", "action": "Let's Connect"},
+    {"key": "need_advice", "label": "Need Advice", "description": "Get or offer advice", "color": "#8B5CF6", "icon": "help-circle", "ping_title": "Someone nearby needs advice 💬", "action": "Offer Advice"},
+    {"key": "gym_buddy", "label": "Gym Buddy", "description": "Train together", "color": "#22C55E", "icon": "barbell", "ping_title": "Someone nearby wants to train 🏋️", "action": "Let's Train"},
+    {"key": "exploring", "label": "Exploring", "description": "Discover nearby", "color": "#F59E0B", "icon": "walk", "ping_title": "Someone nearby wants to explore 🧭", "action": "Explore Together"},
+    {"key": "busy", "label": "Busy", "description": "Not available", "color": "#9CA3AF", "icon": "notifications-off", "ping_title": None, "action": None},
+]
+VIBE_KEYS = {v["key"] for v in VIBES}
+
+COMPAT = {
+    "open_to_chat": ["open_to_chat", "coffee_drinks", "exploring", "networking", "need_advice"],
+    "relationship": ["relationship"],
+    "coffee_drinks": ["open_to_chat", "coffee_drinks", "exploring"],
+    "networking": ["networking", "open_to_chat", "need_advice"],
+    "need_advice": ["need_advice", "networking", "open_to_chat"],
+    "gym_buddy": ["gym_buddy", "open_to_chat"],
+    "exploring": ["exploring", "coffee_drinks", "open_to_chat"],
     "busy": [],
 }
 
-DEFAULT_STATUSES = [
-    {"key": "open_to_chat", "label": "Open to Chat", "description": "Up for a friendly conversation with anyone nearby.", "color": "#14B8A6", "icon": "chatbubble-ellipses", "is_default": True},
-    {"key": "looking_for_relationship", "label": "Looking for a Relationship", "description": "Hoping to meet someone special right now.", "color": "#FB7185", "icon": "heart", "is_default": True},
-    {"key": "struggling", "label": "Struggling / Need Advice", "description": "Could use a listening ear or some guidance.", "color": "#F59E0B", "icon": "help-buoy", "is_default": True},
-    {"key": "busy", "label": "Busy", "description": "Around but not available to connect right now.", "color": "#94A3B8", "icon": "moon", "is_default": True},
-]
-
-AVATARS = [
-    "https://images.unsplash.com/photo-1782116673361-ee0d595c9fde?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
-    "https://images.unsplash.com/photo-1779997744346-a04b046a7e3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwyfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
-    "https://images.unsplash.com/photo-1567934859879-9addfb1e07f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMGNhc3VhbCUyMHlvdW5nJTIwYWR1bHR8ZW58MHx8fHwxNzgyOTkxMTIxfDA&ixlib=rb-4.1.0&q=85",
-]
-
-# fixed relative offsets so mock users always appear around the requester
-MOCK_USERS = [
-    {"id": "mock-1", "display_name": "Aria", "status": "looking_for_relationship", "dist": 8, "bearing": 25, "bio": "New in town, love live music.", "avatar_url": AVATARS[0]},
-    {"id": "mock-2", "display_name": "Leo", "status": "open_to_chat", "dist": 22, "bearing": 110, "bio": "Grabbing coffee, say hi!", "avatar_url": AVATARS[2]},
-    {"id": "mock-3", "display_name": "Maya", "status": "struggling", "dist": 31, "bearing": 200, "bio": "Rough week, could use a chat.", "avatar_url": AVATARS[1]},
-    {"id": "mock-4", "display_name": "Sam", "status": "busy", "dist": 16, "bearing": 300, "bio": "Heads down, working.", "avatar_url": AVATARS[2]},
-    {"id": "mock-5", "display_name": "Noa", "status": "open_to_chat", "dist": 44, "bearing": 60, "bio": "Exploring the city solo.", "avatar_url": AVATARS[0]},
-    {"id": "mock-6", "display_name": "Kai", "status": "looking_for_relationship", "dist": 49, "bearing": 245, "bio": "Foodie searching for a partner in crime.", "avatar_url": AVATARS[2]},
-    {"id": "mock-7", "display_name": "Ivy", "status": "struggling", "dist": 38, "bearing": 155, "bio": "Feeling a bit lost lately.", "avatar_url": AVATARS[1]},
+DEMO_PASSWORD = "Intro123!"
+DEMO_ACCOUNTS = [
+    {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Intro and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5},
+    {"email": "james@intro.demo", "name": "James", "age": 31, "vibe": "networking", "bio": "Startup founder in fintech. Always open to meeting new people and sharing ideas.", "interests": ["Startups", "Finance", "Tech", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/32.jpg", "dist": 32, "bearing": 40, "minutes_ago": 120},
+    {"email": "sarah@intro.demo", "name": "Sarah", "age": 24, "vibe": "need_advice", "bio": "Feeling a bit stuck in my career. Would love some guidance from someone with experience.", "interests": ["Career", "Mindset", "Life Advice"], "photo_url": "https://randomuser.me/api/portraits/women/44.jpg", "dist": 25, "bearing": 210, "minutes_ago": 3},
+    {"email": "olivia@intro.demo", "name": "Olivia", "age": 28, "vibe": "networking", "bio": "Marketing manager who loves meeting ambitious people and sharing ideas over coffee.", "interests": ["Marketing", "Business", "Coffee"], "photo_url": "https://randomuser.me/api/portraits/women/65.jpg", "dist": 41, "bearing": 120, "minutes_ago": 90},
+    {"email": "jake@intro.demo", "name": "Jake", "age": 29, "vibe": "coffee_drinks", "bio": "Always up for a coffee and a good conversation.", "interests": ["Coffee", "Music", "Travel"], "photo_url": "https://randomuser.me/api/portraits/men/22.jpg", "dist": 28, "bearing": 300, "minutes_ago": 12},
+    {"email": "mia@intro.demo", "name": "Mia", "age": 26, "vibe": "relationship", "bio": "Looking to meet someone genuine in real life, not just through endless swiping.", "interests": ["Fitness", "Travel", "Food"], "photo_url": "https://randomuser.me/api/portraits/women/68.jpg", "dist": 38, "bearing": 160, "minutes_ago": 20},
+    {"email": "liam@intro.demo", "name": "Liam", "age": 30, "vibe": "gym_buddy", "bio": "Looking for someone to train with nearby.", "interests": ["Gym", "Running", "Health"], "photo_url": "https://randomuser.me/api/portraits/men/75.jpg", "dist": 45, "bearing": 250, "minutes_ago": 60},
+    {"email": "sophie@intro.demo", "name": "Sophie", "age": 29, "vibe": "open_to_chat", "bio": "New to Melbourne and always open to random conversations.", "interests": ["Coffee", "Music", "Walks"], "photo_url": "https://randomuser.me/api/portraits/women/12.jpg", "dist": 36, "bearing": 80, "minutes_ago": 35},
+    {"email": "ryan@intro.demo", "name": "Ryan", "age": 35, "vibe": "networking", "bio": "Business owner who enjoys meeting other driven people nearby.", "interests": ["Business", "Leadership", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/41.jpg", "dist": 78, "bearing": 330, "minutes_ago": 180},
+    {"email": "emily@intro.demo", "name": "Emily", "age": 27, "vibe": "coffee_drinks", "bio": "Always happy to meet someone for a quick coffee and good conversation.", "interests": ["Coffee", "Food", "Travel"], "photo_url": "https://randomuser.me/api/portraits/women/33.jpg", "dist": 94, "bearing": 190, "minutes_ago": 240},
 ]
 
 
 # ----------------------------- Auth routes -----------------------------
 @api_router.get("/")
 async def root():
-    return {"message": "Intro API"}
+    return {"message": "Intro API", "tagline": "Real people. Real moments."}
 
 
 @api_router.post("/auth/register")
 async def register(body: RegisterIn):
+    if body.age < 18:
+        raise HTTPException(status_code=400, detail="You must be 18 or older to use Intro")
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -191,20 +237,29 @@ async def register(body: RegisterIn):
         "id": str(uuid.uuid4()),
         "email": body.email.lower(),
         "hashed_password": pwd_context.hash(body.password),
-        "display_name": body.display_name,
+        "name": body.name,
+        "age": body.age,
         "bio": body.bio or "",
-        "avatar_url": body.avatar_url or AVATARS[0],
-        "status": None,
+        "interests": body.interests or [],
+        "photo_url": body.photo_url,
+        "vibe": None,
         "lat": None,
         "lng": None,
         "visible": True,
         "radius": 50,
+        "ghost_mode": False,
+        "paused": False,
+        "only_same_vibe": False,
+        "verified_only": False,
+        "who_can_see": "everyone",
+        "visible_for": 60,
+        "verified": False,
+        "is_demo": False,
         "created_at": now_iso(),
         "last_active": now_iso(),
     }
     await db.users.insert_one(user)
-    token = create_token(user["id"])
-    return {"access_token": token, "user": public_user(user)}
+    return {"access_token": create_token(user["id"]), "user": public_user(user)}
 
 
 @api_router.post("/auth/login")
@@ -212,8 +267,16 @@ async def login(body: LoginIn):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not pwd_context.verify(body.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_token(user["id"])
-    return {"access_token": token, "user": public_user(user)}
+    return {"access_token": create_token(user["id"]), "user": public_user(user)}
+
+
+@api_router.post("/auth/demo-login")
+async def demo_login(body: DemoLoginIn):
+    email = (body.email or "kauri@intro.demo").lower()
+    user = await db.users.find_one({"email": email, "is_demo": True})
+    if not user:
+        raise HTTPException(status_code=404, detail="Demo account not found")
+    return {"access_token": create_token(user["id"]), "user": public_user(user)}
 
 
 @api_router.get("/auth/me")
@@ -221,6 +284,23 @@ async def me(user: dict = Depends(get_current_user)):
     return public_user(user)
 
 
+@api_router.get("/demo-accounts")
+async def demo_accounts():
+    users = await db.users.find({"is_demo": True}).to_list(50)
+    order = {a["email"]: i for i, a in enumerate(DEMO_ACCOUNTS)}
+    users.sort(key=lambda u: order.get(u["email"], 99))
+    return [
+        {"email": u["email"], "name": u.get("name"), "age": u.get("age"), "vibe": u.get("vibe"), "photo_url": u.get("photo_url"), "bio": u.get("bio", "")}
+        for u in users
+    ]
+
+
+@api_router.get("/vibes")
+async def get_vibes():
+    return VIBES
+
+
+# ----------------------------- Profile & state -----------------------------
 @api_router.put("/users/me")
 async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
@@ -234,89 +314,301 @@ async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_u
 async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
     if "radius" in fields:
-        # Intro is strictly a 50-metre experience
-        fields["radius"] = max(10, min(int(fields["radius"]), 50))
+        fields["radius"] = max(10, min(int(fields["radius"]), MAX_RADIUS))
+    if "vibe" in fields and fields["vibe"] not in VIBE_KEYS:
+        raise HTTPException(status_code=400, detail="Unknown vibe")
     fields["last_active"] = now_iso()
     await db.users.update_one({"id": user["id"]}, {"$set": fields})
     user = await db.users.find_one({"id": user["id"]})
     return public_user(user)
 
 
-# ----------------------------- Statuses -----------------------------
-@api_router.get("/statuses")
-async def get_statuses():
-    items = await db.statuses.find().to_list(200)
-    return [{"key": i["key"], "label": i["label"], "description": i["description"], "color": i["color"], "icon": i["icon"], "is_default": i.get("is_default", False)} for i in items]
-
-
-@api_router.post("/statuses")
-async def add_status(body: StatusOptionIn, user: dict = Depends(get_current_user)):
-    key = body.label.lower().strip().replace(" ", "_").replace("/", "")[:40] + "_" + str(uuid.uuid4())[:6]
-    doc = {"key": key, "label": body.label, "description": body.description, "color": body.color, "icon": body.icon, "is_default": False}
-    await db.statuses.insert_one(doc)
-    return {"key": key, "label": body.label, "description": body.description, "color": body.color, "icon": body.icon, "is_default": False}
-
-
 # ----------------------------- Nearby radar -----------------------------
+async def get_blocked_ids(user_id: str) -> set:
+    blocks = await db.blocks.find({"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]}).to_list(500)
+    ids = set()
+    for b in blocks:
+        ids.add(b["blocker_id"])
+        ids.add(b["blocked_id"])
+    ids.discard(user_id)
+    return ids
+
+
+async def compute_nearby(user: dict, lat: float, lng: float) -> list:
+    radius = min(user.get("radius", 50) or 50, MAX_RADIUS)
+    my_vibe = user.get("vibe")
+    compat = COMPAT.get(my_vibe, []) if my_vibe else []
+    blocked = await get_blocked_ids(user["id"])
+    results = []
+    others = await db.users.find({"id": {"$ne": user["id"]}}).to_list(500)
+    for o in others:
+        if o["id"] in blocked:
+            continue
+        if not o.get("visible", True) or o.get("ghost_mode") or o.get("paused"):
+            continue
+        if o.get("is_demo") and o.get("demo_dist") is not None:
+            dist = o["demo_dist"]
+            brg = o.get("demo_bearing", 0)
+            plat, plng = destination_point(lat, lng, dist, brg)
+        elif o.get("lat") is not None:
+            dist = haversine(lat, lng, o["lat"], o["lng"])
+            brg = bearing_between(lat, lng, o["lat"], o["lng"])
+            plat, plng = o["lat"], o["lng"]
+        else:
+            continue
+        if dist > radius or dist > MAX_RADIUS:
+            continue
+        o_vibe = o.get("vibe")
+        if user.get("only_same_vibe") and o_vibe != my_vibe:
+            continue
+        if user.get("verified_only") and not o.get("verified"):
+            continue
+        results.append({
+            "id": o["id"],
+            "name": o.get("name"),
+            "age": o.get("age"),
+            "bio": o.get("bio", ""),
+            "photo_url": o.get("photo_url"),
+            "interests": o.get("interests", []),
+            "vibe": o_vibe,
+            "distance": round(dist),
+            "bearing": round(brg),
+            "lat": plat,
+            "lng": plng,
+            "compatible": bool(my_vibe and my_vibe != "busy" and o_vibe in compat),
+            "is_demo": o.get("is_demo", False),
+        })
+    results.sort(key=lambda r: r["distance"])
+    return results
+
+
 @api_router.get("/nearby")
 async def nearby(
     lat: float = Query(...),
     lng: float = Query(...),
-    radius: int = Query(50),
     user: dict = Depends(get_current_user),
 ):
-    # hard cap: nobody beyond 50 metres is ever revealed
-    radius = max(1, min(radius, 50))
-    my_status = user.get("status")
-    complements = MATCH_GRAPH.get(my_status, []) if my_status else []
-    results = []
+    results = await compute_nearby(user, lat, lng)
+    return {
+        "count": len(results),
+        "radius": min(user.get("radius", 50) or 50, MAX_RADIUS),
+        "my_vibe": user.get("vibe"),
+        "users": results,
+    }
 
-    # mock users positioned relative to requester
-    for m in MOCK_USERS:
-        plat, plng = destination_point(lat, lng, m["dist"], m["bearing"])
-        dist = m["dist"]
-        if dist <= radius:
-            results.append({
-                "id": m["id"],
-                "display_name": m["display_name"],
-                "avatar_url": m["avatar_url"],
-                "status": m["status"],
-                "bio": m["bio"],
-                "lat": plat,
-                "lng": plng,
-                "distance": round(dist),
-                "bearing": round(m["bearing"]),
-                "is_mock": True,
-                "is_match": m["status"] in complements,
-            })
 
-    # real visible users nearby
-    cursor = db.users.find({
-        "visible": True,
-        "lat": {"$ne": None},
-        "id": {"$ne": user["id"]},
+# ----------------------------- Pings -----------------------------
+def ping_payload(p: dict, u_info: dict) -> dict:
+    vibe_def = next((v for v in VIBES if v["key"] == p["vibe"]), None)
+    return {
+        "id": p["id"],
+        "status": p["status"],
+        "vibe": p["vibe"],
+        "title": (vibe_def or {}).get("ping_title") or "Someone nearby wants to connect 👋",
+        "distance": p.get("distance_meters"),
+        "created_at": p["created_at"],
+        "user": u_info,
+    }
+
+
+@api_router.post("/pings/generate")
+async def generate_ping(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    if not user.get("visible", True) or user.get("ghost_mode") or user.get("paused"):
+        return {"ping": None}
+    if not user.get("vibe") or user.get("vibe") == "busy":
+        return {"ping": None}
+    candidates = [c for c in await compute_nearby(user, lat, lng) if c["compatible"]]
+    if not candidates:
+        return {"ping": None}
+    # avoid re-pinging the same person within 2 minutes
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    recent = await db.pings.find({"to_user_id": user["id"], "created_at": {"$gt": cutoff}}).to_list(100)
+    recent_from = {p["from_user_id"] for p in recent}
+    candidates = [c for c in candidates if c["id"] not in recent_from]
+    if not candidates:
+        return {"ping": None}
+    pick = candidates[0]
+    ping = {
+        "id": str(uuid.uuid4()),
+        "from_user_id": pick["id"],
+        "to_user_id": user["id"],
+        "vibe": pick["vibe"],
+        "status": "new",
+        "distance_meters": pick["distance"],
+        "created_at": now_iso(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+    }
+    await db.pings.insert_one(dict(ping))
+    return {"ping": ping_payload(ping, pick)}
+
+
+@api_router.get("/pings")
+async def list_pings(user: dict = Depends(get_current_user)):
+    pings = await db.pings.find({"to_user_id": user["id"]}).to_list(200)
+    pings.sort(key=lambda p: p["created_at"], reverse=True)
+    blocked = await get_blocked_ids(user["id"])
+    out = []
+    for p in pings:
+        if p["from_user_id"] in blocked:
+            continue
+        u = await db.users.find_one({"id": p["from_user_id"]})
+        if not u:
+            continue
+        info = {
+            "id": u["id"], "name": u.get("name"), "age": u.get("age"),
+            "photo_url": u.get("photo_url"), "vibe": u.get("vibe"), "bio": u.get("bio", ""),
+        }
+        out.append(ping_payload(p, info))
+    return out
+
+
+@api_router.post("/pings/{ping_id}/dismiss")
+async def dismiss_ping(ping_id: str, user: dict = Depends(get_current_user)):
+    await db.pings.update_one({"id": ping_id, "to_user_id": user["id"]}, {"$set": {"status": "dismissed"}})
+    return {"ok": True}
+
+
+@api_router.post("/pings/{ping_id}/accept")
+async def accept_ping(ping_id: str, user: dict = Depends(get_current_user)):
+    ping = await db.pings.find_one({"id": ping_id, "to_user_id": user["id"]})
+    if not ping:
+        raise HTTPException(status_code=404, detail="Ping not found")
+    await db.pings.update_one({"id": ping_id}, {"$set": {"status": "recent"}})
+    match = await create_match_docs(user["id"], ping["from_user_id"])
+    return {"match": match}
+
+
+# ----------------------------- Matches -----------------------------
+async def create_match_docs(a: str, b: str) -> dict:
+    existing = await db.matches.find_one({
+        "active": True,
+        "$or": [{"user_a": a, "user_b": b}, {"user_a": b, "user_b": a}],
     })
-    others = await cursor.to_list(500)
-    for other in others:
-        dist = haversine(lat, lng, other["lat"], other["lng"])
-        if dist <= radius:
-            brg = bearing_between(lat, lng, other["lat"], other["lng"])
-            results.append({
-                "id": other["id"],
-                "display_name": other.get("display_name"),
-                "avatar_url": other.get("avatar_url"),
-                "status": other.get("status"),
-                "bio": other.get("bio", ""),
-                "lat": other["lat"],
-                "lng": other["lng"],
-                "distance": round(dist),
-                "bearing": round(brg),
-                "is_mock": False,
-                "is_match": other.get("status") in complements,
-            })
+    if existing:
+        existing.pop("_id", None)
+        return existing
+    match = {
+        "id": str(uuid.uuid4()), "user_a": a, "user_b": b,
+        "accepted_a": True, "accepted_b": True, "active": True, "created_at": now_iso(),
+    }
+    await db.matches.insert_one(dict(match))
+    return match
 
-    results.sort(key=lambda r: r["distance"])
-    return {"count": len(results), "my_status": my_status, "users": results}
+
+@api_router.post("/matches")
+async def create_match(body: MatchIn, user: dict = Depends(get_current_user)):
+    other = await db.users.find_one({"id": body.user_id})
+    if not other:
+        raise HTTPException(status_code=404, detail="User not found")
+    match = await create_match_docs(user["id"], body.user_id)
+    return {
+        "match": match,
+        "user": {"id": other["id"], "name": other.get("name"), "age": other.get("age"), "photo_url": other.get("photo_url"), "vibe": other.get("vibe")},
+    }
+
+
+# ----------------------------- Meetups -----------------------------
+@api_router.post("/meetups")
+async def start_meetup(body: MeetupIn, user: dict = Depends(get_current_user)):
+    await db.meetups.update_many(
+        {"active": True, "$or": [{"user_a": user["id"]}, {"user_b": user["id"]}]},
+        {"$set": {"active": False, "ended_at": now_iso()}},
+    )
+    meetup = {
+        "id": str(uuid.uuid4()), "user_a": user["id"], "user_b": body.user_id,
+        "active": True, "started_at": now_iso(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(),
+    }
+    await db.meetups.insert_one(dict(meetup))
+    return meetup
+
+
+@api_router.get("/meetups/active")
+async def active_meetup(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    m = await db.meetups.find_one({"active": True, "$or": [{"user_a": user["id"]}, {"user_b": user["id"]}]})
+    if not m:
+        return {"meetup": None}
+    if m["expires_at"] < now_iso():
+        await db.meetups.update_one({"id": m["id"]}, {"$set": {"active": False, "ended_at": now_iso()}})
+        return {"meetup": None}
+    other_id = m["user_b"] if m["user_a"] == user["id"] else m["user_a"]
+    o = await db.users.find_one({"id": other_id})
+    dist, brg = 30, 45
+    if o:
+        if o.get("is_demo") and o.get("demo_dist") is not None:
+            dist, brg = o["demo_dist"], o.get("demo_bearing", 45)
+        elif o.get("lat") is not None:
+            dist = round(haversine(lat, lng, o["lat"], o["lng"]))
+            brg = round(bearing_between(lat, lng, o["lat"], o["lng"]))
+    return {"meetup": {
+        "id": m["id"], "started_at": m["started_at"], "expires_at": m["expires_at"],
+        "user": {"id": o["id"], "name": o.get("name"), "age": o.get("age"), "photo_url": o.get("photo_url"), "vibe": o.get("vibe")} if o else None,
+        "distance": dist, "bearing": brg,
+    }}
+
+
+@api_router.post("/meetups/{meetup_id}/end")
+async def end_meetup(meetup_id: str, user: dict = Depends(get_current_user)):
+    await db.meetups.update_one(
+        {"id": meetup_id, "$or": [{"user_a": user["id"]}, {"user_b": user["id"]}]},
+        {"$set": {"active": False, "ended_at": now_iso()}},
+    )
+    return {"ok": True}
+
+
+# ----------------------------- Encounters -----------------------------
+@api_router.get("/encounters")
+async def encounters(user: dict = Depends(get_current_user)):
+    my_vibe = user.get("vibe")
+    compat = COMPAT.get(my_vibe, []) if my_vibe else []
+    blocked = await get_blocked_ids(user["id"])
+    demo = await db.users.find({"is_demo": True, "id": {"$ne": user["id"]}}).to_list(50)
+    now = datetime.now(timezone.utc)
+    out = []
+    for o in demo:
+        if o["id"] in blocked:
+            continue
+        d = o.get("demo_dist")
+        if d is None or d > MAX_RADIUS:
+            continue
+        mins = o.get("demo_minutes_ago", 30)
+        out.append({
+            "id": o["id"], "name": o.get("name"), "age": o.get("age"),
+            "photo_url": o.get("photo_url"), "vibe": o.get("vibe"),
+            "distance": d, "minutes_ago": mins,
+            "seen_at": (now - timedelta(minutes=mins)).isoformat(),
+            "compatible": bool(my_vibe and my_vibe != "busy" and o.get("vibe") in compat),
+        })
+    out.sort(key=lambda e: e["minutes_ago"])
+    return out
+
+
+# ----------------------------- Safety -----------------------------
+@api_router.post("/blocks")
+async def block_user(body: BlockIn, user: dict = Depends(get_current_user)):
+    await db.blocks.update_one(
+        {"blocker_id": user["id"], "blocked_id": body.user_id},
+        {"$set": {"blocker_id": user["id"], "blocked_id": body.user_id, "created_at": now_iso()}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+@api_router.post("/reports")
+async def report_user(body: ReportIn, user: dict = Depends(get_current_user)):
+    await db.reports.insert_one({
+        "id": str(uuid.uuid4()), "reporter_id": user["id"], "reported_id": body.user_id,
+        "reason": body.reason, "details": body.details or "", "created_at": now_iso(),
+    })
+    return {"ok": True}
 
 
 app.include_router(api_router)
@@ -331,10 +623,26 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-async def seed_statuses():
-    for s in DEFAULT_STATUSES:
-        await db.statuses.update_one({"key": s["key"]}, {"$set": s}, upsert=True)
-    logger.info("Seeded default statuses")
+async def seed_demo_accounts():
+    for acc in DEMO_ACCOUNTS:
+        doc = {
+            "email": acc["email"], "name": acc["name"], "age": acc["age"], "vibe": acc["vibe"],
+            "bio": acc["bio"], "interests": acc["interests"], "photo_url": acc["photo_url"],
+            "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
+            "visible": True, "radius": 50, "ghost_mode": False, "paused": False,
+            "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
+            "visible_for": 60, "verified": True, "is_demo": True,
+            "lat": None, "lng": None, "last_active": now_iso(),
+        }
+        existing = await db.users.find_one({"email": acc["email"]})
+        if existing:
+            await db.users.update_one({"email": acc["email"]}, {"$set": doc})
+        else:
+            doc["id"] = str(uuid.uuid4())
+            doc["hashed_password"] = pwd_context.hash(DEMO_PASSWORD)
+            doc["created_at"] = now_iso()
+            await db.users.insert_one(doc)
+    logger.info("Seeded %d demo accounts", len(DEMO_ACCOUNTS))
 
 
 @app.on_event("shutdown")
