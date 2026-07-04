@@ -1,48 +1,42 @@
-# ProximityRadar — PRD
+# INTRO — Product Requirements Document
 
-## Original Problem Statement
-A proximity-based social radar app revealing users' real-time social availability (Open to Chat, Busy, Looking for a Relationship, Struggling/Need Advice). Uses location to show status only to others within a radius (hard-capped at 50m; selectable 10/25/50m), acting as a real-life icebreaker for organic, face-to-face interactions. Match alerts when complementary statuses cross paths. Privacy: opt-in temporary location, adjustable radius, toggle visibility off.
+## Product
+INTRO — proximity-based social app. Tagline: "Real people. Real moments." Promise: "See who's open to connecting nearby, right now."
+Users pre-signal a social intention ("vibe"). Compatible users physically nearby (≤100m HARD CAP) receive gentle pings, can view each other's profile, and on mutual acceptance unlock temporary (15-minute) approximate meetup location sharing.
 
-## Latest updates (June 2026)
-- 50m hard cap: backend clamps radius in /api/nearby and /users/me/state (10–50m); public_user caps stored values; mock personas repositioned within 8–49m; frontend defaults 50m.
-- Radius selector in You tab: segmented chips 10m / 25m / 50m (replaced 50–300m slider).
-- New welcoming light theme: soft teal/mint (#F4FAF7 surface, #14B8A6 brand) with warm orange accent (#FB923C); light map style; light match-alert overlay; dark status bar.
-- New "Intro" logo: playful radar/wave mark (react-native-svg, src/components/Logo.tsx) used on onboarding + Radar header; regenerated app icons/splash/favicon via /app/scripts/gen_icons.py; app.json name "Intro", teal adaptive icon bg, mint splash bg.
-- Default status colors refreshed: teal/rose/amber/slate.
+## Status: FULL MVP COMPLETE (July 2026 rebuild per detailed user spec)
+Tested: 22/22 backend pytest cases + all frontend flows pass (test_reports/iteration_2.json).
 
-## User Choices
-- Auth: JWT email/password + profile setup
-- Proximity: real GPS with mock users seeded nearby
-- Views: radar-sweep screen AND live map with pins
-- Statuses: 4 defaults + custom vibes
-- Visual: agent-designed (6 Glass/Luxe, dark emerald cinematic)
+## Core rules
+- Max distance: 100m — never show/ping/match beyond it (enforced server-side in /api/nearby, state radius clamp 10–100).
+- Radius options: 10 / 25 / 50 / 100m, default 50m.
+- 8 vibes: open_to_chat (teal), relationship (pink), coffee_drinks (orange), networking (teal), need_advice (purple), gym_buddy (green), exploring (amber), busy (grey, matches no one). Compatibility graph in server.py COMPAT.
+- Privacy: opt-in location, visibility/ghost/pause toggles, no exact GPS shown, meetup sharing expires after 15 min, block/report.
+- Demo mode: GPS denied → Melbourne CBD fallback; demo users positioned at fixed offsets (Sarah 25m … Emily 94m). Ping generator runs every 20s, 2-min per-person throttle, picks closest compatible user.
+
+## Branding
+White bg, Orange #FF5A1F, Teal #20B2AA, Pink #FF2D55, text #111827/#6B7280, card #F8FAFC, border #E5E7EB. Radar-wave logo (src/components/Logo.tsx + generated app icons via /app/scripts/gen_icons.py).
 
 ## Architecture
-- Backend: FastAPI + MongoDB (Motor), JWT auth (pyjwt), bcrypt (passlib). UUID string ids. Routes under /api.
-- Frontend: Expo SDK 54 + expo-router. Contexts: AuthContext (token in secure storage), RadarContext (location via expo-location, status/visibility/radius, nearby polling every 6s, client-side match detection).
-- Nearby: 7 mock personas positioned relative to requester (haversine + destination-point math) + real visible users within radius; is_match via complementary status graph.
-- Map: react-native-maps native-only, platform-split component (NativeMap.tsx / NativeMap.web.tsx web fallback).
+- backend/server.py — FastAPI+Mongo: auth (register 18+/login/demo-login), vibes, demo-accounts, profile/state, nearby (compute_nearby w/ blocks, ghost, only_same_vibe, verified_only filters), pings (generate/list/dismiss/accept), matches, meetups (15-min expiry), encounters, blocks, reports. 10 demo accounts seeded on startup (password Intro123!).
+- frontend/app: (auth)/ onboarding|login|register|profile-setup|choose-vibe; (tabs)/ index(Radar)|nearby|pings|encounters|profile; modals: vibe, person/[id], match, meetup, privacy, safety, demo-accounts, edit-profile.
+- frontend/src: context (AuthContext w/ session token, AppContext w/ location + nearby 8s poll + ping 20s poll), services (auth/user/location/matching/ping/meetup/privacy/safety/notification per spec), components (RadarView, PingModal, MeetupMap stylised, Avatar w/ initials fallback, VibePicker, UserRow, PrimaryButton, InterestChip, ToggleRow, EmptyState, VibePill, Logo).
 
-## User Personas
-- Social explorers / singles wanting low-pressure real-world connections in cafes, streets, events.
+## Key endpoints
+POST /api/auth/{register,login,demo-login}; GET /api/auth/me, /api/vibes, /api/demo-accounts;
+PUT /api/users/me, /api/users/me/state; GET /api/nearby?lat&lng;
+POST /api/pings/generate?lat&lng, GET /api/pings, POST /api/pings/{id}/{dismiss,accept};
+POST /api/matches; POST /api/meetups, GET /api/meetups/active?lat&lng, POST /api/meetups/{id}/end;
+GET /api/encounters; POST /api/blocks, /api/reports.
 
-## Core Requirements (static)
-- Broadcast availability status; proximity-limited visibility; adjustable radius; visibility toggle; match/icebreaker alerts; face-to-face only (no in-app chat).
+## Notes / known limitations
+- Notifications: in-app PingModal only (Expo Go can't do real push); notificationService is a stub for a future dev build.
+- Social sign-in buttons (Apple/Google) are visual placeholders → "coming soon" alert.
+- Native map not used — MeetupMap is a stylised custom component (works web + native, spec asked for stylised map).
+- Web preview always uses demo location (browser denies GPS in iframe).
 
-## Implemented (2026-07-02)
-- JWT register/login/me, profile edit, state update (status/location/visible/radius)
-- Default statuses seeded + custom status creation
-- Nearby radar API with distance sort + match computation
-- Radar sweep screen (animated), Map tab (pins + circle + bottom sheet), Nearby list, You tab (profile + privacy controls)
-- Status broadcasting modal, Match "Paths Crossed" alert overlay
-- Full testing passed: backend 14/14 pytest; frontend ~95%, no critical bugs
-
-## Backlog (prioritized)
-- P1: Filter nearby by `last_active` recency (avoid stale accounts inflating count)
-- P1: Avatar upload / selection during profile setup
-- P2: Push notifications for match alerts (requires user request + build)
-- P2: Status auto-expiry (temporary broadcasting), background location
-- P2: Recent "crossed paths" history log
-
-## Next Tasks
-- Wire avatar picker; add last_active filtering to /api/nearby.
+## Backlog / next
+- Real push notifications via Emergent-managed push (needs dev build + user request).
+- Photo upload (currently preset avatar picker).
+- Visible-for timer actually expiring visibility (currently stored setting only).
+- Verified badge flow.

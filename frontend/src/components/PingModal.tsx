@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Modal } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
@@ -9,8 +9,16 @@ import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function PingModal() {
   const router = useRouter();
+  const pathname = usePathname();
   const { activePing, dismissActivePing, vibeMap } = useApp();
   if (!activePing) return null;
+  // don't interrupt match/meetup/profile-preview moments — the ping stays in the Pings tab
+  if (
+    pathname.startsWith("/match") ||
+    pathname.startsWith("/meetup") ||
+    pathname.startsWith("/person")
+  )
+    return null;
   const vibe = vibeMap[activePing.vibe];
 
   return (

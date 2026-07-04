@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,6 +21,12 @@ export default function SafetyScreen() {
   const { nearby, coords, refresh } = useApp();
   const [mode, setMode] = useState<Mode>(null);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+
+  // make sure the block/report picker always has fresh nearby people
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hideProfile = async () => {
     const updated = await toggleVisibility(false);
