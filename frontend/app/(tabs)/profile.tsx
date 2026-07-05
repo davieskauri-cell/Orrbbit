@@ -44,7 +44,9 @@ export default function ProfileScreen() {
                 {user?.name}
                 {user?.age ? `, ${user.age}` : ""}
               </Text>
-              {user?.verified && <Ionicons name="checkmark-circle" size={18} color={colors.teal} />}
+              {user?.verified && (
+                <Ionicons testID="my-verified-badge" name="checkmark-circle" size={18} color={colors.teal} />
+              )}
             </View>
             <VibePill vibe={vibe} small />
             {user?.is_demo && (

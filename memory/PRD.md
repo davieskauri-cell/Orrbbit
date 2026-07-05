@@ -4,8 +4,27 @@
 INTRO — proximity-based social app. Tagline: "Real people. Real moments." Promise: "See who's open to connecting nearby, right now."
 Users pre-signal a social intention ("vibe"). Compatible users physically nearby (≤100m HARD CAP) receive gentle pings, can view each other's profile, and on mutual acceptance unlock temporary (15-minute) approximate meetup location sharing.
 
-## Status: FULL MVP COMPLETE (July 2026 rebuild per detailed user spec)
-Tested: 22/22 backend pytest cases + all frontend flows pass (test_reports/iteration_2.json).
+## Status: FULL MVP COMPLETE + SAFETY/TRIAL UPDATE (July 2026)
+Tested: 22/22 (iteration_2) + 10/10 new backend cases + frontend flows (iteration_3).
+
+## Safety & trial-readiness update (July 2026)
+- Positioning: "See who nearby is open to being approached." (consent-based icebreaker)
+- Approach Confidence: vibe-based icebreaker openers on Match screen (src/lib/icebreakers.ts)
+- Match copy: "You both accepted 🎉" → Continue → Safety Confirmation screen (5-item checklist) → Meetup
+- Location explainer: (auth)/how-location-works.tsx between Welcome and Register
+- Visibility sessions: visible_for 15/30/60 min (default 30), visibility_expires_at set server-side, auto-expire watcher in AppContext, session chip on radar, "Visibility ended" state + turn back on
+- Quiet Mode: stay visible but receive no pings (privacy toggle + backend gate)
+- Approximate distances everywhere: distLabel() "About Xm away" / "Within 100m"
+- Profile preview: Active now badge, "Intro safety protected" badge, mutual vibe label, verified checkmark, Block + Report buttons
+- Report screen (/report): 6 reasons + optional details; Block ends any active meetup with that user (backend)
+- Meetup: Report issue button; ending meetup → Feedback screen (spoke/experience/comments → POST /api/feedback)
+- Trial Mode (/trial): Southbank Social Trial demo event + stats, join/leave, live banner on radar
+- Invite (/invite): QR placeholder + intro.app/southbank-trial link
+- Test Metrics (/metrics): 11 live counters from GET /api/metrics (demo accounts only, Profile menu)
+- Analytics: POST /api/analytics events (signup, vibe_selected, profile_view, match_created, meetup_started/ended, feedback_submitted)
+- Verified placeholder: per-account flags (Sarah/Jake/Liam/Emily unverified), checkmarks in lists/profile
+- Improved empty states with Increase radius / Invite people / Change vibe actions; Busy state with Change vibe
+- Under-18 message: "INTRO is currently only available for users 18 and older."
 
 ## Core rules
 - Max distance: 100m — never show/ping/match beyond it (enforced server-side in /api/nearby, state radius clamp 10–100).
