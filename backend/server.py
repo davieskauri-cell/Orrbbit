@@ -72,10 +72,22 @@ class StateUpdate(BaseModel):
     radius: Optional[int] = None
     ghost_mode: Optional[bool] = None
     paused: Optional[bool] = None
+    quiet_mode: Optional[bool] = None
     only_same_vibe: Optional[bool] = None
     verified_only: Optional[bool] = None
     who_can_see: Optional[str] = None
     visible_for: Optional[int] = None
+    trial_mode_active: Optional[bool] = None
+
+
+class FeedbackIn(BaseModel):
+    spoke: str
+    experience: str
+    comments: Optional[str] = ""
+
+
+class AnalyticsIn(BaseModel):
+    event: str
 
 
 class MatchIn(BaseModel):
@@ -127,11 +139,15 @@ def public_user(u: dict) -> dict:
         "radius": min(u.get("radius", 50) or 50, MAX_RADIUS),
         "ghost_mode": u.get("ghost_mode", False),
         "paused": u.get("paused", False),
+        "quiet_mode": u.get("quiet_mode", False),
         "only_same_vibe": u.get("only_same_vibe", False),
         "verified_only": u.get("verified_only", False),
         "who_can_see": u.get("who_can_see", "everyone"),
-        "visible_for": u.get("visible_for", 60),
+        "visible_for": u.get("visible_for", 30),
+        "visibility_expires_at": u.get("visibility_expires_at"),
         "verified": u.get("verified", False),
+        "active_now": u.get("active_now", True),
+        "trial_mode_active": u.get("trial_mode_active", False),
         "is_demo": u.get("is_demo", False),
     }
 
@@ -207,16 +223,16 @@ COMPAT = {
 
 DEMO_PASSWORD = "Intro123!"
 DEMO_ACCOUNTS = [
-    {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Intro and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5},
-    {"email": "james@intro.demo", "name": "James", "age": 31, "vibe": "networking", "bio": "Startup founder in fintech. Always open to meeting new people and sharing ideas.", "interests": ["Startups", "Finance", "Tech", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/32.jpg", "dist": 32, "bearing": 40, "minutes_ago": 120},
-    {"email": "sarah@intro.demo", "name": "Sarah", "age": 24, "vibe": "need_advice", "bio": "Feeling a bit stuck in my career. Would love some guidance from someone with experience.", "interests": ["Career", "Mindset", "Life Advice"], "photo_url": "https://randomuser.me/api/portraits/women/44.jpg", "dist": 25, "bearing": 210, "minutes_ago": 3},
-    {"email": "olivia@intro.demo", "name": "Olivia", "age": 28, "vibe": "networking", "bio": "Marketing manager who loves meeting ambitious people and sharing ideas over coffee.", "interests": ["Marketing", "Business", "Coffee"], "photo_url": "https://randomuser.me/api/portraits/women/65.jpg", "dist": 41, "bearing": 120, "minutes_ago": 90},
-    {"email": "jake@intro.demo", "name": "Jake", "age": 29, "vibe": "coffee_drinks", "bio": "Always up for a coffee and a good conversation.", "interests": ["Coffee", "Music", "Travel"], "photo_url": "https://randomuser.me/api/portraits/men/22.jpg", "dist": 28, "bearing": 300, "minutes_ago": 12},
-    {"email": "mia@intro.demo", "name": "Mia", "age": 26, "vibe": "relationship", "bio": "Looking to meet someone genuine in real life, not just through endless swiping.", "interests": ["Fitness", "Travel", "Food"], "photo_url": "https://randomuser.me/api/portraits/women/68.jpg", "dist": 38, "bearing": 160, "minutes_ago": 20},
-    {"email": "liam@intro.demo", "name": "Liam", "age": 30, "vibe": "gym_buddy", "bio": "Looking for someone to train with nearby.", "interests": ["Gym", "Running", "Health"], "photo_url": "https://randomuser.me/api/portraits/men/75.jpg", "dist": 45, "bearing": 250, "minutes_ago": 60},
-    {"email": "sophie@intro.demo", "name": "Sophie", "age": 29, "vibe": "open_to_chat", "bio": "New to Melbourne and always open to random conversations.", "interests": ["Coffee", "Music", "Walks"], "photo_url": "https://randomuser.me/api/portraits/women/12.jpg", "dist": 36, "bearing": 80, "minutes_ago": 35},
-    {"email": "ryan@intro.demo", "name": "Ryan", "age": 35, "vibe": "networking", "bio": "Business owner who enjoys meeting other driven people nearby.", "interests": ["Business", "Leadership", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/41.jpg", "dist": 78, "bearing": 330, "minutes_ago": 180},
-    {"email": "emily@intro.demo", "name": "Emily", "age": 27, "vibe": "coffee_drinks", "bio": "Always happy to meet someone for a quick coffee and good conversation.", "interests": ["Coffee", "Food", "Travel"], "photo_url": "https://randomuser.me/api/portraits/women/33.jpg", "dist": 94, "bearing": 190, "minutes_ago": 240},
+    {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Intro and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5, "verified": True},
+    {"email": "james@intro.demo", "name": "James", "age": 31, "vibe": "networking", "bio": "Startup founder in fintech. Always open to meeting new people and sharing ideas.", "interests": ["Startups", "Finance", "Tech", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/32.jpg", "dist": 32, "bearing": 40, "minutes_ago": 120, "verified": True},
+    {"email": "sarah@intro.demo", "name": "Sarah", "age": 24, "vibe": "need_advice", "bio": "Feeling a bit stuck in my career. Would love some guidance from someone with experience.", "interests": ["Career", "Mindset", "Life Advice"], "photo_url": "https://randomuser.me/api/portraits/women/44.jpg", "dist": 25, "bearing": 210, "minutes_ago": 3, "verified": False},
+    {"email": "olivia@intro.demo", "name": "Olivia", "age": 28, "vibe": "networking", "bio": "Marketing manager who loves meeting ambitious people and sharing ideas over coffee.", "interests": ["Marketing", "Business", "Coffee"], "photo_url": "https://randomuser.me/api/portraits/women/65.jpg", "dist": 41, "bearing": 120, "minutes_ago": 90, "verified": True},
+    {"email": "jake@intro.demo", "name": "Jake", "age": 29, "vibe": "coffee_drinks", "bio": "Always up for a coffee and a good conversation.", "interests": ["Coffee", "Music", "Travel"], "photo_url": "https://randomuser.me/api/portraits/men/22.jpg", "dist": 28, "bearing": 300, "minutes_ago": 12, "verified": False},
+    {"email": "mia@intro.demo", "name": "Mia", "age": 26, "vibe": "relationship", "bio": "Looking to meet someone genuine in real life, not just through endless swiping.", "interests": ["Fitness", "Travel", "Food"], "photo_url": "https://randomuser.me/api/portraits/women/68.jpg", "dist": 38, "bearing": 160, "minutes_ago": 20, "verified": True},
+    {"email": "liam@intro.demo", "name": "Liam", "age": 30, "vibe": "gym_buddy", "bio": "Looking for someone to train with nearby.", "interests": ["Gym", "Running", "Health"], "photo_url": "https://randomuser.me/api/portraits/men/75.jpg", "dist": 45, "bearing": 250, "minutes_ago": 60, "verified": False},
+    {"email": "sophie@intro.demo", "name": "Sophie", "age": 29, "vibe": "open_to_chat", "bio": "New to Melbourne and always open to random conversations.", "interests": ["Coffee", "Music", "Walks"], "photo_url": "https://randomuser.me/api/portraits/women/12.jpg", "dist": 36, "bearing": 80, "minutes_ago": 35, "verified": True},
+    {"email": "ryan@intro.demo", "name": "Ryan", "age": 35, "vibe": "networking", "bio": "Business owner who enjoys meeting other driven people nearby.", "interests": ["Business", "Leadership", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/41.jpg", "dist": 78, "bearing": 330, "minutes_ago": 180, "verified": True},
+    {"email": "emily@intro.demo", "name": "Emily", "age": 27, "vibe": "coffee_drinks", "bio": "Always happy to meet someone for a quick coffee and good conversation.", "interests": ["Coffee", "Food", "Travel"], "photo_url": "https://randomuser.me/api/portraits/women/33.jpg", "dist": 94, "bearing": 190, "minutes_ago": 240, "verified": False},
 ]
 
 
@@ -317,6 +333,12 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
         fields["radius"] = max(10, min(int(fields["radius"]), MAX_RADIUS))
     if "vibe" in fields and fields["vibe"] not in VIBE_KEYS:
         raise HTTPException(status_code=400, detail="Unknown vibe")
+    # starting/refreshing a visibility session sets its expiry
+    if fields.get("visible") is True or "visible_for" in fields:
+        duration = fields.get("visible_for", user.get("visible_for", 30))
+        fields["visibility_expires_at"] = (
+            datetime.now(timezone.utc) + timedelta(minutes=duration)
+        ).isoformat()
     fields["last_active"] = now_iso()
     await db.users.update_one({"id": user["id"]}, {"$set": fields})
     user = await db.users.find_one({"id": user["id"]})
@@ -376,6 +398,8 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "lat": plat,
             "lng": plng,
             "compatible": bool(my_vibe and my_vibe != "busy" and o_vibe in compat),
+            "verified": o.get("verified", False),
+            "active_now": o.get("active_now", True),
             "is_demo": o.get("is_demo", False),
         })
     results.sort(key=lambda r: r["distance"])
@@ -418,6 +442,11 @@ async def generate_ping(
     user: dict = Depends(get_current_user),
 ):
     if not user.get("visible", True) or user.get("ghost_mode") or user.get("paused"):
+        return {"ping": None}
+    if user.get("quiet_mode"):
+        return {"ping": None}
+    exp = user.get("visibility_expires_at")
+    if exp and exp < now_iso():
         return {"ping": None}
     if not user.get("vibe") or user.get("vibe") == "busy":
         return {"ping": None}
@@ -599,6 +628,17 @@ async def block_user(body: BlockIn, user: dict = Depends(get_current_user)):
         {"$set": {"blocker_id": user["id"], "blocked_id": body.user_id, "created_at": now_iso()}},
         upsert=True,
     )
+    # end any active meetup with the blocked user
+    await db.meetups.update_many(
+        {
+            "active": True,
+            "$or": [
+                {"user_a": user["id"], "user_b": body.user_id},
+                {"user_a": body.user_id, "user_b": user["id"]},
+            ],
+        },
+        {"$set": {"active": False, "ended_at": now_iso()}},
+    )
     return {"ok": True}
 
 
@@ -609,6 +649,70 @@ async def report_user(body: ReportIn, user: dict = Depends(get_current_user)):
         "reason": body.reason, "details": body.details or "", "created_at": now_iso(),
     })
     return {"ok": True}
+
+
+# ----------------------------- Feedback, trial & metrics -----------------------------
+TRIAL_EVENT = {
+    "name": "Southbank Social Trial",
+    "venue": "Melbourne Southbank",
+    "start_time": "6:00pm",
+    "end_time": "8:00pm",
+    "active_users": 64,
+    "pings_created": 28,
+    "mutual_accepts": 12,
+    "conversations_confirmed": 6,
+    "invite_link": "intro.app/southbank-trial",
+}
+
+
+@api_router.get("/trial")
+async def get_trial(user: dict = Depends(get_current_user)):
+    return {"event": TRIAL_EVENT, "active": user.get("trial_mode_active", False)}
+
+
+@api_router.post("/feedback")
+async def submit_feedback(body: FeedbackIn, user: dict = Depends(get_current_user)):
+    await db.feedback.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user["id"], "spoke": body.spoke,
+        "experience": body.experience, "comments": body.comments or "", "created_at": now_iso(),
+    })
+    return {"ok": True}
+
+
+@api_router.post("/analytics")
+async def track_event(body: AnalyticsIn, user: dict = Depends(get_current_user)):
+    await db.analytics_events.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user["id"], "event": body.event, "created_at": now_iso(),
+    })
+    return {"ok": True}
+
+
+@api_router.get("/metrics")
+async def metrics(user: dict = Depends(get_current_user)):
+    signups = await db.users.count_documents({"is_demo": {"$ne": True}})
+    active = await db.users.count_documents({"visible": True})
+    vibes_selected = await db.users.count_documents({"vibe": {"$ne": None}})
+    pings = await db.pings.count_documents({})
+    profile_views = await db.analytics_events.count_documents({"event": "profile_view"})
+    accepts = await db.matches.count_documents({})
+    meetups_started = await db.meetups.count_documents({})
+    meetups_completed = await db.meetups.count_documents({"active": False, "ended_at": {"$ne": None}})
+    reports = await db.reports.count_documents({})
+    blocks = await db.blocks.count_documents({})
+    conversations = await db.feedback.count_documents({"spoke": "Yes, we spoke"})
+    return {
+        "demo_signups": signups,
+        "active_users": active,
+        "vibes_selected": vibes_selected,
+        "pings_sent": pings,
+        "profile_views": profile_views,
+        "mutual_accepts": accepts,
+        "meetups_started": meetups_started,
+        "meetups_completed": meetups_completed,
+        "reports_submitted": reports,
+        "blocks": blocks,
+        "conversations_confirmed": conversations,
+    }
 
 
 app.include_router(api_router)
@@ -629,9 +733,10 @@ async def seed_demo_accounts():
             "email": acc["email"], "name": acc["name"], "age": acc["age"], "vibe": acc["vibe"],
             "bio": acc["bio"], "interests": acc["interests"], "photo_url": acc["photo_url"],
             "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
-            "visible": True, "radius": 50, "ghost_mode": False, "paused": False,
+            "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
-            "visible_for": 60, "verified": True, "is_demo": True,
+            "visible_for": 30, "verified": acc["verified"], "active_now": True, "is_demo": True,
+            "trial_mode_active": False,
             "lat": None, "lng": None, "last_active": now_iso(),
         }
         existing = await db.users.find_one({"email": acc["email"]})

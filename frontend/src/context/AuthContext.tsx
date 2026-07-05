@@ -18,11 +18,15 @@ export type User = {
   radius: number;
   ghost_mode: boolean;
   paused: boolean;
+  quiet_mode: boolean;
   only_same_vibe: boolean;
   verified_only: boolean;
   who_can_see: string;
   visible_for: number;
+  visibility_expires_at: string | null;
   verified: boolean;
+  active_now: boolean;
+  trial_mode_active: boolean;
   is_demo: boolean;
 };
 

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { updateVibe } from "@/src/services/userService";
+import { trackVibeSelected } from "@/src/services/analyticsService";
 import VibePicker from "@/src/components/VibePicker";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, font } from "@/src/theme";
@@ -23,6 +24,7 @@ export default function ChooseVibe() {
     try {
       const updated = await updateVibe(selected);
       setUser(updated as any);
+      trackVibeSelected();
       // contextual moment to ask for location — the radar needs it next
       requestLocation();
       router.replace("/(tabs)");

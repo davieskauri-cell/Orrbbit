@@ -5,6 +5,7 @@ export const updatePrivacySettings = (settings: {
   visible?: boolean;
   ghost_mode?: boolean;
   paused?: boolean;
+  quiet_mode?: boolean;
   only_same_vibe?: boolean;
   verified_only?: boolean;
   who_can_see?: string;
@@ -16,3 +17,21 @@ export const toggleGhostMode = (on: boolean) =>
 
 export const toggleVisibility = (on: boolean) =>
   updatePrivacySettings({ visible: on });
+
+// ---- visibility sessions ----
+export const startVisibilitySession = (durationMinutes: number) =>
+  updatePrivacySettings({ visible: true, visible_for: durationMinutes });
+
+export const endVisibilitySession = () => updatePrivacySettings({ visible: false });
+
+export const isVisibilityExpired = (expiresAt?: string | null) =>
+  !!expiresAt && new Date(expiresAt).getTime() <= Date.now();
+
+export const toggleQuietMode = (on: boolean) =>
+  updatePrivacySettings({ quiet_mode: on });
+
+export const toggleSameVibeOnly = (on: boolean) =>
+  updatePrivacySettings({ only_same_vibe: on });
+
+export const toggleVerifiedOnly = (on: boolean) =>
+  updatePrivacySettings({ verified_only: on });

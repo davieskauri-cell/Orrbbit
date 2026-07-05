@@ -43,8 +43,8 @@ export default function Welcome() {
         <Text style={styles.tagline}>Real people. Real moments.</Text>
       </View>
 
-      <Text style={styles.headline}>{"See who's open to connecting nearby, right now."}</Text>
-      <Text style={styles.sub}>Your social radar for real-life conversations.</Text>
+      <Text style={styles.headline}>See who nearby is open to being approached.</Text>
+      <Text style={styles.sub}>Your consent-based icebreaker for real-life conversations.</Text>
 
       <View style={styles.heroCard}>
         <Image source={{ uri: HERO }} style={styles.heroImg} contentFit="cover" transition={200} />
@@ -78,7 +78,7 @@ export default function Welcome() {
         <PrimaryButton
           testID="onboarding-get-started"
           title="Get Started"
-          onPress={() => router.push("/(auth)/register")}
+          onPress={() => router.push("/(auth)/how-location-works")}
         />
         <SecondaryButton
           testID="onboarding-login"

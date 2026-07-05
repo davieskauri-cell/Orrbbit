@@ -21,6 +21,7 @@ export default function SafetyScreen() {
   const { nearby, coords, refresh } = useApp();
   const [mode, setMode] = useState<Mode>(null);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [showTips, setShowTips] = useState(false);
 
   // make sure the block/report picker always has fresh nearby people
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function SafetyScreen() {
     { icon: "flag", label: "Report a user", desc: "Tell us about unsafe behaviour.", onPress: () => setMode(mode === "report" ? null : "report"), testID: "safety-report" },
     { icon: "eye-off", label: "Hide my profile", desc: "Go invisible instantly.", onPress: hideProfile, testID: "safety-hide" },
     { icon: "close-circle", label: "End active meetup", desc: "Stop location sharing now.", onPress: endMeetup, testID: "safety-end-meetup" },
+    { icon: "bulb", label: "Safety tips", desc: "Simple habits for safe meetups.", onPress: () => setShowTips(!showTips), testID: "safety-tips" },
     { icon: "alert-circle", label: "Emergency help", desc: "Quick access to emergency info.", onPress: emergency, testID: "safety-emergency" },
   ];
 

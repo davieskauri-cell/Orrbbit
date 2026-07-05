@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
+import { trackSignup } from "@/src/services/analyticsService";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function Register() {
@@ -38,11 +39,12 @@ export default function Register() {
     if (!name.trim()) return setError("Please enter your name.");
     if (!email.trim()) return setError("Please enter your email.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
-    if (!ageNum || ageNum < 18) return setError("You must be 18 or older to use Intro.");
+    if (!ageNum || ageNum < 18) return setError("INTRO is currently only available for users 18 and older.");
     if (!confirm18) return setError("Please confirm you are 18 or older.");
     setBusy(true);
     try {
       await register({ email: email.trim(), password, name: name.trim(), age: ageNum });
+      trackSignup();
       router.replace("/(auth)/profile-setup");
     } catch (e: any) {
       setError(e.message || "Registration failed");

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
+import { distLabel } from "@/src/lib/format";
 import { colors, spacing, font } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
@@ -23,10 +24,15 @@ export default function UserRow({ user, vibeMap, onPress }: Props) {
       <Avatar uri={user.photo_url} name={user.name} size={58} ringColor={vibe?.color} />
       <View style={styles.body}>
         <View style={styles.topLine}>
-          <Text style={styles.name}>
-            {user.name}, {user.age}
-          </Text>
-          <Text style={styles.distance}>{user.distance}m away</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>
+              {user.name}, {user.age}
+            </Text>
+            {user.verified && (
+              <Ionicons name="checkmark-circle" size={15} color={colors.teal} />
+            )}
+          </View>
+          <Text style={styles.distance}>{distLabel(user.distance)}</Text>
         </View>
         <VibePill vibe={vibe} small />
         {!!user.bio && (
@@ -49,6 +55,7 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: 4 },
   topLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   distance: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
   bio: { color: colors.textSecondary, fontSize: font.sm },

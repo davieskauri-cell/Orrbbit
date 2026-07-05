@@ -5,6 +5,7 @@ import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { useApp } from "@/src/context/AppContext";
+import { distLabel } from "@/src/lib/format";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function PingModal() {
@@ -16,7 +17,10 @@ export default function PingModal() {
   if (
     pathname.startsWith("/match") ||
     pathname.startsWith("/meetup") ||
-    pathname.startsWith("/person")
+    pathname.startsWith("/person") ||
+    pathname.startsWith("/safety-confirm") ||
+    pathname.startsWith("/feedback") ||
+    pathname.startsWith("/report")
   )
     return null;
   const vibe = vibeMap[activePing.vibe];
@@ -39,7 +43,7 @@ export default function PingModal() {
                 {activePing.user.name}, {activePing.user.age}
               </Text>
               <VibePill vibe={vibe} small />
-              <Text style={styles.distance}>{activePing.distance}m away</Text>
+              <Text style={styles.distance}>{distLabel(activePing.distance)}</Text>
             </View>
           </View>
           {!!activePing.user.bio && (

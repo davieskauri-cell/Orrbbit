@@ -1,25 +1,35 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { createMatch } from "@/src/services/matchingService";
+import { blockUser } from "@/src/services/safetyService";
+import { trackProfileView, trackMatchCreated } from "@/src/services/analyticsService";
+import { distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import InterestChip from "@/src/components/InterestChip";
 import EmptyState from "@/src/components/EmptyState";
-import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
+import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 export default function PersonPreview() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { findUser, vibeMap } = useApp();
+  const { findUser, vibeMap, refresh } = useApp();
+  const { user: me } = useAuth();
   const [busy, setBusy] = useState(false);
   const user = findUser(id!);
+
+  useEffect(() => {
+    if (user) trackProfileView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!user) {
     return (
@@ -39,11 +49,13 @@ export default function PersonPreview() {
 
   const vibe = user.vibe ? vibeMap[user.vibe] : undefined;
   const action = vibe?.action || "Let's Connect";
+  const sameVibe = !!me?.vibe && me.vibe === user.vibe;
 
   const connect = async () => {
     setBusy(true);
     try {
       await createMatch(user.id);
+      trackMatchCreated();
       router.replace({
         pathname: "/match",
         params: {
@@ -56,6 +68,21 @@ export default function PersonPreview() {
     } catch {
       setBusy(false);
     }
+  };
+
+  const doBlock = () => {
+    Alert.alert("Block this user?", `${user.name} won't see you and you won't see them.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Block",
+        style: "destructive",
+        onPress: async () => {
+          await blockUser(user.id);
+          await refresh();
+          router.back();
+        },
+      },
+    ]);
   };
 
   return (
@@ -78,17 +105,38 @@ export default function PersonPreview() {
           </Pressable>
           <View style={styles.distanceTag}>
             <Ionicons name="location" size={13} color={colors.orange} />
-            <Text style={styles.distanceText}>{user.distance}m away</Text>
+            <Text style={styles.distanceText}>{distLabel(user.distance)}</Text>
           </View>
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.name}>
-            {user.name}, {user.age}
-          </Text>
-          <View style={{ marginTop: spacing.sm }}>
-            <VibePill vibe={vibe} />
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>
+              {user.name}, {user.age}
+            </Text>
+            {user.verified && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.teal} testID="verified-badge" />
+            )}
           </View>
+          <View style={styles.badgeRow}>
+            <VibePill vibe={vibe} />
+            {user.active_now && (
+              <View style={styles.activeBadge} testID="active-now-badge">
+                <View style={styles.activeDot} />
+                <Text style={styles.activeText}>Active now</Text>
+              </View>
+            )}
+            <View style={styles.protectedBadge} testID="safety-protected-badge">
+              <Ionicons name="shield-checkmark" size={12} color={colors.teal} />
+              <Text style={styles.protectedText}>Intro safety protected</Text>
+            </View>
+          </View>
+          {sameVibe && vibe && (
+            <View style={styles.mutualVibe} testID="mutual-vibe-label">
+              <Ionicons name="sparkles" size={14} color={colors.orange} />
+              <Text style={styles.mutualText}>You both chose {vibe.label}</Text>
+            </View>
+          )}
           {!!user.bio && <Text style={styles.bio}>{user.bio}</Text>}
 
           {!!user.interests?.length && (
@@ -118,12 +166,23 @@ export default function PersonPreview() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <PrimaryButton testID="person-connect" title={action} onPress={connect} loading={busy} />
-        <SecondaryButton
-          testID="person-not-now"
-          title="Not Now"
-          onPress={() => router.back()}
-          style={{ marginTop: spacing.sm, borderWidth: 0, minHeight: 44 }}
-        />
+        <View style={styles.secondaryRow}>
+          <Pressable testID="person-not-now" style={styles.smallBtn} onPress={() => router.back()}>
+            <Text style={styles.smallBtnText}>Not Now</Text>
+          </Pressable>
+          <Pressable testID="person-block" style={styles.smallBtn} onPress={doBlock}>
+            <Text style={[styles.smallBtnText, { color: colors.pink }]}>Block</Text>
+          </Pressable>
+          <Pressable
+            testID="person-report"
+            style={styles.smallBtn}
+            onPress={() =>
+              router.push({ pathname: "/report", params: { userId: user.id, name: user.name } })
+            }
+          >
+            <Text style={[styles.smallBtnText, { color: colors.pink }]}>Report</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -159,7 +218,45 @@ const styles = StyleSheet.create({
   },
   distanceText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
   body: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm, alignItems: "center" },
+  activeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#EBFBF1",
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
+  activeText: { color: colors.success, fontSize: font.sm, fontWeight: "700" },
+  protectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.tealSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  protectedText: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
+  mutualVibe: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.orangeSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+    alignSelf: "flex-start",
+  },
+  mutualText: { color: colors.orange, fontSize: font.base, fontWeight: "700" },
+  secondaryRow: { flexDirection: "row", justifyContent: "center", gap: spacing.xl, marginTop: spacing.sm },
+  smallBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.sm, minHeight: 44, justifyContent: "center" },
+  smallBtnText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "700" },
   bio: { color: colors.textSecondary, fontSize: font.lg, lineHeight: 24, marginTop: spacing.lg },
   sectionLabel: {
     color: colors.textTertiary,

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { getActiveMeetup, stopTemporaryLocationSharing } from "@/src/services/meetupService";
+import { trackMeetupEnded } from "@/src/services/analyticsService";
 import { DEMO_LOCATION } from "@/src/services/locationService";
 import MeetupMap from "@/src/components/MeetupMap";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
@@ -46,7 +47,8 @@ export default function MeetupScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
       setEndedMsg(message);
       if (meetup) stopTemporaryLocationSharing(meetup.id).catch(() => {});
-      setTimeout(() => router.replace("/(tabs)"), 1800);
+      trackMeetupEnded();
+      setTimeout(() => router.replace("/feedback"), 1800);
     },
     [meetup, router]
   );
@@ -144,6 +146,17 @@ export default function MeetupScreen() {
               style={{ flex: 1, borderColor: colors.pink + "55" }}
             />
           </View>
+          <SecondaryButton
+            testID="meetup-report-issue"
+            title="Report issue"
+            onPress={() =>
+              router.push({
+                pathname: "/report",
+                params: { userId: meetup.user?.id || "", name: meetup.user?.name || "" },
+              })
+            }
+            style={{ marginTop: spacing.sm, borderWidth: 0, minHeight: 40 }}
+          />
         </View>
       )}
     </View>

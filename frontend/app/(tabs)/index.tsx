@@ -5,7 +5,8 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { toggleVisibility } from "@/src/services/privacyService";
+import { toggleVisibility, startVisibilitySession } from "@/src/services/privacyService";
+import { distLabel } from "@/src/lib/format";
 import RadarView from "@/src/components/RadarView";
 import VibePill from "@/src/components/VibePill";
 import Avatar from "@/src/components/Avatar";
@@ -18,8 +19,15 @@ export default function RadarScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, setUser } = useAuth();
-  const { coords, permission, nearby, vibeMap, requestLocation, refresh } = useApp();
+  const { coords, permission, nearby, vibeMap, requestLocation, refresh, visibilityEnded } = useApp();
   const [refreshing, setRefreshing] = useState(false);
+  const [, forceTick] = useState(0);
+
+  // refresh the session countdown label every 30s
+  useEffect(() => {
+    const t = setInterval(() => forceTick((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (!coords) requestLocation();
@@ -33,9 +41,18 @@ export default function RadarScreen() {
   };
 
   const flipVisibility = async () => {
-    const updated = await toggleVisibility(!user?.visible);
+    const turningOn = !user?.visible;
+    const updated = turningOn
+      ? await startVisibilitySession(user?.visible_for || 30)
+      : await toggleVisibility(false);
     setUser(updated as any);
   };
+
+  const sessionMinsLeft = (() => {
+    if (!user?.visible || !user?.visibility_expires_at) return null;
+    const ms = new Date(user.visibility_expires_at).getTime() - Date.now();
+    return ms > 0 ? Math.ceil(ms / 60000) : 0;
+  })();
 
   const myVibe = user?.vibe ? vibeMap[user.vibe] : undefined;
   const compatible = nearby.filter((n) => n.compatible);
@@ -64,7 +81,21 @@ export default function RadarScreen() {
       <Pressable testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeRow}>
         <VibePill vibe={myVibe} />
         <Text style={styles.vibeChange}>Change</Text>
+        {sessionMinsLeft !== null && !hidden && (
+          <View style={styles.sessionChip} testID="visibility-session-chip">
+            <Ionicons name="eye" size={11} color={colors.teal} />
+            <Text style={styles.sessionText}>Visible · {sessionMinsLeft}m left</Text>
+          </View>
+        )}
       </Pressable>
+
+      {user?.trial_mode_active && (
+        <Pressable testID="trial-banner" style={styles.trialBanner} onPress={() => router.push("/trial")}>
+          <View style={styles.trialDot} />
+          <Text style={styles.trialText}>Southbank Social Trial is live</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.orange} />
+        </Pressable>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.body}
@@ -77,9 +108,9 @@ export default function RadarScreen() {
           <EmptyState
             testID="invisible-empty"
             icon="eye-off"
-            title="You are invisible."
-            text="Turn visibility on to see who's nearby."
-            actionTitle="Turn Visibility On"
+            title={visibilityEnded ? "Visibility ended. You are now invisible." : "You are invisible."}
+            text="Turn visibility on when you are open to connecting."
+            actionTitle={visibilityEnded ? "Turn visibility back on" : "Turn Visibility On"}
             onAction={flipVisibility}
           />
         ) : (
@@ -92,6 +123,12 @@ export default function RadarScreen() {
               meName={user?.name}
               radiusSetting={user?.radius || 50}
             />
+            <View style={styles.approxNote}>
+              <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
+              <Text style={styles.approxText}>
+                Approximate distance only. Exact location stays hidden.
+              </Text>
+            </View>
 
             <View style={[styles.stats, shadow.card]}>
               <View style={styles.statBox}>
@@ -122,9 +159,15 @@ export default function RadarScreen() {
             {user?.vibe === "busy" ? (
               <View style={styles.busyCard} testID="busy-state">
                 <Ionicons name="notifications-off" size={18} color={colors.grey} />
-                <Text style={styles.busyText}>
-                  {"You're marked as Busy. You won't receive pings until you change your vibe."}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.busyTitle}>{"You're marked as Busy"}</Text>
+                  <Text style={styles.busyText}>
+                    {"You will not receive pings until you change your vibe."}
+                  </Text>
+                </View>
+                <Pressable testID="busy-change-vibe" onPress={() => router.push("/vibe")}>
+                  <Text style={styles.busyAction}>Change vibe</Text>
+                </Pressable>
               </View>
             ) : best ? (
               <View style={[styles.bestCard, shadow.card]} testID="nearby-now-card">
@@ -136,7 +179,7 @@ export default function RadarScreen() {
                       {best.name}, {best.age}
                     </Text>
                     <VibePill vibe={bestVibe} small />
-                    <Text style={styles.bestDist}>{best.distance}m away</Text>
+                    <Text style={styles.bestDist}>{distLabel(best.distance)}</Text>
                   </View>
                 </View>
                 {!!best.bio && (
@@ -152,12 +195,33 @@ export default function RadarScreen() {
                 />
               </View>
             ) : nearby.length === 0 ? (
-              <EmptyState
-                testID="radar-empty"
-                icon="compass"
-                title="No one nearby right now."
-                text="Try increasing your radius up to 100m or changing your vibe."
-              />
+              <View style={styles.emptyWrap} testID="radar-empty">
+                <Text style={styles.emptyTitle}>No one nearby right now</Text>
+                <Text style={styles.emptyText}>
+                  INTRO works best when people are close by. Try increasing your radius up to
+                  100m, changing your vibe, or inviting people nearby.
+                </Text>
+                <View style={styles.emptyBtns}>
+                  <SecondaryButton
+                    testID="empty-increase-radius"
+                    title="Increase radius"
+                    onPress={() => router.push("/privacy")}
+                    style={{ flex: 1, minHeight: 46 }}
+                  />
+                  <SecondaryButton
+                    testID="empty-invite"
+                    title="Invite people"
+                    onPress={() => router.push("/invite")}
+                    style={{ flex: 1, minHeight: 46 }}
+                  />
+                </View>
+                <SecondaryButton
+                  testID="empty-change-vibe"
+                  title="Change vibe"
+                  onPress={() => router.push("/vibe")}
+                  style={{ marginTop: spacing.sm, minHeight: 46 }}
+                />
+              </View>
             ) : null}
 
             <View style={styles.actionRow}>
@@ -209,6 +273,49 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   vibeChange: { color: colors.orange, fontSize: font.sm, fontWeight: "700" },
+  sessionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.tealSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginLeft: "auto",
+  },
+  sessionText: { color: colors.teal, fontSize: 11, fontWeight: "700" },
+  trialBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.orangeSoft,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+  },
+  trialDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  trialText: { color: colors.orange, fontSize: font.sm, fontWeight: "800", flex: 1 },
+  approxNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: spacing.sm,
+  },
+  approxText: { color: colors.textTertiary, fontSize: font.sm },
+  emptyWrap: { alignItems: "center", paddingVertical: spacing.xl },
+  emptyTitle: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: font.base,
+    textAlign: "center",
+    marginTop: spacing.sm,
+    lineHeight: 21,
+    marginBottom: spacing.lg,
+  },
+  emptyBtns: { flexDirection: "row", gap: spacing.sm, alignSelf: "stretch" },
   body: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   stats: {
     flexDirection: "row",
@@ -243,7 +350,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginTop: spacing.lg,
   },
-  busyText: { color: colors.textSecondary, fontSize: font.base, flex: 1, lineHeight: 20 },
+  busyTitle: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  busyText: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 18, marginTop: 2 },
+  busyAction: { color: colors.orange, fontSize: font.sm, fontWeight: "800", padding: spacing.sm },
   bestCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

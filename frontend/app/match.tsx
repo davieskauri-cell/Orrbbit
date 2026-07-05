@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
-import { startTemporaryLocationSharing } from "@/src/services/meetupService";
+import { getIcebreakers } from "@/src/lib/icebreakers";
 import Avatar from "@/src/components/Avatar";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -13,32 +13,24 @@ export default function MatchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { userId, name, photo } = useLocalSearchParams<{
+  const { userId, name, photo, vibe } = useLocalSearchParams<{
     userId: string;
     name: string;
     photo: string;
+    vibe: string;
   }>();
   // demo: simulate mutual acceptance after 1 second
   const [phase, setPhase] = useState<"waiting" | "matched">("waiting");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setPhase("matched"), 1000);
     return () => clearTimeout(t);
   }, []);
 
-  const share = async () => {
-    setBusy(true);
-    try {
-      await startTemporaryLocationSharing(userId!);
-      router.replace("/meetup");
-    } catch {
-      setBusy(false);
-    }
-  };
+  const openers = getIcebreakers(vibe, name || "them");
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
       {phase === "waiting" ? (
         <View style={styles.center} testID="match-waiting">
           <ActivityIndicator size="large" color={colors.orange} />
@@ -46,25 +38,47 @@ export default function MatchScreen() {
         </View>
       ) : (
         <>
-          <View style={styles.center} testID="match-content">
-            <Text style={styles.title}>{"It's a match! 🎉"}</Text>
-            <Text style={styles.sub}>You both want to connect.</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.lg }} testID="match-content">
+            <View style={{ alignItems: "center" }}>
+              <Text style={styles.title}>{"You both accepted 🎉"}</Text>
+              <Text style={styles.sub}>You both want to connect.</Text>
 
-            <View style={styles.avatars}>
-              <Avatar uri={user?.photo_url} name={user?.name} size={104} ringColor={colors.teal} />
-              <View style={styles.linkIcon}>
-                <Ionicons name="link" size={20} color="#FFF" />
+              <View style={styles.avatars}>
+                <Avatar uri={user?.photo_url} name={user?.name} size={96} ringColor={colors.teal} />
+                <View style={styles.linkIcon}>
+                  <Ionicons name="link" size={20} color="#FFF" />
+                </View>
+                <Avatar uri={photo || null} name={name} size={96} ringColor={colors.orange} />
               </View>
-              <Avatar uri={photo || null} name={name} size={104} ringColor={colors.orange} />
+
+              <Text style={styles.message}>
+                This means you are both open to saying hello. Keep it respectful and low pressure.
+              </Text>
             </View>
 
-            <Text style={styles.message}>
-              Great! You can now share temporary locations and meet in person.
-            </Text>
-          </View>
+            <View style={styles.iceCard} testID="icebreaker-card">
+              <View style={styles.iceHeader}>
+                <Ionicons name="chatbubbles" size={18} color={colors.orange} />
+                <Text style={styles.iceTitle}>Need a first line?</Text>
+              </View>
+              {openers.map((o) => (
+                <View key={o} style={styles.iceRow}>
+                  <Text style={styles.iceQuote}>{"“"}</Text>
+                  <Text style={styles.iceText}>{o}</Text>
+                </View>
+              ))}
+              <Text style={styles.iceNote}>
+                You already both accepted. Keep it simple and respectful.
+              </Text>
+            </View>
+          </ScrollView>
 
           <View style={{ gap: spacing.sm }}>
-            <PrimaryButton testID="match-share-location" title="Share Location" onPress={share} loading={busy} />
+            <PrimaryButton
+              testID="match-share-location"
+              title="Continue"
+              onPress={() => router.replace({ pathname: "/safety-confirm", params: { userId } })}
+            />
             <SecondaryButton
               testID="match-maybe-later"
               title="Maybe Later"
@@ -88,9 +102,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl, justifyContent: "space-between" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   waitingText: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.lg },
-  title: { color: colors.text, fontSize: 36, fontWeight: "800" },
+  title: { color: colors.text, fontSize: 32, fontWeight: "800", marginTop: spacing.lg },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.sm },
-  avatars: { flexDirection: "row", alignItems: "center", marginVertical: spacing.xxl },
+  avatars: { flexDirection: "row", alignItems: "center", marginVertical: spacing.xl },
+  iceCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+  },
+  iceHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  iceTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  iceRow: { flexDirection: "row", gap: 6, paddingVertical: 6 },
+  iceQuote: { color: colors.orange, fontSize: font.lg, fontWeight: "800" },
+  iceText: { color: colors.text, fontSize: font.base, flex: 1, lineHeight: 20 },
+  iceNote: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.md, fontStyle: "italic" },
   linkIcon: {
     width: 40,
     height: 40,

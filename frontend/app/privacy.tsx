@@ -19,11 +19,11 @@ const AUDIENCES = [
 
 const PRIVACY_POINTS = [
   "You control your location.",
-  "Temporary and private.",
-  "No exact location before mutual acceptance.",
+  "INTRO never shows users beyond 100m.",
+  "Your exact location is hidden until both people accept.",
+  "Meetup sharing ends after 15 minutes.",
   "No route history.",
   "You can turn off anytime.",
-  "Maximum visibility radius is 100 metres.",
 ];
 
 export default function PrivacyScreen() {
@@ -34,6 +34,7 @@ export default function PrivacyScreen() {
   const [visibleFor, setVisibleFor] = useState(user?.visible_for || 60);
   const [visible, setVisible] = useState(!!user?.visible);
   const [ghost, setGhost] = useState(!!user?.ghost_mode);
+  const [quiet, setQuiet] = useState(!!user?.quiet_mode);
   const [paused, setPaused] = useState(!!user?.paused);
   const [sameVibe, setSameVibe] = useState(!!user?.only_same_vibe);
   const [verifiedOnly, setVerifiedOnly] = useState(!!user?.verified_only);
@@ -48,6 +49,7 @@ export default function PrivacyScreen() {
         visible_for: visibleFor,
         visible,
         ghost_mode: ghost,
+        quiet_mode: quiet,
         paused,
         only_same_vibe: sameVibe,
         verified_only: verifiedOnly,
@@ -114,6 +116,13 @@ export default function PrivacyScreen() {
             description="Appear on nearby radars."
             value={visible}
             onChange={setVisible}
+          />
+          <ToggleRow
+            testID="toggle-quiet"
+            title="Quiet Mode"
+            description="Quiet Mode lets you browse without receiving pings. You stay visible."
+            value={quiet}
+            onChange={setQuiet}
           />
           <ToggleRow
             testID="toggle-ghost"

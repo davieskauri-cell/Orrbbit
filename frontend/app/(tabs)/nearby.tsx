@@ -80,14 +80,14 @@ export default function NearbyScreen() {
               testID="nearby-invisible"
               icon="eye-off"
               title="You are invisible."
-              text="Turn visibility on to see who's nearby."
+              text="Turn visibility on when you are open to connecting."
             />
           ) : (
             <EmptyState
               testID="nearby-empty"
               icon="compass"
-              title="No one nearby right now."
-              text="Try increasing your radius up to 100m or changing your vibe."
+              title="No one nearby right now"
+              text="INTRO works best when people are close by. Try increasing your radius up to 100m, changing your vibe, or inviting people nearby."
             />
           )
         }

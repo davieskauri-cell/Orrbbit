@@ -15,6 +15,8 @@ const MENU = [
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
+  { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
+  { icon: "qr-code-outline", label: "Invite People", route: "/invite", testID: "menu-invite" },
   { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
 ] as const;
 
@@ -37,10 +39,13 @@ export default function ProfileScreen() {
         <View style={styles.profileRow}>
           <Avatar uri={user?.photo_url} name={user?.name} size={76} ringColor={vibe?.color || colors.teal} />
           <View style={{ flex: 1, gap: 5 }}>
-            <Text style={styles.name}>
-              {user?.name}
-              {user?.age ? `, ${user.age}` : ""}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={styles.name}>
+                {user?.name}
+                {user?.age ? `, ${user.age}` : ""}
+              </Text>
+              {user?.verified && <Ionicons name="checkmark-circle" size={18} color={colors.teal} />}
+            </View>
             <VibePill vibe={vibe} small />
             {user?.is_demo && (
               <Text style={styles.demoTag}>Demo account · {user.email}</Text>
@@ -86,6 +91,17 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
         ))}
+        {user?.is_demo && (
+          <Pressable
+            testID="menu-metrics"
+            style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
+            onPress={() => router.push("/metrics")}
+          >
+            <Ionicons name="bar-chart-outline" size={20} color={colors.orange} />
+            <Text style={styles.menuLabel}>Test Metrics</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </Pressable>
+        )}
       </View>
 
       <Pressable

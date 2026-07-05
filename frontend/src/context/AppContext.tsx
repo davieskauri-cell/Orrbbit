@@ -30,6 +30,8 @@ export type NearbyUser = {
   lat: number;
   lng: number;
   compatible: boolean;
+  verified: boolean;
+  active_now: boolean;
 };
 
 export type Vibe = {
@@ -65,19 +67,47 @@ type AppValue = {
   activePing: Ping | null;
   dismissActivePing: (alsoDismissOnServer?: boolean) => void;
   findUser: (id: string) => NearbyUser | undefined;
+  visibilityEnded: boolean;
 };
 
 const AppContext = createContext<AppValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuth();
+  const { token, user, setUser } = useAuth();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [permission, setPermission] = useState<PermState>("unknown");
   const [nearby, setNearby] = useState<NearbyUser[]>([]);
   const [vibes, setVibes] = useState<Vibe[]>([]);
   const [activePing, setActivePing] = useState<Ping | null>(null);
+  const [visibilityEnded, setVisibilityEnded] = useState(false);
   const nearbyPoll = useRef<ReturnType<typeof setInterval> | null>(null);
   const pingPoll = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // visibility session timer — turn invisible when the session expires
+  useEffect(() => {
+    if (!token || !user?.visible) return;
+    const check = async () => {
+      const exp = user.visibility_expires_at;
+      if (exp && new Date(exp).getTime() <= Date.now()) {
+        try {
+          const updated = await api("/users/me/state", {
+            method: "PUT",
+            body: { visible: false },
+          });
+          setUser(updated as any);
+          setVisibilityEnded(true);
+        } catch {}
+      }
+    };
+    check();
+    const t = setInterval(check, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, user?.visible, user?.visibility_expires_at]);
+
+  useEffect(() => {
+    if (user?.visible) setVisibilityEnded(false);
+  }, [user?.visible]);
 
   const vibeMap = vibes.reduce((acc, v) => {
     acc[v.key] = v;
@@ -146,11 +176,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [token, coords, visibleAndActive, refresh]);
 
-  // demo ping generator every 20s
+  // demo ping generator every 20s — quiet mode & busy users never get pinged
   useEffect(() => {
     if (pingPoll.current) clearInterval(pingPoll.current);
     const canPing =
-      token && coords && visibleAndActive && user?.vibe && user.vibe !== "busy";
+      token && coords && visibleAndActive && !user?.quiet_mode && user?.vibe && user.vibe !== "busy";
     if (canPing) {
       const tick = async () => {
         try {
@@ -174,7 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (pingPoll.current) clearInterval(pingPoll.current);
     };
-  }, [token, coords, visibleAndActive, user?.vibe, user?.radius]);
+  }, [token, coords, visibleAndActive, user?.vibe, user?.radius, user?.quiet_mode]);
 
   const dismissActivePing = useCallback(
     (alsoDismissOnServer = false) => {
@@ -204,6 +234,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activePing,
         dismissActivePing,
         findUser,
+        visibilityEnded,
       }}
     >
       {children}
