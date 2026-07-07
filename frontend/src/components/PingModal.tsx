@@ -12,6 +12,22 @@ export default function PingModal() {
   const router = useRouter();
   const pathname = usePathname();
   const { activePing, dismissActivePing, vibeMap } = useApp();
+  const shownAtPath = React.useRef<string | null>(null);
+
+  // auto-dismiss when the user navigates away — the ping stays in the Pings tab
+  React.useEffect(() => {
+    if (!activePing) {
+      shownAtPath.current = null;
+      return;
+    }
+    if (shownAtPath.current === null) {
+      shownAtPath.current = pathname;
+    } else if (shownAtPath.current !== pathname) {
+      shownAtPath.current = null;
+      dismissActivePing(false);
+    }
+  }, [pathname, activePing, dismissActivePing]);
+
   if (!activePing) return null;
   // don't interrupt match/meetup/profile-preview moments — the ping stays in the Pings tab
   if (

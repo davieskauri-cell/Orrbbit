@@ -59,3 +59,25 @@ GET /api/encounters; POST /api/blocks, /api/reports.
 - Photo upload (currently preset avatar picker).
 - Visible-for timer actually expiring visibility (currently stored setting only).
 - Verified badge flow.
+
+## Global-Scale & Market-Ready Update (June 2026) — COMPLETE
+Backend (server.py):
+- Static demo data: CITIES (7, Melbourne "Trial Active"), ZONES (7 Melbourne zones), DEMO_EVENT, DEMO_CAMPUS, COMMUNITIES (12), MODES, AMBASSADOR_DEMO (Kauri), GLOBAL_DEMO_USERS (12 across London/NY/Toronto/Auckland/Singapore, seeded on startup, <=100m in own city).
+- Endpoints: GET /api/cities, /api/events/demo, /api/campus, /api/communities, /api/modes, /api/ambassador, /api/trial-report, /api/north-star; POST /api/waitlist. GET /api/metrics extended (waitlist_signups, ambassador_invites, event_joins, signups_by_city). /api/demo-accounts returns city/mode/verified. PUT /api/users/me/state accepts mode/city/country/intent. Nearby is city-scoped (only same-city users appear).
+Frontend:
+- New screens: /cities (city list + Melbourne zones), /city/[name] (INTRO {CITY} landing template: live stats or waitlist CTA + ambassador CTA), /waitlist (form → POST /api/waitlist, success state, ?city=&ambassador=1 params), /ambassador (stats grid + task checklist + invite), /trial-report (summary + export PDF placeholder alert), /launch-checklist (3-section internal checklist w/ progress), /event-mode, /campus, /networking, /communities, (auth)/intent ("What brings you to Intro?" 6 options after register, saves intent, skippable).
+- ModeSelector (src/components/ModeSelector.tsx) on Radar: Social/Networking/Campus/Events/Communities/Dating/Fitness chips; sets user.mode via state API; chips with screens navigate to them.
+- Profile: "Intro Worldwide" menu section (Cities, Event Mode, Campus, Networking, Communities, Ambassador Hub, Join Waitlist) + "Trial Tools" for demo users (Test Metrics, Trial Report, Launch Checklist).
+- Metrics screen: North Star card (Confirmed Conversations today/week/city/event/total via /api/north-star) + Signups by city list.
+- Demo Accounts: filters by City / Vibe / Mode chips + Verified-only checkbox, live count "X of Y".
+- strings.ts (src/lib/strings.ts): localization-ready copy constants (English only; partial adoption — new screens use it, older screens still hardcoded = P2 backlog).
+Fixes this session:
+- session.ts seeds token synchronously from localStorage on web (fixes 401 on direct URL access/refresh of authed screens).
+- PingModal auto-dismisses on route change (no longer blocks screens after navigating).
+Testing: iteration_4.json — backend 15/15 new + 32 regression pass; frontend ~92% pass, 2 medium issues found & fixed above.
+
+## Backlog / next (updated)
+- P2: migrate remaining hardcoded strings in older screens (radar, auth, profile, safety) to strings.ts.
+- Refactor: split 945-line server.py into routes/models modules.
+- shadow* → boxShadow style migration (web deprecation warnings only).
+- Real push notifications (dev build + user request), photo upload, verified badge flow.
