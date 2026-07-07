@@ -17,7 +17,39 @@ type DemoAccount = {
   vibe: string;
   photo_url: string | null;
   bio: string;
+  city: string;
+  mode: string;
+  verified: boolean;
 };
+
+function FilterChips({ label, options, value, onChange, testPrefix }: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  testPrefix: string;
+}) {
+  return (
+    <View style={styles.filterBlock}>
+      <Text style={styles.filterLabel}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        {["All", ...options].map((o) => {
+          const active = value === o;
+          return (
+            <Pressable
+              key={o}
+              testID={`${testPrefix}-${o.replace(/ /g, "-")}`}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => onChange(o)}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{o}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function DemoAccountsScreen() {
   const router = useRouter();
@@ -26,10 +58,26 @@ export default function DemoAccountsScreen() {
   const { vibeMap, refresh } = useApp();
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const [switching, setSwitching] = useState<string | null>(null);
+  const [fCity, setFCity] = useState("All");
+  const [fVibe, setFVibe] = useState("All");
+  const [fMode, setFMode] = useState("All");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   useEffect(() => {
     getDemoAccounts().then(setAccounts).catch(() => {});
   }, []);
+
+  const cities = [...new Set(accounts.map((a) => a.city))];
+  const vibes = [...new Set(accounts.map((a) => a.vibe).filter(Boolean))];
+  const modes = [...new Set(accounts.map((a) => a.mode).filter(Boolean))];
+
+  const filtered = accounts.filter(
+    (a) =>
+      (fCity === "All" || a.city === fCity) &&
+      (fVibe === "All" || a.vibe === fVibe) &&
+      (fMode === "All" || a.mode === fMode) &&
+      (!verifiedOnly || a.verified)
+  );
 
   const switchTo = async (email: string) => {
     setSwitching(email);
@@ -58,9 +106,32 @@ export default function DemoAccountsScreen() {
         Tap an account to experience Intro from their perspective. Password for all: Intro123!
       </Text>
 
+      <FilterChips label="City" options={cities} value={fCity} onChange={setFCity} testPrefix="filter-city" />
+      <FilterChips
+        label="Vibe"
+        options={vibes.map((v) => vibeMap[v]?.label || v)}
+        value={fVibe === "All" ? "All" : vibeMap[fVibe]?.label || fVibe}
+        onChange={(label) => setFVibe(label === "All" ? "All" : vibes.find((v) => (vibeMap[v]?.label || v) === label) || "All")}
+        testPrefix="filter-vibe"
+      />
+      <FilterChips label="Mode" options={modes} value={fMode} onChange={setFMode} testPrefix="filter-mode" />
+      <Pressable
+        testID="filter-verified"
+        style={styles.verifiedRow}
+        onPress={() => setVerifiedOnly((v) => !v)}
+      >
+        <Ionicons
+          name={verifiedOnly ? "checkbox" : "square-outline"}
+          size={20}
+          color={verifiedOnly ? colors.teal : colors.textTertiary}
+        />
+        <Text style={styles.verifiedText}>Verified only</Text>
+        <Text style={styles.countText} testID="filter-count">{filtered.length} of {accounts.length}</Text>
+      </Pressable>
+
       {accounts.length === 0 && <ActivityIndicator color={colors.teal} style={{ marginTop: spacing.xl }} />}
 
-      {accounts.map((a) => {
+      {filtered.map((a) => {
         const current = user?.email === a.email;
         const vibe = vibeMap[a.vibe];
         return (
@@ -72,10 +143,14 @@ export default function DemoAccountsScreen() {
           >
             <Avatar uri={a.photo_url} name={a.name} size={52} ringColor={vibe?.color} />
             <View style={{ flex: 1, gap: 3 }}>
-              <Text style={styles.name}>
-                {a.name}, {a.age}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={styles.name}>
+                  {a.name}, {a.age}
+                </Text>
+                {a.verified && <Ionicons name="checkmark-circle" size={15} color={colors.teal} />}
+              </View>
               <VibePill vibe={vibe} small />
+              <Text style={styles.cityTag}>{a.city} · {a.mode || "Social"}</Text>
             </View>
             {switching === a.email ? (
               <ActivityIndicator color={colors.orange} />
@@ -110,6 +185,24 @@ const styles = StyleSheet.create({
   },
   rowActive: { borderColor: colors.teal, backgroundColor: colors.tealSoft },
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
+  cityTag: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
+  filterBlock: { marginBottom: spacing.sm },
+  filterLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 5 },
+  chipRow: { gap: spacing.xs },
+  chip: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
+  chipTextActive: { color: "#FFF" },
+  verifiedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm, marginBottom: spacing.md },
+  verifiedText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
+  countText: { color: colors.textTertiary, fontSize: font.sm, marginLeft: "auto" },
   currentTag: {
     backgroundColor: colors.teal,
     paddingHorizontal: spacing.md,

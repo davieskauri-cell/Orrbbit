@@ -45,7 +45,7 @@ export default function Register() {
     try {
       await register({ email: email.trim(), password, name: name.trim(), age: ageNum });
       trackSignup();
-      router.replace("/(auth)/profile-setup");
+      router.replace("/(auth)/intent");
     } catch (e: any) {
       setError(e.message || "Registration failed");
     } finally {

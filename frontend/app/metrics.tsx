@@ -4,7 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getMetrics } from "@/src/services/analyticsService";
-import { colors, spacing, radius, font } from "@/src/theme";
+import { api } from "@/src/lib/api";
+import { STRINGS } from "@/src/lib/strings";
+import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const LABELS: [string, string][] = [
   ["demo_signups", "Total demo signups"],
@@ -17,16 +19,31 @@ const LABELS: [string, string][] = [
   ["meetups_completed", "Meetup sessions completed"],
   ["reports_submitted", "Reports submitted"],
   ["blocks", "Blocks"],
-  ["conversations_confirmed", "Conversations confirmed"],
+  ["waitlist_signups", "Waitlist signups"],
+  ["ambassador_invites", "Ambassador invites"],
+  ["event_joins", "Event joins"],
+];
+
+const NS_LABELS: [string, string][] = [
+  ["today", "Today"],
+  ["this_week", "This week"],
+  ["this_city", "This city"],
+  ["this_event", "This event"],
+  ["total", "Total"],
 ];
 
 export default function MetricsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [data, setData] = useState<Record<string, number>>({});
+  const [data, setData] = useState<Record<string, any>>({});
+  const [northStar, setNorthStar] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = () => getMetrics().then(setData).catch(() => {});
+  const load = () =>
+    Promise.all([
+      getMetrics().then(setData).catch(() => {}),
+      api("/north-star").then(setNorthStar).catch(() => {}),
+    ]);
   useFocusEffect(React.useCallback(() => { load(); }, []));
 
   const onRefresh = async () => {
@@ -50,6 +67,20 @@ export default function MetricsScreen() {
       </View>
       <Text style={styles.sub}>Live demo data for trial partners.</Text>
 
+      <View style={[styles.nsCard, shadow.card]} testID="north-star-card">
+        <Text style={styles.nsKicker}>NORTH STAR METRIC</Text>
+        <Text style={styles.nsTitle}>Confirmed Conversations</Text>
+        <Text style={styles.nsNote}>{STRINGS.northStar}</Text>
+        <View style={styles.nsRow}>
+          {NS_LABELS.map(([key, label]) => (
+            <View key={key} style={styles.nsBox} testID={`north-star-${key}`}>
+              <Text style={styles.nsNum}>{northStar[key] ?? "—"}</Text>
+              <Text style={styles.nsLabel}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       <View style={styles.grid}>
         {LABELS.map(([key, label]) => (
           <View key={key} style={styles.box} testID={`metric-${key}`}>
@@ -58,6 +89,18 @@ export default function MetricsScreen() {
           </View>
         ))}
       </View>
+
+      {!!data.signups_by_city && (
+        <>
+          <Text style={styles.sectionTitle}>Signups by city</Text>
+          {Object.entries(data.signups_by_city as Record<string, number>).map(([city, n]) => (
+            <View key={city} style={styles.cityRow} testID={`city-signups-${city.replace(/ /g, "-")}`}>
+              <Text style={styles.cityName}>{city}</Text>
+              <Text style={styles.cityNum}>{n}</Text>
+            </View>
+          ))}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -78,4 +121,29 @@ const styles = StyleSheet.create({
   },
   num: { color: colors.orange, fontSize: font.xxl, fontWeight: "800" },
   label: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4 },
+  nsCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.teal,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  nsKicker: { color: colors.teal, fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
+  nsTitle: { color: colors.text, fontSize: font.xl, fontWeight: "800", marginTop: 4 },
+  nsNote: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4, marginBottom: spacing.lg, lineHeight: 18 },
+  nsRow: { flexDirection: "row", gap: spacing.xs },
+  nsBox: { flex: 1, backgroundColor: colors.tealSoft, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: "center" },
+  nsNum: { color: colors.teal, fontSize: font.xl, fontWeight: "800" },
+  nsLabel: { color: colors.textSecondary, fontSize: 9, marginTop: 2, textAlign: "center" },
+  sectionTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.xl, marginBottom: spacing.sm },
+  cityRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  cityName: { color: colors.text, fontSize: font.base, fontWeight: "600" },
+  cityNum: { color: colors.orange, fontSize: font.base, fontWeight: "800" },
 });

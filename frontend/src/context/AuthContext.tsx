@@ -27,6 +27,12 @@ export type User = {
   verified: boolean;
   active_now: boolean;
   trial_mode_active: boolean;
+  event_active: boolean;
+  mode: string;
+  intent?: string | null;
+  city: string;
+  country: string;
+  ambassador: boolean;
   is_demo: boolean;
 };
 

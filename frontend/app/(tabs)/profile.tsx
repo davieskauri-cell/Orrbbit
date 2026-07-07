@@ -20,6 +20,22 @@ const MENU = [
   { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
 ] as const;
 
+const GLOBAL_MENU = [
+  { icon: "map-outline", label: "City Launch Mode", route: "/cities", testID: "menu-cities" },
+  { icon: "calendar-outline", label: "Event Mode", route: "/event-mode", testID: "menu-event-mode" },
+  { icon: "school-outline", label: "Intro Campus", route: "/campus", testID: "menu-campus" },
+  { icon: "briefcase-outline", label: "Intro Networking", route: "/networking", testID: "menu-networking" },
+  { icon: "people-outline", label: "Communities", route: "/communities", testID: "menu-communities" },
+  { icon: "megaphone-outline", label: "Ambassador Hub", route: "/ambassador", testID: "menu-ambassador" },
+  { icon: "hourglass-outline", label: "Join Waitlist", route: "/waitlist", testID: "menu-waitlist" },
+] as const;
+
+const DEMO_MENU = [
+  { icon: "bar-chart-outline", label: "Test Metrics", route: "/metrics", testID: "menu-metrics" },
+  { icon: "document-text-outline", label: "Trial Report", route: "/trial-report", testID: "menu-trial-report" },
+  { icon: "checkbox-outline", label: "Launch Checklist", route: "/launch-checklist", testID: "menu-launch-checklist" },
+] as const;
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -93,18 +109,43 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
         ))}
-        {user?.is_demo && (
+      </View>
+
+      <Text style={styles.sectionTitle}>Intro Worldwide · {user?.city || "Melbourne"}</Text>
+      <View style={styles.menu}>
+        {GLOBAL_MENU.map((m) => (
           <Pressable
-            testID="menu-metrics"
+            key={m.label}
+            testID={m.testID}
             style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
-            onPress={() => router.push("/metrics")}
+            onPress={() => router.push(m.route as any)}
           >
-            <Ionicons name="bar-chart-outline" size={20} color={colors.orange} />
-            <Text style={styles.menuLabel}>Test Metrics</Text>
+            <Ionicons name={m.icon as any} size={20} color={colors.orange} />
+            <Text style={styles.menuLabel}>{m.label}</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
-        )}
+        ))}
       </View>
+
+      {user?.is_demo && (
+        <>
+          <Text style={styles.sectionTitle}>Trial Tools</Text>
+          <View style={styles.menu}>
+            {DEMO_MENU.map((m) => (
+              <Pressable
+                key={m.label}
+                testID={m.testID}
+                style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
+                onPress={() => router.push(m.route as any)}
+              >
+                <Ionicons name={m.icon as any} size={20} color={colors.orange} />
+                <Text style={styles.menuLabel}>{m.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
 
       <Pressable
         testID="logout-btn"
@@ -166,6 +207,16 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   menuLabel: { flex: 1, color: colors.text, fontSize: font.lg, fontWeight: "600" },
+  sectionTitle: {
+    color: colors.textSecondary,
+    fontSize: font.sm,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xl,
+  },
   logout: {
     flexDirection: "row",
     alignItems: "center",

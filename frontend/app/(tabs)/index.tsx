@@ -13,6 +13,7 @@ import Avatar from "@/src/components/Avatar";
 import EmptyState from "@/src/components/EmptyState";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
+import ModeSelector from "@/src/components/ModeSelector";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 export default function RadarScreen() {
@@ -88,6 +89,8 @@ export default function RadarScreen() {
           </View>
         )}
       </Pressable>
+
+      <ModeSelector />
 
       {user?.trial_mode_active && (
         <Pressable testID="trial-banner" style={styles.trialBanner} onPress={() => router.push("/trial")}>

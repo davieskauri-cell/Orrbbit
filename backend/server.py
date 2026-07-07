@@ -45,6 +45,8 @@ class RegisterIn(BaseModel):
     bio: Optional[str] = ""
     interests: Optional[List[str]] = []
     photo_url: Optional[str] = None
+    city: Optional[str] = "Melbourne"
+    country: Optional[str] = "Australia"
 
 
 class LoginIn(BaseModel):
@@ -78,6 +80,11 @@ class StateUpdate(BaseModel):
     who_can_see: Optional[str] = None
     visible_for: Optional[int] = None
     trial_mode_active: Optional[bool] = None
+    event_active: Optional[bool] = None
+    mode: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    intent: Optional[str] = None
 
 
 class FeedbackIn(BaseModel):
@@ -148,6 +155,12 @@ def public_user(u: dict) -> dict:
         "verified": u.get("verified", False),
         "active_now": u.get("active_now", True),
         "trial_mode_active": u.get("trial_mode_active", False),
+        "event_active": u.get("event_active", False),
+        "mode": u.get("mode", "Social"),
+        "intent": u.get("intent"),
+        "city": u.get("city", "Melbourne"),
+        "country": u.get("country", "Australia"),
+        "ambassador": u.get("ambassador", False),
         "is_demo": u.get("is_demo", False),
     }
 
@@ -258,6 +271,9 @@ async def register(body: RegisterIn):
         "bio": body.bio or "",
         "interests": body.interests or [],
         "photo_url": body.photo_url,
+        "city": body.city or "Melbourne",
+        "country": body.country or "Australia",
+        "mode": "Social",
         "vibe": None,
         "lat": None,
         "lng": None,
@@ -304,9 +320,9 @@ async def me(user: dict = Depends(get_current_user)):
 async def demo_accounts():
     users = await db.users.find({"is_demo": True}).to_list(50)
     order = {a["email"]: i for i, a in enumerate(DEMO_ACCOUNTS)}
-    users.sort(key=lambda u: order.get(u["email"], 99))
+    users.sort(key=lambda u: (order.get(u["email"], 99), u.get("city", "")))
     return [
-        {"email": u["email"], "name": u.get("name"), "age": u.get("age"), "vibe": u.get("vibe"), "photo_url": u.get("photo_url"), "bio": u.get("bio", "")}
+        {"email": u["email"], "name": u.get("name"), "age": u.get("age"), "vibe": u.get("vibe"), "photo_url": u.get("photo_url"), "bio": u.get("bio", ""), "city": u.get("city", "Melbourne"), "mode": u.get("mode", "Social"), "verified": u.get("verified", False), "active_now": u.get("active_now", True)}
         for u in users
     ]
 
@@ -365,6 +381,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     others = await db.users.find({"id": {"$ne": user["id"]}}).to_list(500)
     for o in others:
         if o["id"] in blocked:
+            continue
+        # worldwide app, local radar: only people in the same city ever appear
+        if o.get("city", "Melbourne") != user.get("city", "Melbourne"):
             continue
         if not o.get("visible", True) or o.get("ghost_mode") or o.get("paused"):
             continue
@@ -700,6 +719,12 @@ async def metrics(user: dict = Depends(get_current_user)):
     reports = await db.reports.count_documents({})
     blocks = await db.blocks.count_documents({})
     conversations = await db.feedback.count_documents({"spoke": "Yes, we spoke"})
+    waitlist = await db.waitlist.count_documents({})
+    users = await db.users.find({}).to_list(1000)
+    by_city: dict = {}
+    for u in users:
+        c = u.get("city", "Melbourne")
+        by_city[c] = by_city.get(c, 0) + 1
     return {
         "demo_signups": signups,
         "active_users": active,
@@ -712,7 +737,148 @@ async def metrics(user: dict = Depends(get_current_user)):
         "reports_submitted": reports,
         "blocks": blocks,
         "conversations_confirmed": conversations,
+        "waitlist_signups": waitlist,
+        "referral_signups": 0,
+        "ambassador_invites": AMBASSADOR_DEMO["invites"],
+        "event_joins": DEMO_EVENT["active_users"],
+        "signups_by_city": by_city,
     }
+
+
+# ----------------------------- Global launch system -----------------------------
+CITIES = [
+    {"name": "Melbourne", "country": "Australia", "status": "Trial Active", "zones": 2, "active_today": 64, "pings": 28, "matches": 12, "conversations": 6},
+    {"name": "Sydney", "country": "Australia", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+    {"name": "Auckland", "country": "New Zealand", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+    {"name": "London", "country": "United Kingdom", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+    {"name": "New York", "country": "United States", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+    {"name": "Toronto", "country": "Canada", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+    {"name": "Singapore", "country": "Singapore", "status": "Coming Soon", "zones": 0, "active_today": 0, "pings": 0, "matches": 0, "conversations": 0},
+]
+
+ZONES = [
+    {"name": "Melbourne CBD", "active_users": 26, "scheduled_trials": 2, "top_vibe": "networking"},
+    {"name": "Southbank", "active_users": 18, "scheduled_trials": 1, "top_vibe": "coffee_drinks"},
+    {"name": "Docklands", "active_users": 7, "scheduled_trials": 0, "top_vibe": "open_to_chat"},
+    {"name": "Fitzroy", "active_users": 9, "scheduled_trials": 1, "top_vibe": "open_to_chat"},
+    {"name": "St Kilda", "active_users": 5, "scheduled_trials": 0, "top_vibe": "exploring"},
+    {"name": "Carlton", "active_users": 11, "scheduled_trials": 1, "top_vibe": "need_advice"},
+    {"name": "Werribee", "active_users": 3, "scheduled_trials": 0, "top_vibe": "gym_buddy"},
+]
+
+DEMO_EVENT = {
+    "name": "Melbourne Founder Mixer", "location": "Melbourne CBD", "start_time": "6:00pm", "end_time": "8:00pm",
+    "types": ["Networking event", "University event", "Coworking mixer", "Fitness event", "Singles event", "Social club", "Creative event", "Business event", "Music/event venue"],
+    "active_users": 82, "pings": 36, "profile_views": 18, "mutual_accepts": 11, "conversations_confirmed": 7,
+}
+
+DEMO_CAMPUS = {
+    "name": "University of Melbourne Trial", "active_users": 124,
+    "vibes": [{"key": "open_to_chat", "count": 42}, {"key": "coffee_drinks", "count": 21}, {"key": "study_buddy", "count": 18}, {"key": "need_advice", "count": 13}, {"key": "networking", "count": 9}],
+}
+
+COMMUNITIES = [
+    {"name": c, "nearby": n, "events": e}
+    for c, n, e in [("Fitness", 14, 2), ("Golf", 5, 1), ("Running", 9, 1), ("Business", 17, 3), ("Startups", 12, 2), ("Music", 8, 1), ("Food", 11, 1), ("Travel", 6, 0), ("Study", 10, 1), ("Creative", 7, 1), ("Tech", 15, 2), ("Wellness", 6, 0)]
+]
+
+MODES = ["Social", "Networking", "Campus", "Events", "Communities", "Dating", "Fitness"]
+
+AMBASSADOR_DEMO = {
+    "name": "Kauri", "city": "Melbourne", "invites": 42, "signups": 28,
+    "active_users": 19, "mutual_accepts": 8, "conversations_confirmed": 4, "events_hosted": 2,
+    "tasks": ["Invite 20 people", "Host a 100m social experiment", "Share a QR code", "Collect feedback", "Confirm real conversations"],
+}
+
+GLOBAL_DEMO_USERS = [
+    ("amelia@intro.demo", "Amelia", 27, "open_to_chat", "London", 32, 40),
+    ("oliver@intro.demo", "Oliver", 30, "networking", "London", 45, 130),
+    ("priya@intro.demo", "Priya", 25, "coffee_drinks", "London", 58, 250),
+    ("ethan@intro.demo", "Ethan", 29, "networking", "New York", 34, 60),
+    ("ava@intro.demo", "Ava", 26, "relationship", "New York", 49, 170),
+    ("marcus@intro.demo", "Marcus", 31, "open_to_chat", "New York", 73, 300),
+    ("noah@intro.demo", "Noah", 28, "need_advice", "Toronto", 26, 80),
+    ("chloe@intro.demo", "Chloe", 24, "coffee_drinks", "Toronto", 39, 210),
+    ("maia@intro.demo", "Maia", 27, "open_to_chat", "Auckland", 31, 20),
+    ("josh@intro.demo", "Josh", 30, "gym_buddy", "Auckland", 44, 190),
+    ("lina@intro.demo", "Lina", 28, "networking", "Singapore", 35, 100),
+    ("daniel@intro.demo", "Daniel", 33, "coffee_drinks", "Singapore", 52, 280),
+]
+GLOBAL_PHOTOS = ["women/50", "men/52", "women/71", "men/61", "women/24", "men/83", "men/36", "women/90", "women/29", "men/28", "women/61", "men/70"]
+
+
+class WaitlistIn(BaseModel):
+    name: str
+    email: str
+    city: str
+    country: Optional[str] = ""
+    interest: Optional[str] = ""
+    ambassador: Optional[bool] = False
+
+
+@api_router.get("/cities")
+async def get_cities():
+    return {"cities": CITIES, "zones": ZONES}
+
+
+@api_router.get("/events/demo")
+async def get_demo_event(user: dict = Depends(get_current_user)):
+    return {"event": DEMO_EVENT, "active": user.get("event_active", False)}
+
+
+@api_router.get("/campus")
+async def get_campus():
+    return DEMO_CAMPUS
+
+
+@api_router.get("/communities")
+async def get_communities():
+    return COMMUNITIES
+
+
+@api_router.get("/modes")
+async def get_modes():
+    return MODES
+
+
+@api_router.get("/ambassador")
+async def get_ambassador():
+    return AMBASSADOR_DEMO
+
+
+@api_router.post("/waitlist")
+async def join_waitlist(body: WaitlistIn):
+    await db.waitlist.insert_one({"id": str(uuid.uuid4()), **body.dict(), "created_at": now_iso()})
+    return {"ok": True}
+
+
+@api_router.get("/trial-report")
+async def trial_report(user: dict = Depends(get_current_user)):
+    feedback = await db.feedback.find({}).to_list(500)
+    reports = await db.reports.count_documents({})
+    blocks = await db.blocks.count_documents({})
+    meetups = await db.meetups.count_documents({})
+    conversations = len([f for f in feedback if f.get("spoke") == "Yes, we spoke"])
+    exp = [f.get("experience") for f in feedback if f.get("experience")]
+    return {
+        "event": DEMO_EVENT["name"], "city": "Melbourne", "date": now_iso()[:10],
+        "active_users": DEMO_EVENT["active_users"], "pings_sent": DEMO_EVENT["pings"],
+        "profile_views": DEMO_EVENT["profile_views"], "mutual_accepts": DEMO_EVENT["mutual_accepts"],
+        "meetups_started": meetups, "conversations_confirmed": conversations,
+        "feedback_summary": {e: exp.count(e) for e in set(exp)} or {"Great": 4, "Good": 2, "Okay": 1},
+        "safety_reports": reports, "blocks": blocks,
+        "key_learnings": ["Density drives conversations", "Networking vibe converts best", "Icebreakers reduce hesitation"],
+    }
+
+
+@api_router.get("/north-star")
+async def north_star(user: dict = Depends(get_current_user)):
+    feedback = await db.feedback.find({"spoke": "Yes, we spoke"}).to_list(1000)
+    now = datetime.now(timezone.utc)
+    today = len([f for f in feedback if f["created_at"][:10] == now_iso()[:10]])
+    week_cut = (now - timedelta(days=7)).isoformat()
+    week = len([f for f in feedback if f["created_at"] > week_cut])
+    return {"today": today, "this_week": week, "this_city": len(feedback), "this_event": min(len(feedback), DEMO_EVENT["conversations_confirmed"]), "total": len(feedback)}
 
 
 app.include_router(api_router)
@@ -748,6 +914,29 @@ async def seed_demo_accounts():
             doc["created_at"] = now_iso()
             await db.users.insert_one(doc)
     logger.info("Seeded %d demo accounts", len(DEMO_ACCOUNTS))
+    # global demo users (same rules: <=100m within their own city)
+    for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
+        doc = {
+            "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
+            "bio": f"{name} is exploring Intro in {city}.", "interests": ["Coffee", "Travel"],
+            "photo_url": f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
+            "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 15 + i * 10,
+            "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
+            "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
+            "visible_for": 30, "verified": i % 2 == 0, "active_now": True, "is_demo": True,
+            "trial_mode_active": False, "lat": None, "lng": None, "last_active": now_iso(),
+        }
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            await db.users.update_one({"email": email}, {"$set": doc})
+        else:
+            doc["id"] = str(uuid.uuid4())
+            doc["hashed_password"] = pwd_context.hash(DEMO_PASSWORD)
+            doc["created_at"] = now_iso()
+            await db.users.insert_one(doc)
+    # mark Kauri as Melbourne ambassador
+    await db.users.update_one({"email": "kauri@intro.demo"}, {"$set": {"ambassador": True}})
+    logger.info("Seeded %d global demo users", len(GLOBAL_DEMO_USERS))
 
 
 @app.on_event("shutdown")
