@@ -32,6 +32,12 @@ export type NearbyUser = {
   compatible: boolean;
   verified: boolean;
   active_now: boolean;
+  intent?: string | null;
+  context?: string | null;
+  tags?: string[];
+  vibe_details?: Record<string, any>;
+  mutual_reason?: string | null;
+  score?: number;
 };
 
 export type Vibe = {

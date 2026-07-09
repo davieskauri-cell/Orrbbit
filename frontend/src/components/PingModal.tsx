@@ -47,6 +47,16 @@ export default function PingModal() {
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>{activePing.title}</Text>
+          {!!(activePing as any).reason && (
+            <View style={pmStyles.reasonRow} testID="ping-reason">
+              <Text style={pmStyles.reasonText}>{(activePing as any).reason}</Text>
+            </View>
+          )}
+          {!!(activePing as any).context && (
+            <Text style={pmStyles.contextText} testID="ping-context">
+              “{(activePing as any).context}”
+            </Text>
+          )}
           <View style={styles.userRow}>
             <Avatar
               uri={activePing.user.photo_url}
@@ -119,5 +129,24 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: spacing.md,
     marginBottom: spacing.lg,
+  },
+});
+
+const pmStyles = StyleSheet.create({
+  reasonRow: {
+    backgroundColor: colors.orangeSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    alignSelf: "flex-start",
+  },
+  reasonText: { color: colors.orange, fontSize: font.sm, fontWeight: "700" },
+  contextText: {
+    color: colors.textSecondary,
+    fontSize: font.base,
+    fontStyle: "italic",
+    marginBottom: spacing.md,
+    lineHeight: 20,
   },
 });

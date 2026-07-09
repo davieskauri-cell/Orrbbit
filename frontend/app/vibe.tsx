@@ -25,7 +25,7 @@ export default function ChangeVibeModal() {
       const updated = await updateVibe(selected);
       setUser(updated as any);
       await refresh();
-      router.back();
+      router.replace("/vibe-details");
     } catch {}
     setBusy(false);
   };

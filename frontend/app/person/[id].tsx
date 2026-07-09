@@ -9,9 +9,11 @@ import { useAuth } from "@/src/context/AuthContext";
 import { createMatch } from "@/src/services/matchingService";
 import { blockUser } from "@/src/services/safetyService";
 import { trackProfileView, trackMatchCreated } from "@/src/services/analyticsService";
+import { api } from "@/src/lib/api";
 import { distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
+import VibeDetailsCard from "@/src/components/VibeDetailsCard";
 import InterestChip from "@/src/components/InterestChip";
 import EmptyState from "@/src/components/EmptyState";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
@@ -24,6 +26,7 @@ export default function PersonPreview() {
   const { findUser, vibeMap, refresh } = useApp();
   const { user: me } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const user = findUser(id!);
 
   useEffect(() => {
@@ -50,6 +53,16 @@ export default function PersonPreview() {
   const vibe = user.vibe ? vibeMap[user.vibe] : undefined;
   const action = vibe?.action || "Let's Connect";
   const sameVibe = !!me?.vibe && me.vibe === user.vibe;
+  const reason = user.mutual_reason || (sameVibe && vibe ? `You both chose ${vibe.label}` : null);
+
+  const saveForLater = async () => {
+    setSaved(true);
+    try {
+      await api("/saved", { method: "POST", body: { user_id: user.id, distance: user.distance } });
+    } catch {
+      setSaved(false);
+    }
+  };
 
   const connect = async () => {
     setBusy(true);
@@ -131,13 +144,18 @@ export default function PersonPreview() {
               <Text style={styles.protectedText}>Intro safety protected</Text>
             </View>
           </View>
-          {sameVibe && vibe && (
-            <View style={styles.mutualVibe} testID="mutual-vibe-label">
+          {!!reason && (
+            <View style={styles.mutualVibe} testID="mutual-reason-label">
               <Ionicons name="sparkles" size={14} color={colors.orange} />
-              <Text style={styles.mutualText}>You both chose {vibe.label}</Text>
+              <Text style={styles.mutualText}>{reason}</Text>
             </View>
           )}
+          {!!user.intent && (
+            <Text style={styles.intentLine} testID="person-intent">{user.intent}</Text>
+          )}
           {!!user.bio && <Text style={styles.bio}>{user.bio}</Text>}
+
+          <VibeDetailsCard details={user.vibe_details || {}} />
 
           {!!user.interests?.length && (
             <>
@@ -169,6 +187,11 @@ export default function PersonPreview() {
         <View style={styles.secondaryRow}>
           <Pressable testID="person-not-now" style={styles.smallBtn} onPress={() => router.back()}>
             <Text style={styles.smallBtnText}>Not Now</Text>
+          </Pressable>
+          <Pressable testID="person-save-later" style={styles.smallBtn} onPress={saveForLater} disabled={saved}>
+            <Text style={[styles.smallBtnText, { color: saved ? colors.success : colors.teal }]}>
+              {saved ? "Saved ✓" : "Save for later"}
+            </Text>
           </Pressable>
           <Pressable testID="person-block" style={styles.smallBtn} onPress={doBlock}>
             <Text style={[styles.smallBtnText, { color: colors.pink }]}>Block</Text>
@@ -253,7 +276,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     alignSelf: "flex-start",
   },
-  mutualText: { color: colors.orange, fontSize: font.base, fontWeight: "700" },
+  mutualText: { color: colors.orange, fontSize: font.base, fontWeight: "700", flex: 1 },
+  intentLine: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.md },
   secondaryRow: { flexDirection: "row", justifyContent: "center", gap: spacing.xl, marginTop: spacing.sm },
   smallBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.sm, minHeight: 44, justifyContent: "center" },
   smallBtnText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "700" },

@@ -38,6 +38,7 @@ export default function PrivacyScreen() {
   const [paused, setPaused] = useState(!!user?.paused);
   const [sameVibe, setSameVibe] = useState(!!user?.only_same_vibe);
   const [verifiedOnly, setVerifiedOnly] = useState(!!user?.verified_only);
+  const [showRecruiters, setShowRecruiters] = useState(user?.show_recruiters !== false);
   const [audience, setAudience] = useState(user?.who_can_see || "everyone");
   const [busy, setBusy] = useState(false);
 
@@ -53,6 +54,7 @@ export default function PrivacyScreen() {
         paused,
         only_same_vibe: sameVibe,
         verified_only: verifiedOnly,
+        show_recruiters: showRecruiters,
         who_can_see: audience,
       });
       setUser(updated as any);
@@ -151,6 +153,13 @@ export default function PrivacyScreen() {
             description="Only see verified profiles."
             value={verifiedOnly}
             onChange={setVerifiedOnly}
+          />
+          <ToggleRow
+            testID="toggle-recruiters"
+            title="Show me recruiter profiles"
+            description="Hide recruiters from your radar and nearby list. Report recruiter spam anytime."
+            value={showRecruiters}
+            onChange={setShowRecruiters}
           />
         </View>
 

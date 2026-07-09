@@ -11,7 +11,7 @@ import jwt
 from pathlib import Path
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 
@@ -71,6 +71,15 @@ class PhotoIn(BaseModel):
     photo: str
 
 
+class VibeDetailsIn(BaseModel):
+    details: Dict[str, Any]
+
+
+class SaveProfileIn(BaseModel):
+    user_id: str
+    distance: Optional[int] = None
+
+
 class StateUpdate(BaseModel):
     vibe: Optional[str] = None
     lat: Optional[float] = None
@@ -90,6 +99,7 @@ class StateUpdate(BaseModel):
     city: Optional[str] = None
     country: Optional[str] = None
     intent: Optional[str] = None
+    show_recruiters: Optional[bool] = None
 
 
 class FeedbackIn(BaseModel):
@@ -164,6 +174,8 @@ def public_user(u: dict) -> dict:
         "event_active": u.get("event_active", False),
         "mode": u.get("mode", "Social"),
         "intent": u.get("intent"),
+        "vibe_details": u.get("vibe_details", {}),
+        "show_recruiters": u.get("show_recruiters", True),
         "city": u.get("city", "Melbourne"),
         "country": u.get("country", "Australia"),
         "ambassador": u.get("ambassador", False),
@@ -253,6 +265,81 @@ DEMO_ACCOUNTS = [
     {"email": "ryan@intro.demo", "name": "Ryan", "age": 35, "vibe": "networking", "bio": "Business owner who enjoys meeting other driven people nearby.", "interests": ["Business", "Leadership", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/41.jpg", "dist": 78, "bearing": 330, "minutes_ago": 180, "verified": True},
     {"email": "emily@intro.demo", "name": "Emily", "age": 27, "vibe": "coffee_drinks", "bio": "Always happy to meet someone for a quick coffee and good conversation.", "interests": ["Coffee", "Food", "Travel"], "photo_url": "https://randomuser.me/api/portraits/women/33.jpg", "dist": 94, "bearing": 190, "minutes_ago": 240, "verified": False},
 ]
+
+DEMO_VIBE_DETAILS = {
+    "kauri@intro.demo": {
+        "intent": "Offering Career Advice", "advice_role": "Offering Advice",
+        "context": "HR professional and founder building Intro.",
+        "background": "HR professional and founder building Intro", "industry": "HR",
+        "experience_level": "3-5 years", "professional_identity": "Founder",
+        "looking_for": ["Business contacts", "App feedback", "Early testers"],
+        "can_help_with": ["HR", "Career direction", "Interviews", "Confidence"],
+        "offer_categories": ["Career", "HR", "Confidence"], "offer_experience": "Professional experience",
+        "tags": ["HR", "Startups", "Business", "Golf"], "visibility": "public",
+    },
+    "james@intro.demo": {
+        "intent": "Founder / Networking", "professional_identity": "Founder", "industry": "Fintech",
+        "experience_level": "5-10 years", "context": "Fintech founder open to meeting operators and marketers.",
+        "background": "Startup founder in fintech",
+        "looking_for": ["Tech contacts", "Investors", "Marketing advice"],
+        "can_help_with": ["Finance", "Startups", "Product strategy"],
+        "tags": ["Startups", "Finance", "Tech"], "visibility": "public",
+    },
+    "sarah@intro.demo": {
+        "intent": "Need Career Advice", "advice_role": "Need Advice", "advice_category": "Career advice",
+        "context": "Been in HR for 3 years and not feeling it anymore.",
+        "looking_for": ["Someone in HR", "Someone who changed careers"],
+        "urgency": "Would like advice today", "comfort_level": "Coffee chat",
+        "tags": ["HR", "Career", "Burnout", "Next Steps"], "visibility": "public",
+    },
+    "olivia@intro.demo": {
+        "intent": "Recruiter / Hiring", "professional_identity": "Recruiter", "recruiter_mode": True,
+        "industry": "Tech", "company": "TalentLab Melbourne",
+        "hiring_roles": ["Frontend Developer", "Product Designer"],
+        "hiring_experience": "3-5 years", "work_type": "Full-time", "location_type": "Hybrid",
+        "context": "Hiring for tech roles in Melbourne.",
+        "looking_for": ["Tech talent open to a quick chat"],
+        "tags": ["Tech", "Hiring", "Recruitment"], "visibility": "public",
+    },
+    "jake@intro.demo": {
+        "intent": "Coffee", "context": "Up for a quick coffee and a relaxed conversation.",
+        "looking_for": ["Friendly conversation", "A relaxed conversation"],
+        "setting": "Cafe", "time": "Now",
+        "tags": ["Coffee", "Music", "Travel"], "visibility": "public",
+    },
+    "mia@intro.demo": {
+        "intent": "Long-term relationship", "relationship_intention": "Long-term relationship",
+        "context": "Looking to meet someone genuine in real life.",
+        "looking_for": ["Good conversation", "Someone emotionally mature", "Shared values"],
+        "values": ["Communication", "Humour", "Fitness", "Travel"],
+        "tags": ["Fitness", "Travel", "Food"], "visibility": "public",
+    },
+    "liam@intro.demo": {
+        "intent": "Weights partner", "training_type": ["Weights"], "experience_level": "Intermediate",
+        "context": "Looking for a weights partner after work.",
+        "looking_for": ["Training partner", "Accountability"], "preferred_time": ["Evening"],
+        "tags": ["Gym", "Strength", "Health"], "visibility": "public",
+    },
+    "sophie@intro.demo": {
+        "intent": "New to the area", "context": "New to Melbourne and open to random conversations.",
+        "looking_for": ["Friendly people", "Coffee", "Walks"],
+        "can_offer": ["Local tips", "Friendly energy"],
+        "tags": ["Coffee", "Music", "Walks"], "visibility": "public",
+    },
+    "ryan@intro.demo": {
+        "intent": "Business owner / Networking", "professional_identity": "Business owner",
+        "industry": "Business", "experience_level": "10+ years",
+        "context": "Business owner who enjoys meeting other driven people.",
+        "looking_for": ["Operators", "Leaders", "Investors"],
+        "can_help_with": ["Leadership", "Business strategy", "Growth"],
+        "tags": ["Business", "Leadership", "Investing"], "visibility": "public",
+    },
+    "emily@intro.demo": {
+        "intent": "Coffee", "context": "Happy to meet someone for coffee and good conversation.",
+        "looking_for": ["Coffee nearby", "Friendly chat"], "setting": "Cafe", "time": "Later today",
+        "tags": ["Coffee", "Food", "Travel"], "visibility": "public",
+    },
+}
 
 
 # ----------------------------- Auth routes -----------------------------
@@ -378,6 +465,51 @@ async def remove_photo(index: int, user: dict = Depends(get_current_user)):
     return public_user(user)
 
 
+@api_router.put("/users/me/vibe-details")
+async def update_vibe_details(body: VibeDetailsIn, user: dict = Depends(get_current_user)):
+    details = {k: v for k, v in body.details.items() if v not in (None, "", [])}
+    await db.users.update_one({"id": user["id"]}, {"$set": {"vibe_details": details}})
+    user = await db.users.find_one({"id": user["id"]})
+    return public_user(user)
+
+
+# ----------------------------- Saved for later -----------------------------
+@api_router.post("/saved")
+async def save_profile(body: SaveProfileIn, user: dict = Depends(get_current_user)):
+    existing = await db.saved.find_one({"owner_id": user["id"], "user_id": body.user_id})
+    if not existing:
+        await db.saved.insert_one({
+            "id": str(uuid.uuid4()), "owner_id": user["id"], "user_id": body.user_id,
+            "distance_at_save": body.distance, "saved_at": now_iso(),
+        })
+    return {"ok": True}
+
+
+@api_router.get("/saved")
+async def list_saved(user: dict = Depends(get_current_user)):
+    saved = await db.saved.find({"owner_id": user["id"]}).to_list(200)
+    saved.sort(key=lambda s: s["saved_at"], reverse=True)
+    out = []
+    for s in saved:
+        u = await db.users.find_one({"id": s["user_id"]})
+        if not u:
+            continue
+        vd = u.get("vibe_details") or {}
+        out.append({
+            "id": u["id"], "name": u.get("name"), "age": u.get("age"),
+            "photo_url": u.get("photo_url"), "vibe": u.get("vibe"),
+            "intent": vd.get("intent"), "verified": u.get("verified", False),
+            "distance_at_save": s.get("distance_at_save"), "saved_at": s["saved_at"],
+        })
+    return out
+
+
+@api_router.delete("/saved/{user_id}")
+async def unsave_profile(user_id: str, user: dict = Depends(get_current_user)):
+    await db.saved.delete_one({"owner_id": user["id"], "user_id": user_id})
+    return {"ok": True}
+
+
 @api_router.put("/users/me/state")
 async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
@@ -398,6 +530,73 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
 
 
 # ----------------------------- Nearby radar -----------------------------
+def _vd(u: dict) -> dict:
+    return u.get("vibe_details") or {}
+
+
+def _lset(items) -> set:
+    return {str(x).lower() for x in (items or [])}
+
+
+def detail_score(me: dict, o: dict) -> int:
+    """Compatibility boost based on Vibe Details. Higher = more relevant."""
+    mv, ov = _vd(me), _vd(o)
+    score = 0
+    my_tags = _lset(mv.get("tags")) | _lset(me.get("interests"))
+    o_tags = _lset(ov.get("tags")) | _lset(o.get("interests"))
+    score += 2 * len(my_tags & o_tags)
+    my_helps = _lset(mv.get("can_help_with")) | _lset(mv.get("offer_categories"))
+    o_helps = _lset(ov.get("can_help_with")) | _lset(ov.get("offer_categories"))
+    # advice fit: their need matches what I can help with (and vice versa)
+    for cat, helps in ((ov.get("advice_category"), my_helps), (mv.get("advice_category"), o_helps)):
+        if cat:
+            key = cat.lower().replace(" advice", "")
+            if any(key in h or h in key for h in helps):
+                score += 8
+    # recruiter <-> job seeker fit
+    o_recruiter = ov.get("recruiter_mode") or ov.get("professional_identity") == "Recruiter"
+    m_recruiter = mv.get("recruiter_mode") or mv.get("professional_identity") == "Recruiter"
+    o_seeker = ov.get("job_seeker_mode") or ov.get("professional_identity") == "Job seeker"
+    m_seeker = mv.get("job_seeker_mode") or mv.get("professional_identity") == "Job seeker"
+    if (o_recruiter and m_seeker) or (m_recruiter and o_seeker):
+        score += 8
+    # relationship intention alignment
+    if mv.get("relationship_intention") and mv.get("relationship_intention") == ov.get("relationship_intention"):
+        score += 6
+    # training type overlap
+    score += 4 * len(_lset(mv.get("training_type")) & _lset(ov.get("training_type")))
+    # same industry for networking
+    if me.get("vibe") == "networking" == o.get("vibe") and mv.get("industry") and mv.get("industry") == ov.get("industry"):
+        score += 4
+    # what they look for matches what I offer
+    score += 3 * len(_lset(ov.get("looking_for")) & my_helps)
+    return score
+
+
+def mutual_reason(me: dict, o: dict) -> Optional[str]:
+    """Short human explanation of why this person is shown."""
+    mv, ov = _vd(me), _vd(o)
+    name = o.get("name") or "They"
+    if ov.get("recruiter_mode") or ov.get("professional_identity") == "Recruiter":
+        roles = ", ".join(ov.get("hiring_roles") or [])
+        return f"{name} is hiring: {roles}" if roles else f"{name} is hiring nearby"
+    if o.get("vibe") == "need_advice" and ov.get("advice_category"):
+        cat = ov["advice_category"].lower().replace(" advice", "")
+        my_helps = _lset(mv.get("can_help_with")) | _lset(mv.get("offer_categories"))
+        if any(cat in h or h in cat for h in my_helps):
+            return f"{name} needs {cat} advice and you can help with {cat}"
+        return f"{name} is looking for {cat} advice"
+    if o.get("vibe") == "coffee_drinks":
+        return f"{name} is nearby and open to coffee"
+    if me.get("vibe") and me.get("vibe") == o.get("vibe"):
+        label = next((v["label"] for v in VIBES if v["key"] == me["vibe"]), me["vibe"])
+        return f"You both selected {label}"
+    shared = _lset(_vd(me).get("tags")) & _lset(ov.get("tags"))
+    if shared:
+        return f"You both like {sorted(shared)[0].title()}"
+    return None
+
+
 async def get_blocked_ids(user_id: str) -> set:
     blocks = await db.blocks.find({"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]}).to_list(500)
     ids = set()
@@ -440,6 +639,16 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             continue
         if user.get("verified_only") and not o.get("verified"):
             continue
+        ovd = _vd(o)
+        o_recruiter = ovd.get("recruiter_mode") or ovd.get("professional_identity") == "Recruiter"
+        # privacy: users can hide recruiter profiles
+        if o_recruiter and user.get("show_recruiters", True) is False:
+            continue
+        # Busy users are invisible unless they explicitly chose to stay visible
+        if o_vibe == "busy" and ovd.get("busy_setting") != "Visible but not available":
+            continue
+        vis = ovd.get("visibility", "public")
+        shown_details = ovd if vis == "public" else ({"intent": ovd.get("intent")} if vis in ("after_view", "after_accept") else {})
         results.append({
             "id": o["id"],
             "name": o.get("name"),
@@ -456,8 +665,15 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "verified": o.get("verified", False),
             "active_now": o.get("active_now", True),
             "is_demo": o.get("is_demo", False),
+            "intent": shown_details.get("intent"),
+            "context": shown_details.get("context"),
+            "tags": shown_details.get("tags", []),
+            "vibe_details": shown_details,
+            "mutual_reason": mutual_reason(user, o),
+            "score": detail_score(user, o),
         })
-    results.sort(key=lambda r: r["distance"])
+    # most relevant first (vibe-detail fit), then closest
+    results.sort(key=lambda r: (-r["score"], r["distance"]))
     return results
 
 
@@ -486,6 +702,9 @@ def ping_payload(p: dict, u_info: dict) -> dict:
         "title": (vibe_def or {}).get("ping_title") or "Someone nearby wants to connect 👋",
         "distance": p.get("distance_meters"),
         "created_at": p["created_at"],
+        "reason": u_info.get("mutual_reason"),
+        "context": u_info.get("context"),
+        "intent": u_info.get("intent"),
         "user": u_info,
     }
 
@@ -545,6 +764,8 @@ async def list_pings(user: dict = Depends(get_current_user)):
         info = {
             "id": u["id"], "name": u.get("name"), "age": u.get("age"),
             "photo_url": u.get("photo_url"), "vibe": u.get("vibe"), "bio": u.get("bio", ""),
+            "intent": _vd(u).get("intent"), "context": _vd(u).get("context"),
+            "mutual_reason": mutual_reason(user, u),
         }
         out.append(ping_payload(p, info))
     return out
@@ -944,6 +1165,7 @@ async def seed_demo_accounts():
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
             "visible_for": 30, "verified": acc["verified"], "active_now": True, "is_demo": True,
             "trial_mode_active": False,
+            "vibe_details": DEMO_VIBE_DETAILS.get(acc["email"], {}),
             "lat": None, "lng": None, "last_active": now_iso(),
         }
         existing = await db.users.find_one({"email": acc["email"]})

@@ -31,6 +31,8 @@ export type User = {
   event_active: boolean;
   mode: string;
   intent?: string | null;
+  vibe_details?: Record<string, any>;
+  show_recruiters?: boolean;
   city: string;
   country: string;
   ambassador: boolean;

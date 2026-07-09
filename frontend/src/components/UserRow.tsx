@@ -15,6 +15,7 @@ type Props = {
 
 export default function UserRow({ user, vibeMap, onPress }: Props) {
   const vibe = user.vibe ? vibeMap[user.vibe] : undefined;
+  const line = user.context || user.bio;
   return (
     <Pressable
       testID={`user-row-${user.id}`}
@@ -39,11 +40,31 @@ export default function UserRow({ user, vibeMap, onPress }: Props) {
           </View>
           <Text style={styles.distance}>{distLabel(user.distance)}</Text>
         </View>
-        <VibePill vibe={vibe} small />
-        {!!user.bio && (
+        <View style={styles.pillRow}>
+          <VibePill vibe={vibe} small />
+          {!!user.intent && (
+            <Text style={styles.intent} numberOfLines={1}>
+              {user.intent}
+            </Text>
+          )}
+        </View>
+        {!!line && (
           <Text style={styles.bio} numberOfLines={1}>
-            {user.bio}
+            {user.context ? `“${line}”` : line}
           </Text>
+        )}
+        {!!user.tags?.length && (
+          <Text style={styles.tags} numberOfLines={1}>
+            {user.tags.slice(0, 4).join(" · ")}
+          </Text>
+        )}
+        {!!user.mutual_reason && (
+          <View style={styles.reasonRow}>
+            <Ionicons name="sparkles" size={11} color={colors.orange} />
+            <Text style={styles.reason} numberOfLines={1}>
+              {user.mutual_reason}
+            </Text>
+          </View>
         )}
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
@@ -64,4 +85,9 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   distance: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
   bio: { color: colors.textSecondary, fontSize: font.sm },
+  pillRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  intent: { color: colors.text, fontSize: font.sm, fontWeight: "700", flex: 1 },
+  tags: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
+  reasonRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  reason: { color: colors.orange, fontSize: 11, fontWeight: "700", flex: 1 },
 });

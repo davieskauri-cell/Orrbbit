@@ -27,7 +27,7 @@ export default function ChooseVibe() {
       trackVibeSelected();
       // contextual moment to ask for location — the radar needs it next
       requestLocation();
-      router.replace("/(tabs)");
+      router.replace("/vibe-details?next=tabs");
     } catch {}
     setBusy(false);
   };

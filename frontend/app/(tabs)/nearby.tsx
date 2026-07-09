@@ -24,7 +24,26 @@ export default function NearbyScreen() {
   const { user } = useAuth();
   const { nearby, vibeMap, refresh } = useApp();
   const [filter, setFilter] = useState("all");
+  const [detailFilters, setDetailFilters] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  const DETAIL_FILTERS: { key: string; label: string; test: (n: any) => boolean }[] = [
+    { key: "active", label: "Active now", test: (n) => !!n.active_now },
+    { key: "verified", label: "Verified", test: (n) => !!n.verified },
+    { key: "same_vibe", label: "Same vibe", test: (n) => !!user?.vibe && n.vibe === user.vibe },
+    { key: "hiring", label: "Hiring now", test: (n) => !!n.vibe_details?.recruiter_mode || !!n.vibe_details?.hiring_roles?.length },
+    { key: "recruiters", label: "Recruiters", test: (n) => !!n.vibe_details?.recruiter_mode || n.vibe_details?.professional_identity === "Recruiter" },
+    { key: "job_seekers", label: "Job seekers", test: (n) => !!n.vibe_details?.job_seeker_mode || n.vibe_details?.professional_identity === "Job seeker" },
+    { key: "founders", label: "Founders", test: (n) => ["Founder", "Business owner"].includes(n.vibe_details?.professional_identity) },
+    { key: "mentors", label: "Mentors", test: (n) => !!(n.vibe_details?.can_help_with?.length || n.vibe_details?.offer_categories?.length) },
+    { key: "long_term", label: "Long-term", test: (n) => !!n.vibe_details?.relationship_intention?.includes("Long-term") },
+    { key: "coffee_now", label: "Coffee now", test: (n) => n.vibe === "coffee_drinks" && n.vibe_details?.time === "Now" },
+    { key: "career_advice", label: "Career advice", test: (n) => (n.vibe_details?.advice_category || "").includes("Career") || (n.vibe_details?.can_help_with || []).some((h: string) => h.toLowerCase().includes("career")) },
+    { key: "weights", label: "Weights", test: (n) => (n.vibe_details?.training_type || []).includes("Weights") },
+  ];
+
+  const toggleDetail = (key: string) =>
+    setDetailFilters((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -32,7 +51,9 @@ export default function NearbyScreen() {
     setRefreshing(false);
   };
 
-  const data = filter === "all" ? nearby : nearby.filter((n) => n.vibe === filter);
+  const data = (filter === "all" ? nearby : nearby.filter((n) => n.vibe === filter)).filter((n) =>
+    detailFilters.every((k) => DETAIL_FILTERS.find((f) => f.key === k)?.test(n))
+  );
   const hidden = !user?.visible || user?.ghost_mode || user?.paused;
 
   return (
@@ -56,6 +77,28 @@ export default function NearbyScreen() {
                 style={[styles.filterChip, active && styles.filterChipActive]}
               >
                 <Text style={[styles.filterText, active && styles.filterTextActive]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <View style={{ height: 44 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+        >
+          {DETAIL_FILTERS.map((f) => {
+            const active = detailFilters.includes(f.key);
+            return (
+              <Pressable
+                key={f.key}
+                testID={`dfilter-${f.key}`}
+                onPress={() => toggleDetail(f.key)}
+                style={[styles.detailChip, active && styles.detailChipActive]}
+              >
+                <Text style={[styles.detailText, active && styles.detailTextActive]}>{f.label}</Text>
               </Pressable>
             );
           })}
@@ -112,6 +155,17 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: colors.orange, borderColor: colors.orange },
   filterText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
   filterTextActive: { color: "#FFF" },
+  detailChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  detailChipActive: { backgroundColor: colors.tealSoft, borderColor: colors.teal },
+  detailText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
+  detailTextActive: { color: colors.teal, fontWeight: "800" },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, flexGrow: 1 },
   divider: { height: 1, backgroundColor: colors.border },
 });

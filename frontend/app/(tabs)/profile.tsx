@@ -13,6 +13,8 @@ import { colors, spacing, radius, font, shadow } from "@/src/theme";
 const MENU = [
   { icon: "create-outline", label: "Edit Profile", route: "/edit-profile", testID: "menu-edit-profile" },
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
+  { icon: "id-card-outline", label: "Vibe Details", route: "/vibe-details", testID: "menu-vibe-details" },
+  { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
   { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
