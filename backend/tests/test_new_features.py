@@ -158,9 +158,10 @@ class TestMetricsFeedbackAnalytics:
         r = requests.get(f"{API}/metrics", headers=kauri_headers, timeout=TIMEOUT)
         assert r.status_code == 200
         data = r.json()
-        assert set(data.keys()) == self.METRIC_KEYS, f"got {set(data.keys())}"
-        for k, v in data.items():
-            assert isinstance(v, int), f"{k} not int: {v}"
+        # metrics grew after the global-scale update — original 11 keys must remain
+        assert self.METRIC_KEYS <= set(data.keys()), f"got {set(data.keys())}"
+        for k in self.METRIC_KEYS:
+            assert isinstance(data[k], int), f"{k} not int: {data[k]}"
 
     def test_feedback_increments_conversations_confirmed(self, kauri_headers):
         before = requests.get(f"{API}/metrics", headers=kauri_headers, timeout=TIMEOUT).json()

@@ -137,7 +137,8 @@ class TestReferenceData:
         r = session.get(f"{API}/demo-accounts", timeout=TIMEOUT)
         assert r.status_code == 200
         accounts = r.json()
-        assert len(accounts) == 10
+        # 10 Melbourne demo accounts + 12 global demo users
+        assert len(accounts) == 22
         emails = {a["email"] for a in accounts}
         for e in ["kauri", "james", "sarah", "olivia", "jake", "mia",
                   "liam", "sophie", "ryan", "emily"]:
@@ -160,9 +161,11 @@ class TestNearby:
         # 7 demo users are <=50m (excluding Kauri, Ryan 78, Emily 94)
         demo_users = [u for u in users if u.get("is_demo")]
         assert len(demo_users) == 7, f"expected 7 demo got {len(demo_users)}: {[u['name'] for u in demo_users]}"
-        # sorted by distance
-        dists = [u["distance"] for u in users]
-        assert dists == sorted(dists)
+        # sorted by detail-score (desc) then distance
+        assert all(
+            (users[i]["score"], -users[i]["distance"]) >= (users[i + 1]["score"], -users[i + 1]["distance"])
+            for i in range(len(users) - 1)
+        )
         # compat for networking: networking, open_to_chat, need_advice
         compat_names = {u["name"] for u in demo_users if u["compatible"]}
         assert {"Sarah", "James", "Sophie", "Olivia"} <= compat_names

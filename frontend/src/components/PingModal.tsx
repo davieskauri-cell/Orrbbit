@@ -29,16 +29,10 @@ export default function PingModal() {
   }, [pathname, activePing, dismissActivePing]);
 
   if (!activePing) return null;
-  // don't interrupt match/meetup/profile-preview moments — the ping stays in the Pings tab
-  if (
-    pathname.startsWith("/match") ||
-    pathname.startsWith("/meetup") ||
-    pathname.startsWith("/person") ||
-    pathname.startsWith("/safety-confirm") ||
-    pathname.startsWith("/feedback") ||
-    pathname.startsWith("/report")
-  )
-    return null;
+  // only interrupt on the main discovery tabs — never block menus, profile,
+  // match/meetup or safety flows. The ping always remains in the Pings tab.
+  const ALLOWED = ["/", "/nearby", "/pings", "/encounters"];
+  if (!ALLOWED.includes(pathname)) return null;
   const vibe = vibeMap[activePing.vibe];
 
   return (
