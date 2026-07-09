@@ -64,6 +64,11 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
     interests: Optional[List[str]] = None
     photo_url: Optional[str] = None
+    photos: Optional[List[str]] = None
+
+
+class PhotoIn(BaseModel):
+    photo: str
 
 
 class StateUpdate(BaseModel):
@@ -140,6 +145,7 @@ def public_user(u: dict) -> dict:
         "age": u.get("age"),
         "bio": u.get("bio", ""),
         "photo_url": u.get("photo_url"),
+        "photos": u.get("photos", []),
         "interests": u.get("interests", []),
         "vibe": u.get("vibe"),
         "visible": u.get("visible", True),
@@ -336,9 +342,39 @@ async def get_vibes():
 @api_router.put("/users/me")
 async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
+    if "photos" in fields:
+        fields["photo_url"] = fields["photos"][0] if fields["photos"] else None
     if fields:
         await db.users.update_one({"id": user["id"]}, {"$set": fields})
         user = await db.users.find_one({"id": user["id"]})
+    return public_user(user)
+
+
+MAX_PHOTOS = 6
+
+
+@api_router.post("/users/me/photos")
+async def add_photo(body: PhotoIn, user: dict = Depends(get_current_user)):
+    photos = list(user.get("photos") or [])
+    if len(photos) >= MAX_PHOTOS:
+        raise HTTPException(status_code=400, detail=f"Maximum {MAX_PHOTOS} photos")
+    photos.append(body.photo)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"photos": photos, "photo_url": photos[0]}})
+    user = await db.users.find_one({"id": user["id"]})
+    return public_user(user)
+
+
+@api_router.delete("/users/me/photos/{index}")
+async def remove_photo(index: int, user: dict = Depends(get_current_user)):
+    photos = list(user.get("photos") or [])
+    if index < 0 or index >= len(photos):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    photos.pop(index)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"photos": photos, "photo_url": photos[0] if photos else None}},
+    )
+    user = await db.users.find_one({"id": user["id"]})
     return public_user(user)
 
 
@@ -898,6 +934,11 @@ async def seed_demo_accounts():
         doc = {
             "email": acc["email"], "name": acc["name"], "age": acc["age"], "vibe": acc["vibe"],
             "bio": acc["bio"], "interests": acc["interests"], "photo_url": acc["photo_url"],
+            "photos": [
+                acc["photo_url"],
+                f"https://picsum.photos/seed/{acc['email']}-a/400/400",
+                f"https://picsum.photos/seed/{acc['email']}-b/400/400",
+            ],
             "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
             "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
@@ -920,6 +961,11 @@ async def seed_demo_accounts():
             "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
             "bio": f"{name} is exploring Intro in {city}.", "interests": ["Coffee", "Travel"],
             "photo_url": f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
+            "photos": [
+                f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
+                f"https://picsum.photos/seed/{email}-a/400/400",
+                f"https://picsum.photos/seed/{email}-b/400/400",
+            ],
             "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 15 + i * 10,
             "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",

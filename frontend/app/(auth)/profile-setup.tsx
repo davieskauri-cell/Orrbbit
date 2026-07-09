@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,8 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
-import { updateProfile } from "@/src/services/userService";
-import Avatar from "@/src/components/Avatar";
+import { updateProfile, addPhoto, removePhoto } from "@/src/services/userService";
+import PhotoGrid from "@/src/components/PhotoGrid";
 import InterestChip from "@/src/components/InterestChip";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -23,13 +23,10 @@ const INTERESTS = [
   "Sport", "Dating", "Study", "Career", "Golf", "Food", "Walking", "Tech",
 ];
 
-const PHOTOS = [
+const SAMPLE_PHOTOS = [
   "https://randomuser.me/api/portraits/men/45.jpg",
-  "https://randomuser.me/api/portraits/women/26.jpg",
-  "https://randomuser.me/api/portraits/men/64.jpg",
-  "https://randomuser.me/api/portraits/women/57.jpg",
-  "https://randomuser.me/api/portraits/men/17.jpg",
-  "https://randomuser.me/api/portraits/women/79.jpg",
+  "https://picsum.photos/seed/intro-sample-a/400/400",
+  "https://picsum.photos/seed/intro-sample-b/400/400",
 ];
 
 export default function ProfileSetup() {
@@ -37,17 +34,64 @@ export default function ProfileSetup() {
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
   const [bio, setBio] = useState(user?.bio || "");
-  const [photo, setPhoto] = useState<string | null>(user?.photo_url || null);
+  const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  // hydrate once the user loads (direct URL access / refresh)
+  const hydrated = useRef(!!user);
+  useEffect(() => {
+    if (user && !hydrated.current) {
+      hydrated.current = true;
+      setBio(user.bio || "");
+      setSelected(user.interests || []);
+      setPhotos(user.photos || []);
+    }
+  }, [user]);
 
   const toggle = (i: string) =>
     setSelected((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
 
+  const addPhotos = async (uris: string[]) => {
+    setUploading(true);
+    setError("");
+    try {
+      let updated: any = null;
+      for (const uri of uris) {
+        updated = await addPhoto(uri);
+      }
+      if (updated) {
+        setUser(updated);
+        setPhotos(updated.photos || []);
+      }
+    } catch (e: any) {
+      setError(e.message || "Photo upload failed");
+    }
+    setUploading(false);
+  };
+
+  const removeAt = async (index: number) => {
+    try {
+      const updated: any = await removePhoto(index);
+      setUser(updated);
+      setPhotos(updated.photos || []);
+    } catch {}
+  };
+
+  const useSamplePhotos = () =>
+    addPhotos(SAMPLE_PHOTOS.slice(0, Math.max(0, 3 - photos.length)));
+
   const next = async () => {
+    if (photos.length < 3) {
+      setError("Please add at least 3 photos.");
+      return;
+    }
+    setError("");
     setBusy(true);
     try {
-      const updated = await updateProfile({ bio, interests: selected, photo_url: photo });
+      const updated = await updateProfile({ bio, interests: selected });
       setUser(updated as any);
       router.replace("/(auth)/choose-vibe");
     } catch {}
@@ -63,17 +107,11 @@ export default function ProfileSetup() {
         <Text style={styles.title}>Tell us about you</Text>
         <Text style={styles.sub}>This is what people nearby will see.</Text>
 
-        <Text style={styles.label}>Profile photo</Text>
-        <View style={styles.photoRow}>
-          <Pressable testID="photo-initials" onPress={() => setPhoto(null)}>
-            <Avatar name={user?.name} size={56} ringColor={photo === null ? colors.orange : undefined} />
-          </Pressable>
-          {PHOTOS.map((p) => (
-            <Pressable key={p} testID={`photo-${p.slice(-11, -4)}`} onPress={() => setPhoto(p)}>
-              <Avatar uri={p} size={56} ringColor={photo === p ? colors.orange : undefined} />
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.label}>Your photos (minimum 3)</Text>
+        <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
+        <Pressable testID="use-sample-photos" onPress={useSamplePhotos} disabled={uploading}>
+          <Text style={styles.sampleLink}>Use sample photos</Text>
+        </Pressable>
 
         <Text style={styles.label}>Short bio</Text>
         <TextInput
@@ -93,6 +131,8 @@ export default function ProfileSetup() {
           ))}
         </View>
 
+        {!!error && <Text style={styles.error} testID="setup-error">{error}</Text>}
+
         <PrimaryButton
           testID="setup-next"
           title="Next"
@@ -111,7 +151,8 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.display, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700", marginTop: spacing.xl, marginBottom: spacing.md, letterSpacing: 0.5 },
-  photoRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  sampleLink: { color: colors.teal, fontSize: font.sm, fontWeight: "700", marginTop: spacing.sm, paddingVertical: 4 },
+  error: { color: colors.pink, fontSize: font.sm, fontWeight: "600", marginTop: spacing.md },
   bioInput: {
     backgroundColor: colors.card,
     borderWidth: 1.5,

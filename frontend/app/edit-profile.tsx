@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
-import { updateProfile } from "@/src/services/userService";
+import { updateProfile, addPhoto, removePhoto } from "@/src/services/userService";
+import PhotoGrid from "@/src/components/PhotoGrid";
 import InterestChip from "@/src/components/InterestChip";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -30,13 +31,60 @@ export default function EditProfile() {
   const [name, setName] = useState(user?.name || "");
   const [age, setAge] = useState(String(user?.age || ""));
   const [bio, setBio] = useState(user?.bio || "");
+  const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  // hydrate form once the user loads (direct URL access / refresh)
+  const hydrated = useRef(!!user);
+  useEffect(() => {
+    if (user && !hydrated.current) {
+      hydrated.current = true;
+      setName(user.name || "");
+      setAge(String(user.age || ""));
+      setBio(user.bio || "");
+      setSelected(user.interests || []);
+      setPhotos(user.photos || []);
+    }
+  }, [user]);
 
   const toggle = (i: string) =>
     setSelected((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
 
+  const addPhotos = async (uris: string[]) => {
+    setUploading(true);
+    setError("");
+    try {
+      let updated: any = null;
+      for (const uri of uris) {
+        updated = await addPhoto(uri);
+      }
+      if (updated) {
+        setUser(updated);
+        setPhotos(updated.photos || []);
+      }
+    } catch (e: any) {
+      setError(e.message || "Photo upload failed");
+    }
+    setUploading(false);
+  };
+
+  const removeAt = async (index: number) => {
+    try {
+      const updated: any = await removePhoto(index);
+      setUser(updated);
+      setPhotos(updated.photos || []);
+    } catch {}
+  };
+
   const save = async () => {
+    if (photos.length < 3) {
+      setError("Please add at least 3 photos.");
+      return;
+    }
+    setError("");
     setBusy(true);
     try {
       const updated = await updateProfile({
@@ -68,6 +116,9 @@ export default function EditProfile() {
           <Text style={styles.title}>Edit Profile</Text>
         </View>
 
+        <Text style={styles.label}>Your photos (minimum 3)</Text>
+        <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
+
         <Text style={styles.label}>First name</Text>
         <TextInput testID="edit-name" value={name} onChangeText={setName} style={styles.input} placeholder="Name" placeholderTextColor={colors.textTertiary} />
         <Text style={styles.label}>Age</Text>
@@ -88,6 +139,8 @@ export default function EditProfile() {
             <InterestChip key={i} label={i} selected={selected.includes(i)} onPress={() => toggle(i)} />
           ))}
         </View>
+
+        {!!error && <Text style={styles.error} testID="edit-error">{error}</Text>}
 
         <PrimaryButton testID="edit-save" title="Save" onPress={save} loading={busy} style={{ marginTop: spacing.xl }} />
       </ScrollView>
@@ -112,4 +165,5 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  error: { color: colors.pink, fontSize: font.sm, fontWeight: "600", marginTop: spacing.md },
 });

@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "See people open to connect near you"
+        "NSLocationWhenInUseUsageDescription": "See people open to connect near you",
+        "NSPhotoLibraryUsageDescription": "Add profile photos from your gallery"
       },
       "bundleIdentifier": "com.emergent.nearbyconnect.n08ian"
     },
@@ -23,7 +24,9 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
       ],
       "package": "com.emergent.nearbyconnect.n08ian"
     },

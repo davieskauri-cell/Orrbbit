@@ -13,4 +13,10 @@ export const updateVibe = (vibe: string) =>
 
 export const getDemoAccounts = () => api("/demo-accounts");
 
+export const addPhoto = (photo: string) =>
+  api("/users/me/photos", { method: "POST", body: { photo } });
+
+export const removePhoto = (index: number) =>
+  api(`/users/me/photos/${index}`, { method: "DELETE" });
+
 export const getVibes = () => api("/vibes");

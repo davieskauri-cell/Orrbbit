@@ -12,6 +12,7 @@ export type User = {
   age: number | null;
   bio: string;
   photo_url: string | null;
+  photos: string[];
   interests: string[];
   vibe: string | null;
   visible: boolean;
