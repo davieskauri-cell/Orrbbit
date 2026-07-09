@@ -131,3 +131,9 @@ Known LOW: shadow* deprecation warnings in theme.ts (web only).
 - locationService additions: getCurrentUserExactLocation, getApproximateDisplayLocation (deterministic per-id jitter ±12°/±6m, clamped to radius & 100m — stable, no live-tracking feel), getMapMarkers, calculateDistanceForMatching.
 - Privacy text extended: "Approximate distance only. Exact location stays hidden. Your exact location is only visible to you."
 - Verified: 7 blips at 50m radius (Sarah…Liam), Ryan(78m)/Emily(94m) excluded; radius filtering/pings/matching logic untouched.
+
+## Map Radar v2 (June 2026) — COMPLETE
+- Radar map now uses REAL basemap tiles (CARTO Positron light / OpenStreetMap, src/components/MapTiles.tsx) centred on the user's ACTUAL location (GPS when granted; DEMO_LOCATION Melbourne CBD fallback). Stylised SVG (MapBackground) remains as offline/loading fallback layer. Attribution shown.
+- Map is edge-to-edge (full screen width, 340h, hairline top/bottom borders, no rounded card).
+- Zooming in shrinks all user markers via inverse scale (markers keep constant screen size; markerStyle = 1/scale) — me marker + blips.
+- Privacy unchanged: only the current user's real coords are used for tiles; others remain fuzzed approximate positions.

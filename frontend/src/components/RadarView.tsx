@@ -5,15 +5,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
-import MapBackground from "@/src/components/MapBackground";
-import { getApproximateDisplayLocation } from "@/src/services/locationService";
+import MapTiles from "@/src/components/MapTiles";
+import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
 import { colors } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
-const { width } = Dimensions.get("window");
-const SIZE = Math.min(width - 40, 330);
-const CENTER = SIZE / 2;
-const MAX_R = CENTER - 24;
+const { width: SCREEN_W } = Dimensions.get("window");
+const MAP_W = SCREEN_W; // edge to edge
+const MAP_H = 340;
+const CX = MAP_W / 2;
+const CY = MAP_H / 2;
+const MAX_R = MAP_H / 2 - 26;
 const MAX_DIST = 100; // radar always spans the 100m hard cap
 const MAX_SCALE = 3;
 
@@ -24,9 +26,10 @@ type Props = {
   meUri?: string | null;
   meName?: string | null;
   radiusSetting: number;
+  coords?: { lat: number; lng: number } | null;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -68,9 +71,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     .minDistance(12)
     .maxPointers(1)
     .onUpdate((e) => {
-      const bound = ((scale.value - 1) * SIZE) / 2;
-      tx.value = Math.min(Math.max(savedTx.value + e.translationX, -bound), bound);
-      ty.value = Math.min(Math.max(savedTy.value + e.translationY, -bound), bound);
+      const boundX = ((scale.value - 1) * MAP_W) / 2;
+      const boundY = ((scale.value - 1) * MAP_H) / 2;
+      tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
+      ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
     })
     .onEnd(() => {
       savedTx.value = tx.value;
@@ -97,6 +101,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
   }));
 
+  // markers shrink as the map zooms in (inverse scale keeps them a constant screen size feel)
+  const markerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 / scale.value }],
+  }));
+
   const recentre = () => {
     scale.value = withTiming(1);
     savedScale.value = 1;
@@ -111,122 +120,115 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.05] });
 
   const rings = [25, 50, 75, 100];
+  const loc = coords || DEMO_LOCATION;
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.mapCard} testID="radar-map">
-        <GestureDetector gesture={gestures}>
-          <Reanimated.View style={[styles.radar, zoomStyle]}>
-            {/* soft light map behind everything */}
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <MapBackground size={SIZE} />
-            </View>
+    <View style={styles.mapArea} testID="radar-map">
+      <GestureDetector gesture={gestures}>
+        <Reanimated.View style={[styles.radar, zoomStyle]}>
+          {/* real light map centred on YOUR actual location */}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} />
+          </View>
 
-            {rings.map((m) => {
-              const f = m / MAX_DIST;
-              const active = m <= radiusSetting;
-              return (
-                <View
-                  key={m}
-                  pointerEvents="none"
-                  style={[
-                    styles.ring,
-                    {
-                      width: MAX_R * 2 * f,
-                      height: MAX_R * 2 * f,
-                      borderRadius: MAX_R * f,
-                      borderColor: active ? colors.teal + "66" : "#C9D2D4",
-                    },
-                  ]}
-                />
-              );
-            })}
-            {rings.map((m) => (
-              <Text
-                key={`label-${m}`}
-                style={[styles.ringLabel, { top: CENTER - (m / MAX_DIST) * MAX_R - 14 }]}
-              >
-                {m}m
-              </Text>
-            ))}
-
-            {/* selected radius fill */}
-            <View
-              pointerEvents="none"
-              style={[
-                styles.radiusFill,
-                {
-                  width: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                  height: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                  borderRadius: MAX_R * (radiusSetting / MAX_DIST),
-                },
-              ]}
-            />
-
-            {/* rotating sweep */}
-            <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ rotate }] }]}>
-              <LinearGradient
-                colors={["rgba(32,178,170,0.30)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.sweepGrad}
+          {rings.map((m) => {
+            const f = m / MAX_DIST;
+            const active = m <= radiusSetting;
+            return (
+              <View
+                key={m}
+                pointerEvents="none"
+                style={[
+                  styles.ring,
+                  {
+                    width: MAX_R * 2 * f,
+                    height: MAX_R * 2 * f,
+                    borderRadius: MAX_R * f,
+                    borderColor: active ? colors.teal + "77" : "#B9C4C7",
+                  },
+                ]}
               />
-            </Animated.View>
+            );
+          })}
+          {rings.map((m) => (
+            <Text key={`label-${m}`} style={[styles.ringLabel, { top: CY - (m / MAX_DIST) * MAX_R - 14 }]}>
+              {m}m
+            </Text>
+          ))}
 
-            {/* center pulse + me (exact position — visible only to you) */}
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+          {/* selected radius fill */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.radiusFill,
+              {
+                width: MAX_R * 2 * (radiusSetting / MAX_DIST),
+                height: MAX_R * 2 * (radiusSetting / MAX_DIST),
+                borderRadius: MAX_R * (radiusSetting / MAX_DIST),
+              },
+            ]}
+          />
+
+          {/* rotating sweep */}
+          <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ rotate }] }]}>
+            <LinearGradient
+              colors={["rgba(32,178,170,0.28)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.sweepGrad}
             />
-            <View style={styles.me} pointerEvents="none">
-              <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
-              <View style={styles.mePointer} />
-            </View>
+          </Animated.View>
 
-            {/* nearby blips — approximate/fuzzed positions only, never exact GPS */}
-            {users.map((u) => {
-              const approx = getApproximateDisplayLocation(u, radiusSetting);
-              const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
-              const rad = (approx.bearing * Math.PI) / 180;
-              const x = CENTER + r * Math.sin(rad) - 19;
-              const y = CENTER - r * Math.cos(rad) - 19;
-              const color = (u.vibe && vibeMap[u.vibe]?.color) || colors.grey;
-              return (
-                <Pressable
-                  key={u.id}
-                  testID={`radar-blip-${u.id}`}
-                  onPress={() => onSelect(u)}
-                  style={[styles.blip, { left: x, top: y }]}
-                >
+          {/* center pulse + me (exact position — visible only to you) */}
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+          />
+          <Reanimated.View style={[styles.me, markerStyle]} pointerEvents="none">
+            <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
+            <View style={styles.mePointer} />
+          </Reanimated.View>
+
+          {/* nearby blips — approximate/fuzzed positions only, never exact GPS */}
+          {users.map((u) => {
+            const approx = getApproximateDisplayLocation(u, radiusSetting);
+            const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
+            const rad = (approx.bearing * Math.PI) / 180;
+            const x = CX + r * Math.sin(rad) - 19;
+            const y = CY - r * Math.cos(rad) - 19;
+            const color = (u.vibe && vibeMap[u.vibe]?.color) || colors.grey;
+            return (
+              <Reanimated.View key={u.id} style={[styles.blip, { left: x, top: y }, markerStyle]}>
+                <Pressable testID={`radar-blip-${u.id}`} onPress={() => onSelect(u)}>
                   <Avatar uri={u.photo_url} name={u.name} size={38} ringColor={color} />
                   {u.compatible && <View style={[styles.compatDot, { backgroundColor: color }]} />}
                 </Pressable>
-              );
-            })}
-          </Reanimated.View>
-        </GestureDetector>
+              </Reanimated.View>
+            );
+          })}
+        </Reanimated.View>
+      </GestureDetector>
 
-        {/* re-centre */}
-        <Pressable testID="radar-recentre" style={styles.recentreBtn} onPress={recentre} hitSlop={8}>
-          <Ionicons name="locate" size={16} color={colors.teal} />
-        </Pressable>
-      </View>
+      {/* re-centre */}
+      <Pressable testID="radar-recentre" style={styles.recentreBtn} onPress={recentre} hitSlop={8}>
+        <Ionicons name="locate" size={16} color={colors.teal} />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: "center", justifyContent: "center" },
-  mapCard: {
-    width: SIZE,
-    height: SIZE,
-    borderRadius: 20,
+  mapArea: {
+    width: MAP_W,
+    height: MAP_H,
+    alignSelf: "center",
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: "#F8FAF9",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
-  radar: { width: SIZE, height: SIZE, alignItems: "center", justifyContent: "center" },
+  radar: { width: MAP_W, height: MAP_H, alignItems: "center", justifyContent: "center" },
   ring: { position: "absolute", borderWidth: 1.5 },
   ringLabel: {
     position: "absolute",
@@ -244,8 +246,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: MAX_R,
     height: MAX_R,
-    left: CENTER,
-    top: CENTER - MAX_R,
+    left: CX,
+    top: CY - MAX_R,
     transformOrigin: "left bottom",
   },
   sweepGrad: { flex: 1, borderTopRightRadius: MAX_R },

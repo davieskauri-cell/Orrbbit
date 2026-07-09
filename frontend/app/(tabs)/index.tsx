@@ -134,6 +134,7 @@ export default function RadarScreen() {
               meUri={user?.photo_url}
               meName={user?.name}
               radiusSetting={user?.radius || 50}
+              coords={coords}
             />
             <View style={styles.approxNote}>
               <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
