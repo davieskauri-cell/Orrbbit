@@ -48,6 +48,14 @@ export default function UserRow({ user, vibeMap, onPress }: Props) {
             </Text>
           )}
         </View>
+        {!!user.availability && (
+          <View style={styles.availRow}>
+            <View style={[styles.availDot, user.availability === "Just browsing" && { backgroundColor: colors.grey }]} />
+            <Text style={[styles.availText, user.availability === "Just browsing" && { color: colors.textTertiary }]}>
+              {user.availability}
+            </Text>
+          </View>
+        )}
         {!!line && (
           <Text style={styles.bio} numberOfLines={1}>
             {user.context ? `“${line}”` : line}
@@ -90,4 +98,7 @@ const styles = StyleSheet.create({
   tags: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   reason: { color: colors.orange, fontSize: 11, fontWeight: "700", flex: 1 },
+  availRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  availDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+  availText: { color: colors.success, fontSize: 11, fontWeight: "700" },
 });

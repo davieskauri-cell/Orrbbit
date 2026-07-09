@@ -1,11 +1,15 @@
 import { api } from "@/src/lib/api";
 
 export const REPORT_REASONS = [
-  "Inappropriate behaviour",
-  "Fake profile",
-  "Harassment",
-  "Unsafe interaction",
   "Spam",
+  "No-show",
+  "Harassment",
+  "Fake profile",
+  "Repeated unwanted contact",
+  "Recruiter spam",
+  "Unsafe interaction",
+  "Threatening behaviour",
+  "Stalking concern",
   "Other",
 ];
 

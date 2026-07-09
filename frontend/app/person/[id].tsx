@@ -27,7 +27,27 @@ export default function PersonPreview() {
   const { user: me } = useAuth();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showDismiss, setShowDismiss] = useState(false);
   const user = findUser(id!);
+
+  const DISMISS_REASONS = [
+    "Wrong vibe", "Too far", "Not enough info", "Not interested",
+    "Felt unsafe", "Not now", "Already saw this person", "Recruiter not relevant",
+  ];
+
+  const dismissWith = async (reason?: string) => {
+    if (reason && user) {
+      api("/dismissal-feedback", { method: "POST", body: { user_id: user.id, reason } }).catch(() => {});
+    }
+    router.back();
+  };
+
+  const hideFromPerson = async () => {
+    if (!user) return;
+    await api("/hide", { method: "POST", body: { user_id: user.id } }).catch(() => {});
+    await refresh();
+    router.back();
+  };
 
   useEffect(() => {
     if (user) trackProfileView();
@@ -183,29 +203,50 @@ export default function PersonPreview() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <PrimaryButton testID="person-connect" title={action} onPress={connect} loading={busy} />
-        <View style={styles.secondaryRow}>
-          <Pressable testID="person-not-now" style={styles.smallBtn} onPress={() => router.back()}>
-            <Text style={styles.smallBtnText}>Not Now</Text>
-          </Pressable>
-          <Pressable testID="person-save-later" style={styles.smallBtn} onPress={saveForLater} disabled={saved}>
-            <Text style={[styles.smallBtnText, { color: saved ? colors.success : colors.teal }]}>
-              {saved ? "Saved ✓" : "Save for later"}
-            </Text>
-          </Pressable>
-          <Pressable testID="person-block" style={styles.smallBtn} onPress={doBlock}>
-            <Text style={[styles.smallBtnText, { color: colors.pink }]}>Block</Text>
-          </Pressable>
-          <Pressable
-            testID="person-report"
-            style={styles.smallBtn}
-            onPress={() =>
-              router.push({ pathname: "/report", params: { userId: user.id, name: user.name } })
-            }
-          >
-            <Text style={[styles.smallBtnText, { color: colors.pink }]}>Report</Text>
-          </Pressable>
-        </View>
+        {showDismiss ? (
+          <View testID="dismiss-reasons">
+            <Text style={styles.dismissTitle}>Why not this one? (optional)</Text>
+            <View style={styles.dismissChips}>
+              {DISMISS_REASONS.map((r) => (
+                <Pressable key={r} testID={`dismiss-${r.replace(/ /g, "-")}`} style={styles.dismissChip} onPress={() => dismissWith(r)}>
+                  <Text style={styles.dismissChipText}>{r}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable testID="dismiss-skip" onPress={() => dismissWith()} style={{ alignSelf: "center", padding: spacing.sm }}>
+              <Text style={[styles.smallBtnText, { color: colors.textSecondary }]}>Skip</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <PrimaryButton testID="person-connect" title={action} onPress={connect} loading={busy} />
+            <View style={styles.secondaryRow}>
+              <Pressable testID="person-not-now" style={styles.smallBtn} onPress={() => setShowDismiss(true)}>
+                <Text style={styles.smallBtnText}>Not Now</Text>
+              </Pressable>
+              <Pressable testID="person-save-later" style={styles.smallBtn} onPress={saveForLater} disabled={saved}>
+                <Text style={[styles.smallBtnText, { color: saved ? colors.success : colors.teal }]}>
+                  {saved ? "Saved ✓" : "Save for later"}
+                </Text>
+              </Pressable>
+              <Pressable testID="person-hide" style={styles.smallBtn} onPress={hideFromPerson}>
+                <Text style={styles.smallBtnText}>Hide</Text>
+              </Pressable>
+              <Pressable testID="person-block" style={styles.smallBtn} onPress={doBlock}>
+                <Text style={[styles.smallBtnText, { color: colors.pink }]}>Block</Text>
+              </Pressable>
+              <Pressable
+                testID="person-report"
+                style={styles.smallBtn}
+                onPress={() =>
+                  router.push({ pathname: "/report", params: { userId: user.id, name: user.name } })
+                }
+              >
+                <Text style={[styles.smallBtnText, { color: colors.pink }]}>Report</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -278,7 +319,11 @@ const styles = StyleSheet.create({
   },
   mutualText: { color: colors.orange, fontSize: font.base, fontWeight: "700", flex: 1 },
   intentLine: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.md },
-  secondaryRow: { flexDirection: "row", justifyContent: "center", gap: spacing.xl, marginTop: spacing.sm },
+  secondaryRow: { flexDirection: "row", justifyContent: "center", gap: spacing.lg, marginTop: spacing.sm, flexWrap: "wrap" },
+  dismissTitle: { color: colors.text, fontSize: font.base, fontWeight: "800", marginBottom: spacing.sm, textAlign: "center" },
+  dismissChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, justifyContent: "center" },
+  dismissChip: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 7 },
+  dismissChipText: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   smallBtn: { paddingVertical: spacing.md, paddingHorizontal: spacing.sm, minHeight: 44, justifyContent: "center" },
   smallBtnText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "700" },
   bio: { color: colors.textSecondary, fontSize: font.lg, lineHeight: 24, marginTop: spacing.lg },

@@ -77,6 +77,7 @@ export default function SafetyScreen() {
   };
 
   const CARDS = [
+    { icon: "hand-left", label: "Respectful introductions", desc: "Our approach etiquette in 30 seconds.", onPress: () => router.push("/etiquette"), testID: "safety-etiquette" },
     { icon: "hand-left", label: "Block a user", desc: "They can't see or ping you.", onPress: () => setMode(mode === "block" ? null : "block"), testID: "safety-block" },
     { icon: "flag", label: "Report a user", desc: "Tell us about unsafe behaviour.", onPress: () => setMode(mode === "report" ? null : "report"), testID: "safety-report" },
     { icon: "eye-off", label: "Hide my profile", desc: "Go invisible instantly.", onPress: hideProfile, testID: "safety-hide" },

@@ -14,6 +14,7 @@ import EmptyState from "@/src/components/EmptyState";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
 import ModeSelector from "@/src/components/ModeSelector";
+import ModeCards from "@/src/components/ModeCards";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 export default function RadarScreen() {
@@ -91,6 +92,14 @@ export default function RadarScreen() {
       </Pressable>
 
       <ModeSelector />
+      <ModeCards />
+
+      {user?.event_name && (
+        <View style={styles.eventBanner} testID="event-banner">
+          <Ionicons name="calendar" size={14} color={colors.teal} />
+          <Text style={styles.eventBannerText}>{user.event_name} · people here are prioritised</Text>
+        </View>
+      )}
 
       {user?.trial_mode_active && (
         <Pressable testID="trial-banner" style={styles.trialBanner} onPress={() => router.push("/trial")}>
@@ -308,6 +317,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   approxText: { color: colors.textTertiary, fontSize: font.sm },
+  eventBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  eventBannerText: { color: colors.teal, fontSize: font.sm, fontWeight: "700", flex: 1 },
   emptyWrap: { alignItems: "center", paddingVertical: spacing.xl },
   emptyTitle: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
   emptyText: {

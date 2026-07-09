@@ -18,6 +18,7 @@ type SavedProfile = {
   vibe: string | null;
   intent: string | null;
   verified: boolean;
+  available?: boolean;
   distance_at_save: number | null;
   saved_at: string;
 };
@@ -81,6 +82,9 @@ export default function SavedScreen() {
                 </View>
                 <VibePill vibe={vibe} small />
                 {!!item.intent && <Text style={styles.intent}>{item.intent}</Text>}
+                {item.available === false && (
+                  <Text style={styles.unavailable} testID={`saved-unavailable-${item.id}`}>Currently unavailable</Text>
+                )}
                 <Text style={styles.meta}>
                   {item.distance_at_save != null ? `About ${item.distance_at_save}m away when saved · ` : ""}
                   Saved {savedAgo(item.saved_at)}
@@ -114,6 +118,7 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   intent: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   meta: { color: colors.textTertiary, fontSize: 11 },
+  unavailable: { color: colors.grey, fontSize: 11, fontWeight: "700" },
   removeBtn: { padding: spacing.sm },
   divider: { height: 1, backgroundColor: colors.border },
 });

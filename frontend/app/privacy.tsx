@@ -39,6 +39,7 @@ export default function PrivacyScreen() {
   const [sameVibe, setSameVibe] = useState(!!user?.only_same_vibe);
   const [verifiedOnly, setVerifiedOnly] = useState(!!user?.verified_only);
   const [showRecruiters, setShowRecruiters] = useState(user?.show_recruiters !== false);
+  const [mutualOnly, setMutualOnly] = useState(!!user?.mutual_only);
   const [audience, setAudience] = useState(user?.who_can_see || "everyone");
   const [busy, setBusy] = useState(false);
 
@@ -55,6 +56,7 @@ export default function PrivacyScreen() {
         only_same_vibe: sameVibe,
         verified_only: verifiedOnly,
         show_recruiters: showRecruiters,
+        mutual_only: mutualOnly,
         who_can_see: audience,
       });
       setUser(updated as any);
@@ -160,6 +162,13 @@ export default function PrivacyScreen() {
             description="Hide recruiters from your radar and nearby list. Report recruiter spam anytime."
             value={showRecruiters}
             onChange={setShowRecruiters}
+          />
+          <ToggleRow
+            testID="toggle-mutual-only"
+            title="Mutual Only Mode"
+            description="You'll only appear to people who match your current preferences."
+            value={mutualOnly}
+            onChange={setMutualOnly}
           />
         </View>
 

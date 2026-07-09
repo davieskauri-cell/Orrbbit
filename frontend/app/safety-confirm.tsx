@@ -19,13 +19,13 @@ const CHECKLIST = [
 export default function SafetyConfirm() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId, point } = useLocalSearchParams<{ userId: string; point?: string }>();
   const [busy, setBusy] = useState(false);
 
   const proceed = async () => {
     setBusy(true);
     try {
-      await startTemporaryLocationSharing(userId!);
+      await startTemporaryLocationSharing(userId!, point);
       trackMeetupStarted();
       router.replace("/meetup");
     } catch {
@@ -47,6 +47,10 @@ export default function SafetyConfirm() {
           Only meet if you feel comfortable. Stay in a public place. You can end location
           sharing at any time.
         </Text>
+        {!!point && (
+          <Text style={styles.pointText} testID="chosen-meetup-point">Meetup point: {point}</Text>
+        )}
+        <Text style={styles.reminder}>Keep it simple, respectful and low-pressure.</Text>
       </View>
 
       <View style={styles.card}>
@@ -95,6 +99,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: spacing.md,
   },
+  pointText: { color: colors.teal, fontSize: font.base, fontWeight: "800", marginTop: spacing.md, textAlign: "center" },
+  reminder: { color: colors.orange, fontSize: font.sm, fontWeight: "700", marginTop: spacing.sm, textAlign: "center" },
   card: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

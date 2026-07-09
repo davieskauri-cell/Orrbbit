@@ -25,7 +25,7 @@ export default function VibeDetailsScreen() {
   const [busy, setBusy] = useState(false);
 
   const done = () => {
-    if (next === "tabs") router.replace("/(tabs)");
+    if (next === "tabs") router.replace("/etiquette?next=tabs");
     else router.back();
   };
 
@@ -134,6 +134,19 @@ export default function VibeDetailsScreen() {
         </View>
 
         {fields.map(renderField)}
+
+        {renderField({
+          key: "availability",
+          label: "Availability window",
+          type: "single",
+          options: ["Available now", "Available for 15 minutes", "Available for 30 minutes", "Available for 60 minutes", "Available later today", "Just browsing"],
+        })}
+        {renderField({
+          key: "intent_strength",
+          label: "How actively are you looking?",
+          type: "single",
+          options: ["Just browsing", "Open if the vibe is right", "Actively looking now"],
+        })}
 
         {SENSITIVE_VIBES.includes(vibeKey) && (
           <View style={styles.safetyNote}>

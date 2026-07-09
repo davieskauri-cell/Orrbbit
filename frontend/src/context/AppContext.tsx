@@ -36,6 +36,9 @@ export type NearbyUser = {
   context?: string | null;
   tags?: string[];
   vibe_details?: Record<string, any>;
+  availability?: string | null;
+  intent_strength?: string | null;
+  event_name?: string | null;
   mutual_reason?: string | null;
   score?: number;
 };

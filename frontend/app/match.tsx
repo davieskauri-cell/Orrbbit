@@ -77,7 +77,7 @@ export default function MatchScreen() {
             <PrimaryButton
               testID="match-share-location"
               title="Continue"
-              onPress={() => router.replace({ pathname: "/safety-confirm", params: { userId } })}
+              onPress={() => router.replace({ pathname: "/meetup-point", params: { userId } })}
             />
             <SecondaryButton
               testID="match-maybe-later"

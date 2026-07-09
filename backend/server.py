@@ -100,6 +100,7 @@ class StateUpdate(BaseModel):
     country: Optional[str] = None
     intent: Optional[str] = None
     show_recruiters: Optional[bool] = None
+    mutual_only: Optional[bool] = None
 
 
 class FeedbackIn(BaseModel):
@@ -118,6 +119,7 @@ class MatchIn(BaseModel):
 
 class MeetupIn(BaseModel):
     user_id: str
+    meetup_point: Optional[str] = None
 
 
 class BlockIn(BaseModel):
@@ -128,6 +130,23 @@ class ReportIn(BaseModel):
     user_id: str
     reason: str
     details: Optional[str] = ""
+
+
+class CancelMeetupIn(BaseModel):
+    reason: str
+
+
+class DismissFeedbackIn(BaseModel):
+    user_id: str
+    reason: str
+
+
+class EventCodeIn(BaseModel):
+    code: str
+
+
+class AdminActionIn(BaseModel):
+    action: str  # hide | warn | ban | dismiss | review
 
 
 # ----------------------------- Helpers -----------------------------
@@ -176,6 +195,10 @@ def public_user(u: dict) -> dict:
         "intent": u.get("intent"),
         "vibe_details": u.get("vibe_details", {}),
         "show_recruiters": u.get("show_recruiters", True),
+        "mutual_only": u.get("mutual_only", False),
+        "event_code": u.get("event_code"),
+        "event_name": u.get("event_name"),
+        "admin_status": u.get("admin_status"),
         "city": u.get("city", "Melbourne"),
         "country": u.get("country", "Australia"),
         "ambassador": u.get("ambassador", False),
@@ -276,6 +299,7 @@ DEMO_VIBE_DETAILS = {
         "can_help_with": ["HR", "Career direction", "Interviews", "Confidence"],
         "offer_categories": ["Career", "HR", "Confidence"], "offer_experience": "Professional experience",
         "tags": ["HR", "Startups", "Business", "Golf"], "visibility": "public",
+        "availability": "Available for 30 minutes", "intent_strength": "Actively looking now",
     },
     "james@intro.demo": {
         "intent": "Founder / Networking", "professional_identity": "Founder", "industry": "Fintech",
@@ -284,6 +308,7 @@ DEMO_VIBE_DETAILS = {
         "looking_for": ["Tech contacts", "Investors", "Marketing advice"],
         "can_help_with": ["Finance", "Startups", "Product strategy"],
         "tags": ["Startups", "Finance", "Tech"], "visibility": "public",
+        "availability": "Available now", "intent_strength": "Open if the vibe is right",
     },
     "sarah@intro.demo": {
         "intent": "Need Career Advice", "advice_role": "Need Advice", "advice_category": "Career advice",
@@ -291,6 +316,7 @@ DEMO_VIBE_DETAILS = {
         "looking_for": ["Someone in HR", "Someone who changed careers"],
         "urgency": "Would like advice today", "comfort_level": "Coffee chat",
         "tags": ["HR", "Career", "Burnout", "Next Steps"], "visibility": "public",
+        "availability": "Available now", "intent_strength": "Actively looking now",
     },
     "olivia@intro.demo": {
         "intent": "Recruiter / Hiring", "professional_identity": "Recruiter", "recruiter_mode": True,
@@ -300,12 +326,14 @@ DEMO_VIBE_DETAILS = {
         "context": "Hiring for tech roles in Melbourne.",
         "looking_for": ["Tech talent open to a quick chat"],
         "tags": ["Tech", "Hiring", "Recruitment"], "visibility": "public",
+        "availability": "Available for 60 minutes", "intent_strength": "Actively looking now",
     },
     "jake@intro.demo": {
         "intent": "Coffee", "context": "Up for a quick coffee and a relaxed conversation.",
         "looking_for": ["Friendly conversation", "A relaxed conversation"],
         "setting": "Cafe", "time": "Now",
         "tags": ["Coffee", "Music", "Travel"], "visibility": "public",
+        "availability": "Available for 15 minutes", "intent_strength": "Open if the vibe is right",
     },
     "mia@intro.demo": {
         "intent": "Long-term relationship", "relationship_intention": "Long-term relationship",
@@ -489,16 +517,21 @@ async def save_profile(body: SaveProfileIn, user: dict = Depends(get_current_use
 async def list_saved(user: dict = Depends(get_current_user)):
     saved = await db.saved.find({"owner_id": user["id"]}).to_list(200)
     saved.sort(key=lambda s: s["saved_at"], reverse=True)
+    blocked = await get_blocked_ids(user["id"])
     out = []
     for s in saved:
+        if s["user_id"] in blocked:
+            continue
         u = await db.users.find_one({"id": s["user_id"]})
         if not u:
             continue
         vd = u.get("vibe_details") or {}
+        available = bool(u.get("visible", True)) and u.get("admin_status") not in ("hidden_pending_review", "banned")
         out.append({
             "id": u["id"], "name": u.get("name"), "age": u.get("age"),
             "photo_url": u.get("photo_url"), "vibe": u.get("vibe"),
             "intent": vd.get("intent"), "verified": u.get("verified", False),
+            "available": available,
             "distance_at_save": s.get("distance_at_save"), "saved_at": s["saved_at"],
         })
     return out
@@ -570,6 +603,19 @@ def detail_score(me: dict, o: dict) -> int:
         score += 4
     # what they look for matches what I offer
     score += 3 * len(_lset(ov.get("looking_for")) & my_helps)
+    # connection intent strength: actively looking > open > just browsing
+    strength = ov.get("intent_strength")
+    if strength == "Actively looking now":
+        score += 6
+    elif strength == "Open if the vibe is right":
+        score += 3
+    elif strength == "Just browsing":
+        score -= 5
+    if ov.get("availability") == "Just browsing":
+        score -= 3
+    # same live event = high relevance
+    if me.get("event_code") and me.get("event_code") == o.get("event_code"):
+        score += 5
     return score
 
 
@@ -577,6 +623,8 @@ def mutual_reason(me: dict, o: dict) -> Optional[str]:
     """Short human explanation of why this person is shown."""
     mv, ov = _vd(me), _vd(o)
     name = o.get("name") or "They"
+    if me.get("event_code") and me.get("event_code") == o.get("event_code"):
+        return f"You are both at {o.get('event_name') or 'the same event'}"
     if ov.get("recruiter_mode") or ov.get("professional_identity") == "Recruiter":
         roles = ", ".join(ov.get("hiring_roles") or [])
         return f"{name} is hiring: {roles}" if roles else f"{name} is hiring nearby"
@@ -603,6 +651,11 @@ async def get_blocked_ids(user_id: str) -> set:
     for b in blocks:
         ids.add(b["blocker_id"])
         ids.add(b["blocked_id"])
+    # "Hide from this person" removes both users from each other permanently
+    hides = await db.hides.find({"$or": [{"hider_id": user_id}, {"hidden_id": user_id}]}).to_list(500)
+    for h in hides:
+        ids.add(h["hider_id"])
+        ids.add(h["hidden_id"])
     ids.discard(user_id)
     return ids
 
@@ -621,6 +674,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         if o.get("city", "Melbourne") != user.get("city", "Melbourne"):
             continue
         if not o.get("visible", True) or o.get("ghost_mode") or o.get("paused"):
+            continue
+        # users hidden or banned by moderation never appear
+        if o.get("admin_status") in ("hidden_pending_review", "banned"):
             continue
         if o.get("is_demo") and o.get("demo_dist") is not None:
             dist = o["demo_dist"]
@@ -647,6 +703,18 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         # Busy users are invisible unless they explicitly chose to stay visible
         if o_vibe == "busy" and ovd.get("busy_setting") != "Visible but not available":
             continue
+        # Mutual Only Mode: they only appear to people matching their preferences
+        if o.get("mutual_only"):
+            o_compat = COMPAT.get(o_vibe, []) if o_vibe else []
+            if my_vibe != o_vibe and my_vibe not in o_compat:
+                continue
+            if o.get("verified_only") and not user.get("verified"):
+                continue
+            if o.get("only_same_vibe") and my_vibe != o_vibe:
+                continue
+            mvd = _vd(user)
+            if o.get("show_recruiters", True) is False and (mvd.get("recruiter_mode") or mvd.get("professional_identity") == "Recruiter"):
+                continue
         vis = ovd.get("visibility", "public")
         shown_details = ovd if vis == "public" else ({"intent": ovd.get("intent")} if vis in ("after_view", "after_accept") else {})
         results.append({
@@ -669,6 +737,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "context": shown_details.get("context"),
             "tags": shown_details.get("tags", []),
             "vibe_details": shown_details,
+            "availability": ovd.get("availability"),
+            "intent_strength": ovd.get("intent_strength"),
+            "event_name": o.get("event_name"),
             "mutual_reason": mutual_reason(user, o),
             "score": detail_score(user, o),
         })
@@ -719,6 +790,10 @@ async def generate_ping(
         return {"ping": None}
     if user.get("quiet_mode"):
         return {"ping": None}
+    # just-browsing users don't get urgent pings
+    uvd = _vd(user)
+    if uvd.get("availability") == "Just browsing" or uvd.get("intent_strength") == "Just browsing":
+        return {"ping": None}
     exp = user.get("visibility_expires_at")
     if exp and exp < now_iso():
         return {"ping": None}
@@ -728,7 +803,7 @@ async def generate_ping(
     if not candidates:
         return {"ping": None}
     # avoid re-pinging the same person within 2 minutes
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
     recent = await db.pings.find({"to_user_id": user["id"], "created_at": {"$gt": cutoff}}).to_list(100)
     recent_from = {p["from_user_id"] for p in recent}
     candidates = [c for c in candidates if c["id"] not in recent_from]
@@ -826,6 +901,7 @@ async def start_meetup(body: MeetupIn, user: dict = Depends(get_current_user)):
     meetup = {
         "id": str(uuid.uuid4()), "user_a": user["id"], "user_b": body.user_id,
         "active": True, "started_at": now_iso(),
+        "meetup_point": body.meetup_point,
         "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(),
     }
     await db.meetups.insert_one(dict(meetup))
@@ -867,6 +943,26 @@ async def end_meetup(meetup_id: str, user: dict = Depends(get_current_user)):
         {"$set": {"active": False, "ended_at": now_iso()}},
     )
     return {"ok": True}
+
+
+@api_router.post("/meetups/{meetup_id}/cancel")
+async def cancel_meetup(meetup_id: str, body: CancelMeetupIn, user: dict = Depends(get_current_user)):
+    m = await db.meetups.find_one({"id": meetup_id, "$or": [{"user_a": user["id"]}, {"user_b": user["id"]}]})
+    if not m:
+        raise HTTPException(status_code=404, detail="Meetup not found")
+    await db.meetups.update_one({"id": meetup_id}, {"$set": {"active": False, "ended_at": now_iso(), "cancelled": True, "cancel_reason": body.reason}})
+    other_id = m["user_b"] if m["user_a"] == user["id"] else m["user_a"]
+    await db.cancellations.insert_one({
+        "id": str(uuid.uuid4()), "meetup_id": meetup_id, "user_id": user["id"],
+        "other_id": other_id, "reason": body.reason, "created_at": now_iso(),
+    })
+    if body.reason == "They did not show":
+        await db.no_shows.insert_one({
+            "id": str(uuid.uuid4()), "meetup_id": meetup_id, "reported_by": user["id"],
+            "no_show_user_id": other_id, "created_at": now_iso(),
+        })
+        await db.users.update_one({"id": other_id}, {"$inc": {"no_show_count": 1}})
+    return {"ok": True, "message": "Meetup ended. Location sharing stopped."}
 
 
 # ----------------------------- Encounters -----------------------------
@@ -918,13 +1014,221 @@ async def block_user(body: BlockIn, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+HIGH_RISK_WORDS = ["unsafe", "threat", "sexual", "stalk", "danger"]
+MEDIUM_RISK_WORDS = ["harass", "fake", "repeated", "recruiter spam", "mislead", "uncomfortable", "inappropriate"]
+
+
+def classify_risk(reason: str) -> str:
+    r = (reason or "").lower()
+    if any(w in r for w in HIGH_RISK_WORDS):
+        return "high"
+    if any(w in r for w in MEDIUM_RISK_WORDS):
+        return "medium"
+    return "low"
+
+
 @api_router.post("/reports")
 async def report_user(body: ReportIn, user: dict = Depends(get_current_user)):
+    risk = classify_risk(body.reason)
+    status_label = "New"
+    reported = await db.users.find_one({"id": body.user_id})
+    if risk == "high":
+        # 1 high-risk report pauses visibility pending review
+        await db.users.update_one({"id": body.user_id}, {"$set": {"visible": False, "admin_status": "hidden_pending_review"}})
+        status_label = "User Hidden"
+    elif risk == "medium":
+        prev = await db.reports.count_documents({"reported_id": body.user_id, "risk": "medium"})
+        if prev + 1 >= 3:
+            await db.users.update_one({"id": body.user_id}, {"$set": {"visible": False, "admin_status": "hidden_pending_review"}})
+            status_label = "User Hidden"
+        else:
+            await db.users.update_one({"id": body.user_id}, {"$set": {"admin_status": "flagged"}})
     await db.reports.insert_one({
         "id": str(uuid.uuid4()), "reporter_id": user["id"], "reported_id": body.user_id,
-        "reason": body.reason, "details": body.details or "", "created_at": now_iso(),
+        "reporter_name": user.get("name"), "reported_name": (reported or {}).get("name"),
+        "reason": body.reason, "details": body.details or "", "risk": risk,
+        "status": status_label, "created_at": now_iso(),
+    })
+    # reporter never sees this person again
+    if not await db.hides.find_one({"hider_id": user["id"], "hidden_id": body.user_id}):
+        await db.hides.insert_one({"id": str(uuid.uuid4()), "hider_id": user["id"], "hidden_id": body.user_id, "created_at": now_iso()})
+    return {"ok": True, "risk": risk, "message": "Thanks. We'll review this report. You will no longer see this person."}
+
+
+@api_router.post("/hide")
+async def hide_from_person(body: BlockIn, user: dict = Depends(get_current_user)):
+    if not await db.hides.find_one({"hider_id": user["id"], "hidden_id": body.user_id}):
+        await db.hides.insert_one({"id": str(uuid.uuid4()), "hider_id": user["id"], "hidden_id": body.user_id, "created_at": now_iso()})
+    # remove from saved lists both ways
+    await db.saved.delete_many({"$or": [
+        {"owner_id": user["id"], "user_id": body.user_id},
+        {"owner_id": body.user_id, "user_id": user["id"]},
+    ]})
+    return {"ok": True, "message": "You will no longer see each other."}
+
+
+@api_router.post("/dismissal-feedback")
+async def dismissal_feedback(body: DismissFeedbackIn, user: dict = Depends(get_current_user)):
+    await db.dismissal_feedback.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user["id"], "dismissed_id": body.user_id,
+        "reason": body.reason, "created_at": now_iso(),
     })
     return {"ok": True}
+
+
+# ----------------------------- Event codes -----------------------------
+EVENT_CODES = {
+    "INTRO100": "Intro 100m Social",
+    "FOUNDERNIGHT": "Founder Night",
+    "CAMPUSCHAT": "Campus Chat",
+    "MELBOURNEBETA": "Melbourne Beta",
+    "NETWORK100": "Network 100",
+    "COFFEECHAT": "Coffee Chat",
+}
+
+
+@api_router.post("/events/join-code")
+async def join_event_code(body: EventCodeIn, user: dict = Depends(get_current_user)):
+    code = body.code.strip().upper()
+    if code not in EVENT_CODES:
+        raise HTTPException(status_code=404, detail="Event code not found.")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"event_code": code, "event_name": EVENT_CODES[code]}})
+    await db.analyticsEvents.insert_one({"id": str(uuid.uuid4()), "user_id": user["id"], "event": "event_join", "code": code, "created_at": now_iso()})
+    user = await db.users.find_one({"id": user["id"]})
+    return {"ok": True, "event_name": EVENT_CODES[code], "user": public_user(user)}
+
+
+@api_router.post("/events/leave")
+async def leave_event(user: dict = Depends(get_current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$set": {"event_code": None, "event_name": None}})
+    user = await db.users.find_one({"id": user["id"]})
+    return {"ok": True, "user": public_user(user)}
+
+
+# ----------------------------- Profile completion -----------------------------
+@api_router.get("/users/me/completion")
+async def profile_completion(user: dict = Depends(get_current_user)):
+    vd = user.get("vibe_details") or {}
+    items = [
+        ("Profile photos", bool(user.get("photos")) or bool(user.get("photo_url")), "Add profile photos"),
+        ("First name", bool(user.get("name")), "Add your first name"),
+        ("Age", bool(user.get("age")), "Add your age"),
+        ("Bio", bool(user.get("bio")), "Add a short bio"),
+        ("Vibe selected", bool(user.get("vibe")), "Choose a vibe"),
+        ("Vibe details", bool(vd.get("intent") or vd.get("context") or vd.get("looking_for")), "Add vibe details"),
+        ("Interests", bool(user.get("interests")), "Add your interests"),
+        ("Availability window", bool(vd.get("availability")), "Select an availability window"),
+        ("Verification", bool(user.get("verified")), "Verify your profile"),
+        ("Privacy reviewed", any(k in user for k in ("quiet_mode", "mutual_only", "only_same_vibe", "verified_only")), "Review your privacy settings"),
+    ]
+    done = [label for label, ok, _ in items if ok]
+    suggestions = [tip for _, ok, tip in items if not ok][:4]
+    return {
+        "score": round(len(done) / len(items) * 100),
+        "done": done,
+        "suggestions": suggestions,
+        "message": "More detail helps the right people know when to approach.",
+    }
+
+
+# ----------------------------- Admin / moderation dashboard -----------------------------
+@api_router.get("/admin/dashboard")
+async def admin_dashboard(user: dict = Depends(get_current_user)):
+    users = await db.users.find({}).to_list(2000)
+    active = [u for u in users if u.get("visible", True) and u.get("active_now", True)]
+    by_city: Dict[str, int] = {}
+    for u in active:
+        by_city[u.get("city", "Melbourne")] = by_city.get(u.get("city", "Melbourne"), 0) + 1
+    recruiters = [u for u in users if _vd(u).get("recruiter_mode") or _vd(u).get("professional_identity") == "Recruiter"]
+    reports = await db.reports.find({}).to_list(200)
+    reports.sort(key=lambda r: r["created_at"], reverse=True)
+    blocks = await db.blocks.find({}).to_list(200)
+    block_rows = []
+    for b in blocks[-50:]:
+        blocker = await db.users.find_one({"id": b["blocker_id"]})
+        blocked_u = await db.users.find_one({"id": b["blocked_id"]})
+        block_rows.append({
+            "blocker": (blocker or {}).get("name") or "Unknown",
+            "blocked": (blocked_u or {}).get("name") or "Unknown",
+            "created_at": b.get("created_at"),
+        })
+    incidents = {"high": 0, "medium": 0, "low": 0}
+    for r in reports:
+        incidents[r.get("risk", "low")] = incidents.get(r.get("risk", "low"), 0) + 1
+    fb = await db.feedback.find({}).to_list(1000)
+    return {
+        "overview": {
+            "total_users": len(users),
+            "active_today": len(active),
+            "active_by_city": by_city,
+            "active_by_event": {name: sum(1 for u in active if u.get("event_code") == code) for code, name in EVENT_CODES.items() if any(u.get("event_code") == code for u in active)},
+            "pings_sent": await db.pings.count_documents({}),
+            "profiles_viewed": await db.analyticsEvents.count_documents({"event": "profile_view"}),
+            "mutual_accepts": await db.pings.count_documents({"status": "accepted"}),
+            "meetups_started": await db.meetups.count_documents({}),
+            "meetups_completed": await db.meetups.count_documents({"active": False}),
+            "conversations_confirmed": sum(1 for f in fb if f.get("spoke") in ("Yes, we spoke", "We exchanged details", "We made plans")),
+            "reports_submitted": len(reports),
+            "blocks_created": len(blocks),
+            "users_hidden_for_review": sum(1 for u in users if u.get("admin_status") in ("hidden_pending_review", "banned")),
+            "no_shows": await db.no_shows.count_documents({}),
+            "cancellations": await db.cancellations.count_documents({}),
+        },
+        "reports_queue": [{
+            "id": r["id"], "reported_name": r.get("reported_name") or "Unknown",
+            "reporter_name": r.get("reporter_name") or "Unknown", "reason": r.get("reason"),
+            "details": r.get("details", ""), "risk": r.get("risk", "low"),
+            "status": r.get("status", "New"), "created_at": r.get("created_at"),
+        } for r in reports[:50]],
+        "blocked_users": block_rows,
+        "safety_incidents": incidents,
+        "trial_metrics": {
+            "event": TRIAL_EVENT["name"], "city": "Melbourne",
+            "active_users": len(active),
+            "pings": await db.pings.count_documents({}),
+            "mutual_accepts": await db.pings.count_documents({"status": "accepted"}),
+            "conversations_confirmed": sum(1 for f in fb if f.get("spoke") in ("Yes, we spoke", "We exchanged details", "We made plans")),
+            "reports": len(reports),
+            "feedback_count": len(fb),
+        },
+        "recruiter_activity": {
+            "recruiter_profiles": len(recruiters),
+            "hiring_posts": sum(1 for u in recruiters if _vd(u).get("hiring_roles")),
+            "recruiter_spam_reports": sum(1 for r in reports if "recruiter" in (r.get("reason") or "").lower()),
+            "users_hiding_recruiters": sum(1 for u in users if u.get("show_recruiters") is False),
+        },
+    }
+
+
+@api_router.post("/admin/reports/{report_id}/action")
+async def admin_report_action(report_id: str, body: AdminActionIn, user: dict = Depends(get_current_user)):
+    report = await db.reports.find_one({"id": report_id})
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    action = body.action
+    updates: Dict[str, Any] = {}
+    if action == "hide":
+        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"visible": False, "admin_status": "hidden_pending_review"}})
+        updates["status"] = "User Hidden"
+    elif action == "warn":
+        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"admin_status": "warned"}})
+        updates["status"] = "Under Review"
+    elif action == "ban":
+        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"visible": False, "admin_status": "banned"}})
+        updates["status"] = "Resolved"
+    elif action == "dismiss":
+        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"admin_status": None}})
+        updates["status"] = "Dismissed"
+    elif action == "review":
+        updates["status"] = "Under Review"
+    else:
+        raise HTTPException(status_code=400, detail="Unknown action")
+    await db.reports.update_one({"id": report_id}, {"$set": updates})
+    await db.moderationActions.insert_one({
+        "id": str(uuid.uuid4()), "report_id": report_id, "action": action,
+        "admin_id": user["id"], "created_at": now_iso(),
+    })
+    return {"ok": True, "status": updates["status"]}
 
 
 # ----------------------------- Feedback, trial & metrics -----------------------------

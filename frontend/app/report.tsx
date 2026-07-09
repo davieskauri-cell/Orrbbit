@@ -8,11 +8,15 @@ import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 const REASONS = [
-  "Inappropriate behaviour",
-  "Fake profile",
-  "Harassment",
-  "Unsafe interaction",
   "Spam",
+  "No-show",
+  "Harassment",
+  "Fake profile",
+  "Repeated unwanted contact",
+  "Recruiter spam",
+  "Unsafe interaction",
+  "Threatening behaviour",
+  "Stalking concern",
   "Other",
 ];
 
@@ -29,7 +33,7 @@ export default function ReportScreen() {
     setBusy(true);
     try {
       await reportUser(userId, reason, details);
-      Alert.alert("Thanks. We'll review this report.");
+      Alert.alert("Thanks. We'll review this report.", "You will no longer see this person.");
       router.replace("/(tabs)");
     } catch {
       setBusy(false);

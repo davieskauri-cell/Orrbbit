@@ -1,10 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
+import { api } from "@/src/lib/api";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import InterestChip from "@/src/components/InterestChip";
@@ -25,6 +26,7 @@ const MENU = [
 const GLOBAL_MENU = [
   { icon: "map-outline", label: "City Launch Mode", route: "/cities", testID: "menu-cities" },
   { icon: "calendar-outline", label: "Event Mode", route: "/event-mode", testID: "menu-event-mode" },
+  { icon: "qr-code-outline", label: "Join Event Code", route: "/join-event", testID: "menu-join-event" },
   { icon: "school-outline", label: "Intro Campus", route: "/campus", testID: "menu-campus" },
   { icon: "briefcase-outline", label: "Intro Networking", route: "/networking", testID: "menu-networking" },
   { icon: "people-outline", label: "Communities", route: "/communities", testID: "menu-communities" },
@@ -33,6 +35,7 @@ const GLOBAL_MENU = [
 ] as const;
 
 const DEMO_MENU = [
+  { icon: "shield-half-outline", label: "Admin Dashboard", route: "/admin", testID: "menu-admin" },
   { icon: "bar-chart-outline", label: "Test Metrics", route: "/metrics", testID: "menu-metrics" },
   { icon: "document-text-outline", label: "Trial Report", route: "/trial-report", testID: "menu-trial-report" },
   { icon: "checkbox-outline", label: "Launch Checklist", route: "/launch-checklist", testID: "menu-launch-checklist" },
@@ -44,6 +47,13 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { vibeMap } = useApp();
   const vibe = user?.vibe ? vibeMap[user.vibe] : undefined;
+  const [completion, setCompletion] = React.useState<any>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      api("/users/me/completion").then(setCompletion).catch(() => {});
+    }, [])
+  );
 
   return (
     <ScrollView
@@ -97,6 +107,29 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
+
+      {completion && (
+        <View style={[styles.card, shadow.card, { marginTop: spacing.md }]} testID="completion-card">
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={styles.completionTitle}>Your profile is {completion.score}% complete</Text>
+            <Text style={styles.completionPct}>{completion.score}%</Text>
+          </View>
+          <View style={styles.completionBarWrap}>
+            <View style={[styles.completionBar, { width: `${completion.score}%` }]} />
+          </View>
+          {completion.score < 100 && (
+            <>
+              <Text style={styles.completionNote}>{completion.message}</Text>
+              {completion.suggestions.map((s: string) => (
+                <View key={s} style={styles.suggestionRow}>
+                  <Ionicons name="add-circle-outline" size={15} color={colors.teal} />
+                  <Text style={styles.suggestionText}>{s}</Text>
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      )}
 
       <View style={styles.menu}>
         {MENU.map((m) => (
@@ -209,6 +242,13 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   menuLabel: { flex: 1, color: colors.text, fontSize: font.lg, fontWeight: "600" },
+  completionTitle: { color: colors.text, fontSize: font.base, fontWeight: "800", flex: 1 },
+  completionPct: { color: colors.teal, fontSize: font.lg, fontWeight: "800" },
+  completionBarWrap: { height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden", marginTop: spacing.sm },
+  completionBar: { height: 8, backgroundColor: colors.teal, borderRadius: 4 },
+  completionNote: { color: colors.textSecondary, fontSize: font.sm, marginTop: spacing.md, marginBottom: spacing.xs },
+  suggestionRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
+  suggestionText: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   sectionTitle: {
     color: colors.textSecondary,
     fontSize: font.sm,

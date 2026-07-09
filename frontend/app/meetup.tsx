@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
-import { getActiveMeetup, stopTemporaryLocationSharing } from "@/src/services/meetupService";
+import { getActiveMeetup, stopTemporaryLocationSharing, cancelMeetup } from "@/src/services/meetupService";
+import { api } from "@/src/lib/api";
 import { trackMeetupEnded } from "@/src/services/analyticsService";
 import { DEMO_LOCATION } from "@/src/services/locationService";
 import MeetupMap from "@/src/components/MeetupMap";
@@ -29,8 +30,45 @@ export default function MeetupScreen() {
   const [loading, setLoading] = useState(true);
   const [remaining, setRemaining] = useState<number>(15 * 60);
   const [arrived, setArrived] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [endedMsg, setEndedMsg] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const CANCEL_REASONS = [
+    "I changed my mind",
+    "Timing no longer works",
+    "I feel uncomfortable",
+    "They did not show",
+    "Other",
+  ];
+
+  const doCancel = async (reason: string) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (meetup) cancelMeetup(meetup.id, reason).catch(() => {});
+    trackMeetupEnded();
+    if (reason === "I feel uncomfortable" && meetup?.user) {
+      const other = meetup.user;
+      setEndedMsg("Meetup ended. Location sharing stopped.");
+      Alert.alert("You're in control", "What would you like to do?", [
+        { text: "Just end meetup", onPress: () => router.replace("/feedback") },
+        {
+          text: "Hide from this person",
+          onPress: async () => {
+            await api("/hide", { method: "POST", body: { user_id: other.id } }).catch(() => {});
+            router.replace("/feedback");
+          },
+        },
+        {
+          text: "Report user",
+          style: "destructive",
+          onPress: () => router.replace({ pathname: "/report", params: { userId: other.id, name: other.name } }),
+        },
+      ]);
+      return;
+    }
+    setEndedMsg("Meetup ended. Location sharing stopped.");
+    setTimeout(() => router.replace("/feedback"), 1800);
+  };
 
   useEffect(() => {
     const c = coords || DEMO_LOCATION;
@@ -113,6 +151,17 @@ export default function MeetupScreen() {
         <View style={[styles.bottomCard, shadow.card]} testID="meetup-ended-msg">
           <Text style={styles.arrivedText}>{endedMsg}</Text>
         </View>
+      ) : cancelling ? (
+        <View style={[styles.bottomCard, shadow.card]} testID="meetup-cancel-options">
+          <Text style={styles.nearbyTitle}>Why are you cancelling?</Text>
+          {CANCEL_REASONS.map((r) => (
+            <Pressable key={r} testID={`cancel-reason-${r.replace(/[^a-zA-Z]+/g, "-")}`} style={styles.cancelRow} onPress={() => doCancel(r)}>
+              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              <Text style={styles.cancelText}>{r}</Text>
+            </Pressable>
+          ))}
+          <SecondaryButton title="Back" onPress={() => setCancelling(false)} style={{ marginTop: spacing.sm, borderWidth: 0, minHeight: 40 }} />
+        </View>
       ) : arrived ? (
         <View style={[styles.bottomCard, shadow.card]} testID="meetup-arrived-msg">
           <Text style={styles.arrivedText}>{"You've arrived. Say hello 👋"}</Text>
@@ -140,9 +189,9 @@ export default function MeetupScreen() {
             />
             <SecondaryButton
               testID="meetup-end"
-              title="End meetup"
+              title="Cancel meetup"
               color={colors.pink}
-              onPress={() => finish("Meetup ended. Location sharing stopped.")}
+              onPress={() => setCancelling(true)}
               style={{ flex: 1, borderColor: colors.pink + "55" }}
             />
           </View>
@@ -182,4 +231,6 @@ const styles = StyleSheet.create({
   nearbySub: { color: colors.textSecondary, fontSize: font.base, marginTop: 4, marginBottom: spacing.lg },
   btnRow: { flexDirection: "row", gap: spacing.md },
   arrivedText: { color: colors.text, fontSize: font.xl, fontWeight: "700", textAlign: "center" },
+  cancelRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: 1, borderColor: colors.border },
+  cancelText: { color: colors.text, fontSize: font.base, fontWeight: "600", flex: 1 },
 });

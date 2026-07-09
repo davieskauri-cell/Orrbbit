@@ -126,12 +126,27 @@ export default function NearbyScreen() {
               text="Turn visibility on when you are open to connecting."
             />
           ) : (
-            <EmptyState
-              testID="nearby-empty"
-              icon="compass"
-              title="No one nearby right now"
-              text="INTRO works best when people are close by. Try increasing your radius up to 100m, changing your vibe, or inviting people nearby."
-            />
+            <View>
+              <EmptyState
+                testID="nearby-empty"
+                icon="compass"
+                title="No one nearby right now"
+                text="INTRO works best when people are close by. Try increasing your radius up to 100m, changing your vibe, joining an event, or inviting people nearby."
+              />
+              <View style={styles.emptyActions}>
+                {[
+                  { label: "Increase radius", route: "/privacy", testID: "empty-radius" },
+                  { label: "Change vibe", route: "/vibe", testID: "empty-vibe" },
+                  { label: "Join event", route: "/join-event", testID: "empty-event" },
+                  { label: "Invite people", route: "/invite", testID: "empty-invite" },
+                  { label: "Demo mode", route: "/demo-accounts", testID: "empty-demo" },
+                ].map((a) => (
+                  <Pressable key={a.label} testID={a.testID} style={styles.emptyBtn} onPress={() => router.push(a.route as any)}>
+                    <Text style={styles.emptyBtnText}>{a.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           )
         }
       />
@@ -166,6 +181,9 @@ const styles = StyleSheet.create({
   detailChipActive: { backgroundColor: colors.tealSoft, borderColor: colors.teal },
   detailText: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
   detailTextActive: { color: colors.teal, fontWeight: "800" },
+  emptyActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "center", paddingHorizontal: spacing.xl },
+  emptyBtn: { backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, minHeight: 40, justifyContent: "center" },
+  emptyBtnText: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, flexGrow: 1 },
   divider: { height: 1, backgroundColor: colors.border },
 });
