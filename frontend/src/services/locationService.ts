@@ -43,3 +43,43 @@ export function calculateDistanceBetweenUsers(
     Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
+
+// ----- Map privacy helpers -----
+// Exact GPS is only ever used for the logged-in user themselves.
+export const getCurrentUserExactLocation = getCurrentLocation;
+
+// Matching/filtering uses real distance internally — never exposed as coordinates to the UI.
+export const calculateDistanceForMatching = calculateDistanceBetweenUsers;
+
+/**
+ * Returns a fuzzed, privacy-safe display position for another user.
+ * Deterministic per user id so markers stay stable (no live-tracking feel),
+ * always clamped inside the selected radius and the 100m hard cap.
+ */
+export function getApproximateDisplayLocation(
+  u: { id: string; distance: number; bearing: number },
+  maxRadius: number = 100
+): { distance: number; bearing: number } {
+  let h = 0;
+  for (let i = 0; i < u.id.length; i++) h = (h * 31 + u.id.charCodeAt(i)) % 9973;
+  const bearingJitter = (h % 25) - 12; // ±12°
+  const distJitter = ((h >> 3) % 13) - 6; // ±6m
+  const cap = Math.min(maxRadius, 100);
+  const distance = Math.max(4, Math.min(u.distance + distJitter, cap));
+  return { distance, bearing: (u.bearing + bearingJitter + 360) % 360 };
+}
+
+/** Markers for the radar map: me = exact (own eyes only), others = approximate. */
+export function getMapMarkers(
+  me: { photo_url?: string | null; name?: string | null },
+  nearby: { id: string; distance: number; bearing: number }[],
+  radius: number
+) {
+  return {
+    currentUserMarker: { ...me, exact: true },
+    nearbyUserMarkers: nearby.map((u) => ({
+      ...u,
+      display: getApproximateDisplayLocation(u, radius),
+    })),
+  };
+}

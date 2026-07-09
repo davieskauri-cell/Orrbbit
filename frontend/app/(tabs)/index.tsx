@@ -138,7 +138,8 @@ export default function RadarScreen() {
             <View style={styles.approxNote}>
               <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
               <Text style={styles.approxText}>
-                Approximate distance only. Exact location stays hidden.
+                Approximate distance only. Exact location stays hidden. Your exact location is
+                only visible to you.
               </Text>
             </View>
 

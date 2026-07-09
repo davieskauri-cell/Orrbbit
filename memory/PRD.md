@@ -123,3 +123,11 @@ Frontend:
 - Report reasons updated to risk-tiered list incl. Recruiter spam/Stalking concern.
 Testing: iteration_6.json — backend 13/13 new pass; frontend all flows verified, no production bugs. Note: reports/hides/blocks persist across restarts (users re-seed).
 Known LOW: shadow* deprecation warnings in theme.ts (web only).
+
+## Map Radar Update (June 2026) — COMPLETE
+- Radar screen now shows a soft light stylised map behind the existing radar rings/bubbles (src/components/MapBackground.tsx — pure SVG: pale blue river, pale green parks, light grey street grid + diagonal boulevard, minimal labels; no tiles/no real coordinates). Everything else on the screen unchanged.
+- RadarView rebuilt (src/components/RadarView.tsx): rounded map card, rings 25/50/75/100m with labels, semi-transparent teal fill inside selected radius, rotating sweep + pulse kept, me-marker = 44px avatar with teal ring + drop pointer (exact position, own eyes only), nearby blips use fuzzed positions.
+- Gestures: pinch-to-zoom (1–3x), drag/pan (clamped), double-tap zoom toggle, floating re-centre button (react-native-gesture-handler + reanimated). Zooming never reveals others' exact locations.
+- locationService additions: getCurrentUserExactLocation, getApproximateDisplayLocation (deterministic per-id jitter ±12°/±6m, clamped to radius & 100m — stable, no live-tracking feel), getMapMarkers, calculateDistanceForMatching.
+- Privacy text extended: "Approximate distance only. Exact location stays hidden. Your exact location is only visible to you."
+- Verified: 7 blips at 50m radius (Sarah…Liam), Ryan(78m)/Emily(94m) excluded; radius filtering/pings/matching logic untouched.
