@@ -100,3 +100,26 @@ Testing: iteration_4.json — backend 15/15 new + 32 regression pass; frontend ~
 - All 10 demo accounts seeded with spec vibe details (Sarah=Need Career Advice/HR burnout, Olivia=Recruiter hiring Frontend Dev+Product Designer, Mia=Long-term, Liam=Weights, etc.). For Kauri, Sarah ranks first (score 10, "Sarah needs career advice and you can help with career").
 - PingModal now only appears on discovery tabs (/, /nearby, /pings, /encounters) — fixes recurring overlay-blocking bug.
 - Testing: iteration_5.json — backend 11/11 new + full suite 58/58 green (stale asserts fixed); frontend ~95% pass, no new bugs.
+
+## Safety, Trust, Moderation & Launch-Ready Update (June 2026) — COMPLETE
+Backend (server.py):
+- Report risk levels: classify_risk (low/medium/high by keyword). High → auto-hide reported user (visible=false, admin_status=hidden_pending_review, report status 'User Hidden'); 3rd medium report → auto-hide; medium → admin_status=flagged. Reporter auto-hides reported user (db.hides). Response message: "Thanks. We'll review this report. You will no longer see this person."
+- Admin: GET /api/admin/dashboard (overview incl active_by_city/event, pings, accepts, meetups, conversations, reports, blocks, hidden, no_shows, cancellations; reports_queue; blocked_users; safety_incidents by risk; trial_metrics; recruiter_activity), POST /api/admin/reports/{id}/action {hide|warn|ban|dismiss|review} + db.moderationActions log. Hidden/banned users excluded from nearby.
+- Anti-creep: POST /api/hide (bidirectional permanent removal + saved cleanup, merged into get_blocked_ids via db.hides), ping per-person cooldown 2→10 min, "Just browsing" users get no auto pings.
+- Mutual Only Mode: state field mutual_only; in compute_nearby the user only appears to people matching their compat/verified/same-vibe/recruiter prefs.
+- Event codes: EVENT_CODES (INTRO100, FOUNDERNIGHT, CAMPUSCHAT, MELBOURNEBETA, NETWORK100, COFFEECHAT); POST /api/events/join-code (+analytics event_join, invalid→404 'Event code not found.'), /api/events/leave; same-event = +5 score + mutual reason 'You are both at {event}'; event_code/event_name in public_user.
+- Availability window + intent strength (vibe_details.availability / intent_strength): in nearby payload, scoring (+6 actively, +3 open, -5/-3 browsing); seeded for Kauri/James/Sarah/Olivia/Jake. confirmed_conversation_count seeded (Kauri 4, James 7, Sarah 1, Olivia 5).
+- Meetups: meetup_point stored; POST /api/meetups/{id}/cancel {reason} → db.cancellations; 'They did not show' → db.no_shows + no_show_count inc; message 'Meetup ended. Location sharing stopped.'
+- GET /api/users/me/completion (10 items, score, suggestions, friendly message); POST /api/dismissal-feedback (not-interested learning).
+Frontend:
+- /admin (demo-only via Profile > Trial Tools): overview grid, active-by-city, safety incidents by risk, reports queue with Hide/Warn/Ban/Dismiss actions, blocked users, trial metrics + "N conversations started through Intro tonight", recruiter activity.
+- /etiquette (Respectful introductions, 6 rules, 'I understand'): shown at end of signup (vibe-details → etiquette?next=tabs) + Safety screen card.
+- /join-event (code input, error copy, Scan QR placeholder, demo codes list, Leave event) + event banner on Radar; Profile menu 'Join Event Code'.
+- /meetup-point (10 public options, no private places note) inserted: match → meetup-point → safety-confirm (shows point + 'Keep it simple, respectful and low-pressure.') → meetup.
+- meetup.tsx: 'Cancel meetup' with 5 reasons; 'I feel uncomfortable' offers End/Hide from person/Report.
+- person/[id]: footer = Not Now (→ optional 'Why not this one?' chips + Skip → /api/dismissal-feedback) / Save for later / Hide / Block / Report.
+- Profile: completion card (score bar + suggestions + friendly copy). Privacy: 'Mutual Only Mode' toggle. Vibe Details form: Availability window + intent strength chips for every vibe.
+- UserRow shows availability chip; ModeCards on Radar (Networking/Dating/Campus/Fitness count cards); nearby empty state buttons (Increase radius/Change vibe/Join event/Invite/Demo); saved screen shows 'Currently unavailable'.
+- Report reasons updated to risk-tiered list incl. Recruiter spam/Stalking concern.
+Testing: iteration_6.json — backend 13/13 new pass; frontend all flows verified, no production bugs. Note: reports/hides/blocks persist across restarts (users re-seed).
+Known LOW: shadow* deprecation warnings in theme.ts (web only).
