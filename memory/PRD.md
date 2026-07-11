@@ -137,3 +137,15 @@ Known LOW: shadow* deprecation warnings in theme.ts (web only).
 - Map is edge-to-edge (full screen width, 340h, hairline top/bottom borders, no rounded card).
 - Zooming in shrinks all user markers via inverse scale (markers keep constant screen size; markerStyle = 1/scale) — me marker + blips.
 - Privacy unchanged: only the current user's real coords are used for tiles; others remain fuzzed approximate positions.
+
+## Freemium Plans, Discovery Limits & Map UI (June 2026) — COMPLETE
+Backend (done previous session): PLAN_LIMITS free/plus/pro (max radius 50/100/500m, radius_options per plan), plan+max_radius+radius_options in public_user, PUT /users/me/state validates plan & clamps radius, /nearby capped at MAX_DISCOVERY=100 sorted by relevance (detail score) then distance. Demo plans: kauri/olivia/ryan=pro, james/mia/emily=plus.
+Frontend (this session):
+- Signup flow: register → /location-privacy?next=setup ("Continue") → /plans?next=setup ("Choose your Intro plan") → (auth)/intent → profile-setup → choose-vibe (unchanged after).
+- /plans: 3 plan cards (Free/Plus $6.99/Pro $12.99), Current Plan chip, DEMO-ONLY upgrade (Alert "Payments are not active in this prototype"), privacy note. Reachable from Profile menu (menu-plans) + privacy screen link + locked-radius upgrade alert.
+- /location-privacy: 5 privacy cards; Profile menu "How Map Privacy Works" (menu-location-privacy).
+- Privacy screen: radius options 10/25/50/100/250/500 with lock icon + 0.7 opacity for options above user's max_radius; tapping locked → Alert "Xm needs Intro Plus/Pro" with "See plans" → /plans; plan hint + "Unlock a bigger radius" link (hidden for Pro).
+- Radar top bar redesigned: compact vibe selector pill (VibePill + chevron-down → /vibe) + visibility chip ("Visible · Xm left"/"Hidden", tap toggles, testID visibility-toggle). Eye icon removed from header.
+- RadarView: dynamic ring sets per radius (≤50→10/25/50 … 500→125/250/375/500), map tile zoom adapts (18/17/16/15), "Filters" pill on map top-right → /privacy, marker CLUSTERING max 24 (8 bearing sectors × 3 distance bands; >1 in bucket → teal count bubble, tap → Nearby tab).
+- Nearby: footer note "Showing the 100 most relevant people nearby" at 100-user cap; Profile card shows plan chip (my-plan-chip).
+Testing: iteration_7.json — all 7 frontend flows PASS, no fixes required. MOCKED: plan upgrades (no real payments), Apple/Google sign-in.
