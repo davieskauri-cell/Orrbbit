@@ -16,8 +16,16 @@ const MAP_H = 340;
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
-const MAX_DIST = 100; // radar always spans the 100m hard cap
 const MAX_SCALE = 3;
+const MAX_MARKERS = 24; // markers cluster beyond this so dense areas stay readable
+
+function ringSet(r: number): number[] {
+  if (r <= 25) return [10, 25];
+  if (r <= 50) return [10, 25, 50];
+  if (r <= 100) return [25, 50, 75, 100];
+  if (r <= 250) return [50, 100, 175, 250];
+  return [125, 250, 375, 500];
+}
 
 type Props = {
   users: NearbyUser[];
@@ -27,9 +35,11 @@ type Props = {
   meName?: string | null;
   radiusSetting: number;
   coords?: { lat: number; lng: number } | null;
+  onFilters?: () => void;
+  onCluster?: (users: NearbyUser[]) => void;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -119,8 +129,49 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.2] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.05] });
 
-  const rings = [25, 50, 75, 100];
+  const rings = ringSet(radiusSetting);
+  const MAX_DIST = rings[rings.length - 1];
+  const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : 15;
   const loc = coords || DEMO_LOCATION;
+
+  // place nearby users (fuzzed positions only), clustering into max 24 markers
+  const placed = users.map((u) => {
+    const approx = getApproximateDisplayLocation(u, radiusSetting);
+    const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
+    const rad = (approx.bearing * Math.PI) / 180;
+    return {
+      u,
+      x: CX + r * Math.sin(rad) - 19,
+      y: CY - r * Math.cos(rad) - 19,
+      color: (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
+      bearing: approx.bearing,
+      dist: approx.distance,
+    };
+  });
+  let singles = placed;
+  let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
+  if (placed.length > MAX_MARKERS) {
+    // 8 direction sectors x 3 distance bands = at most 24 markers
+    const buckets = new Map<string, typeof placed>();
+    placed.forEach((p) => {
+      const sector = Math.floor((((p.bearing % 360) + 360) % 360) / 45);
+      const band = Math.min(2, Math.floor((p.dist / MAX_DIST) * 3));
+      const key = `${sector}-${band}`;
+      buckets.set(key, [...(buckets.get(key) || []), p]);
+    });
+    singles = [];
+    clusters = [];
+    buckets.forEach((group, key) => {
+      if (group.length === 1) singles.push(group[0]);
+      else
+        clusters.push({
+          key,
+          x: group.reduce((s, g) => s + g.x, 0) / group.length,
+          y: group.reduce((s, g) => s + g.y, 0) / group.length,
+          users: group.map((g) => g.u),
+        });
+    });
+  }
 
   return (
     <View style={styles.mapArea} testID="radar-map">
@@ -128,7 +179,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         <Reanimated.View style={[styles.radar, zoomStyle]}>
           {/* real light map centred on YOUR actual location */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} />
+            <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
           </View>
 
           {rings.map((m) => {
@@ -190,22 +241,23 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           </Reanimated.View>
 
           {/* nearby blips — approximate/fuzzed positions only, never exact GPS */}
-          {users.map((u) => {
-            const approx = getApproximateDisplayLocation(u, radiusSetting);
-            const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
-            const rad = (approx.bearing * Math.PI) / 180;
-            const x = CX + r * Math.sin(rad) - 19;
-            const y = CY - r * Math.cos(rad) - 19;
-            const color = (u.vibe && vibeMap[u.vibe]?.color) || colors.grey;
-            return (
-              <Reanimated.View key={u.id} style={[styles.blip, { left: x, top: y }, markerStyle]}>
-                <Pressable testID={`radar-blip-${u.id}`} onPress={() => onSelect(u)}>
-                  <Avatar uri={u.photo_url} name={u.name} size={38} ringColor={color} />
-                  {u.compatible && <View style={[styles.compatDot, { backgroundColor: color }]} />}
-                </Pressable>
-              </Reanimated.View>
-            );
-          })}
+          {singles.map((p) => (
+            <Reanimated.View key={p.u.id} style={[styles.blip, { left: p.x, top: p.y }, markerStyle]}>
+              <Pressable testID={`radar-blip-${p.u.id}`} onPress={() => onSelect(p.u)}>
+                <Avatar uri={p.u.photo_url} name={p.u.name} size={38} ringColor={p.color} />
+                {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
+              </Pressable>
+            </Reanimated.View>
+          ))}
+
+          {/* clusters — dense groups collapse into count bubbles */}
+          {clusters.map((c) => (
+            <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
+              <Pressable testID={`radar-cluster-${c.key}`} style={styles.cluster} onPress={() => onCluster?.(c.users)}>
+                <Text style={styles.clusterText}>{c.users.length}</Text>
+              </Pressable>
+            </Reanimated.View>
+          ))}
         </Reanimated.View>
       </GestureDetector>
 
@@ -213,6 +265,14 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       <Pressable testID="radar-recentre" style={styles.recentreBtn} onPress={recentre} hitSlop={8}>
         <Ionicons name="locate" size={16} color={colors.teal} />
       </Pressable>
+
+      {/* filters */}
+      {onFilters && (
+        <Pressable testID="radar-filters" style={styles.filtersBtn} onPress={onFilters} hitSlop={8}>
+          <Ionicons name="options-outline" size={14} color={colors.text} />
+          <Text style={styles.filtersText}>Filters</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -271,6 +331,17 @@ const styles = StyleSheet.create({
     borderTopColor: colors.teal,
   },
   blip: { position: "absolute" },
+  cluster: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.teal,
+    borderWidth: 2.5,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clusterText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
   compatDot: {
     position: "absolute",
     top: -1,
@@ -294,4 +365,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  filtersBtn: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  filtersText: { color: colors.text, fontSize: 12, fontWeight: "700" },
 });

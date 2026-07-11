@@ -117,6 +117,13 @@ export default function NearbyScreen() {
         renderItem={({ item }) => (
           <UserRow user={item} vibeMap={vibeMap} onPress={(u) => router.push(`/person/${u.id}`)} />
         )}
+        ListFooterComponent={
+          data.length >= 100 ? (
+            <Text style={styles.capNote} testID="nearby-cap-note">
+              Showing the 100 most relevant people nearby
+            </Text>
+          ) : null
+        }
         ListEmptyComponent={
           hidden ? (
             <EmptyState
@@ -131,7 +138,7 @@ export default function NearbyScreen() {
                 testID="nearby-empty"
                 icon="compass"
                 title="No one nearby right now"
-                text="INTRO works best when people are close by. Try increasing your radius up to 100m, changing your vibe, joining an event, or inviting people nearby."
+                text="INTRO works best when people are close by. Try increasing your radius, changing your vibe, joining an event, or inviting people nearby."
               />
               <View style={styles.emptyActions}>
                 {[
@@ -159,6 +166,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl },
   sub: { color: colors.textSecondary, fontSize: font.base, paddingHorizontal: spacing.xl, marginTop: 2, marginBottom: spacing.md },
   filters: { paddingHorizontal: spacing.xl, gap: spacing.sm, alignItems: "center" },
+  capNote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", paddingVertical: spacing.lg },
   filterChip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

@@ -36,6 +36,9 @@ export type User = {
   mutual_only?: boolean;
   event_code?: string | null;
   event_name?: string | null;
+  plan: string;
+  max_radius: number;
+  radius_options: number[];
   city: string;
   country: string;
   ambassador: boolean;

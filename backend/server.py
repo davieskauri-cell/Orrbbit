@@ -101,6 +101,7 @@ class StateUpdate(BaseModel):
     intent: Optional[str] = None
     show_recruiters: Optional[bool] = None
     mutual_only: Optional[bool] = None
+    plan: Optional[str] = None
 
 
 class FeedbackIn(BaseModel):
@@ -163,7 +164,18 @@ def create_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-MAX_RADIUS = 100  # Intro never reveals anyone beyond 100 metres
+MAX_RADIUS = 100  # base hard cap; Pro extends discovery up to 500m (still approximate only)
+
+PLAN_LIMITS = {
+    "free": {"max_radius": 50, "radius_options": [10, 25, 50]},
+    "plus": {"max_radius": 100, "radius_options": [10, 25, 50, 100]},
+    "pro": {"max_radius": 500, "radius_options": [10, 25, 50, 100, 250, 500]},
+}
+MAX_DISCOVERY = 100  # never more than 100 discovery profiles
+
+
+def plan_max_radius(u: dict) -> int:
+    return PLAN_LIMITS.get(u.get("plan", "free"), PLAN_LIMITS["free"])["max_radius"]
 
 
 def public_user(u: dict) -> dict:
@@ -178,7 +190,10 @@ def public_user(u: dict) -> dict:
         "interests": u.get("interests", []),
         "vibe": u.get("vibe"),
         "visible": u.get("visible", True),
-        "radius": min(u.get("radius", 50) or 50, MAX_RADIUS),
+        "radius": min(u.get("radius", 50) or 50, plan_max_radius(u)),
+        "plan": u.get("plan", "free"),
+        "max_radius": plan_max_radius(u),
+        "radius_options": PLAN_LIMITS.get(u.get("plan", "free"), PLAN_LIMITS["free"])["radius_options"],
         "ghost_mode": u.get("ghost_mode", False),
         "paused": u.get("paused", False),
         "quiet_mode": u.get("quiet_mode", False),
@@ -546,8 +561,16 @@ async def unsave_profile(user_id: str, user: dict = Depends(get_current_user)):
 @api_router.put("/users/me/state")
 async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
+    if "plan" in fields:
+        if fields["plan"] not in PLAN_LIMITS:
+            raise HTTPException(status_code=400, detail="Unknown plan")
+        # keep radius within the new plan's limit
+        cur = user.get("radius", 50) or 50
+        fields["radius"] = min(cur, PLAN_LIMITS[fields["plan"]]["max_radius"])
     if "radius" in fields:
-        fields["radius"] = max(10, min(int(fields["radius"]), MAX_RADIUS))
+        plan = fields.get("plan", user.get("plan", "free"))
+        cap = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["max_radius"]
+        fields["radius"] = max(10, min(int(fields["radius"]), cap, 500))
     if "vibe" in fields and fields["vibe"] not in VIBE_KEYS:
         raise HTTPException(status_code=400, detail="Unknown vibe")
     # starting/refreshing a visibility session sets its expiry
@@ -661,7 +684,8 @@ async def get_blocked_ids(user_id: str) -> set:
 
 
 async def compute_nearby(user: dict, lat: float, lng: float) -> list:
-    radius = min(user.get("radius", 50) or 50, MAX_RADIUS)
+    cap = plan_max_radius(user)  # Free 50m, Plus 100m, Pro 500m — never beyond 500m
+    radius = min(user.get("radius", 50) or 50, cap)
     my_vibe = user.get("vibe")
     compat = COMPAT.get(my_vibe, []) if my_vibe else []
     blocked = await get_blocked_ids(user["id"])
@@ -688,7 +712,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             plat, plng = o["lat"], o["lng"]
         else:
             continue
-        if dist > radius or dist > MAX_RADIUS:
+        if dist > radius or dist > cap or dist > 500:
             continue
         o_vibe = o.get("vibe")
         if user.get("only_same_vibe") and o_vibe != my_vibe:
@@ -743,9 +767,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "mutual_reason": mutual_reason(user, o),
             "score": detail_score(user, o),
         })
-    # most relevant first (vibe-detail fit), then closest
+    # most relevant first (vibe-detail fit), then closest — capped at 100 discovery profiles
     results.sort(key=lambda r: (-r["score"], r["distance"]))
-    return results
+    return results[:MAX_DISCOVERY]
 
 
 @api_router.get("/nearby")
@@ -1470,6 +1494,7 @@ async def seed_demo_accounts():
             "visible_for": 30, "verified": acc["verified"], "active_now": True, "is_demo": True,
             "trial_mode_active": False,
             "vibe_details": DEMO_VIBE_DETAILS.get(acc["email"], {}),
+            "plan": {"kauri@intro.demo": "pro", "james@intro.demo": "plus", "olivia@intro.demo": "pro", "mia@intro.demo": "plus", "ryan@intro.demo": "pro", "emily@intro.demo": "plus"}.get(acc["email"], "free"),
             "lat": None, "lng": None, "last_active": now_iso(),
         }
         existing = await db.users.find_one({"email": acc["email"]})

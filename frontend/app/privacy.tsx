@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,7 +9,7 @@ import ToggleRow from "@/src/components/ToggleRow";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const RADII = [10, 25, 50, 100];
+const RADII = [10, 25, 50, 100, 250, 500];
 const DURATIONS = [15, 30, 60];
 const AUDIENCES = [
   { key: "everyone", label: "Everyone" },
@@ -42,6 +42,21 @@ export default function PrivacyScreen() {
   const [mutualOnly, setMutualOnly] = useState(!!user?.mutual_only);
   const [audience, setAudience] = useState(user?.who_can_see || "everyone");
   const [busy, setBusy] = useState(false);
+
+  const maxR = user?.max_radius || 50;
+  const planName = user?.plan === "pro" ? "Intro Pro" : user?.plan === "plus" ? "Intro Plus" : "Free";
+
+  const onLockedRadius = (r: number) => {
+    const needed = r <= 100 ? "Intro Plus" : "Intro Pro";
+    Alert.alert(
+      `${r}m needs ${needed}`,
+      `Your ${planName} plan allows up to ${maxR}m. Upgrade to unlock a larger discovery radius. Other people always stay approximate — never exact.`,
+      [
+        { text: "Not now", style: "cancel" },
+        { text: "See plans", onPress: () => router.push("/plans") },
+      ]
+    );
+  };
 
   const save = async () => {
     setBusy(true);
@@ -82,19 +97,32 @@ export default function PrivacyScreen() {
         <View style={styles.chipRow}>
           {RADII.map((r) => {
             const active = radiusM === r;
+            const locked = r > maxR;
             return (
               <Pressable
                 key={r}
                 testID={`radius-option-${r}`}
-                onPress={() => setRadiusM(r)}
-                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => (locked ? onLockedRadius(r) : setRadiusM(r))}
+                style={[styles.chip, active && styles.chipActive, locked && styles.chipLocked]}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{r}m</Text>
+                {locked && <Ionicons name="lock-closed" size={11} color={colors.textTertiary} />}
+                <Text style={[styles.chipText, active && styles.chipTextActive, locked && styles.chipTextLocked]}>
+                  {r}m
+                </Text>
               </Pressable>
             );
           })}
         </View>
-        <Text style={styles.hint}>Maximum radius is 100 metres — Intro never shows anyone further away.</Text>
+        <Text style={styles.hint}>
+          {planName} plan · up to {maxR}m. Intro never shows anyone beyond 500m.
+        </Text>
+        {maxR < 500 && (
+          <Pressable testID="privacy-see-plans" onPress={() => router.push("/plans")} style={styles.plansLink}>
+            <Ionicons name="diamond-outline" size={13} color={colors.orange} />
+            <Text style={styles.plansLinkText}>Unlock a bigger radius with Intro Plus or Pro</Text>
+            <Ionicons name="chevron-forward" size={13} color={colors.orange} />
+          </Pressable>
+        )}
 
         <Text style={styles.label}>Visible for</Text>
         <View style={styles.chipRow}>
@@ -231,8 +259,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipLocked: { flexDirection: "row", gap: 4, opacity: 0.7, backgroundColor: colors.surface },
   chipText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "600" },
   chipTextActive: { color: "#FFF" },
+  chipTextLocked: { color: colors.textTertiary },
+  plansLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm, paddingVertical: spacing.sm },
+  plansLinkText: { color: colors.orange, fontSize: font.sm, fontWeight: "700", flex: 1 },
   hint: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.sm, lineHeight: 18 },
   section: { marginTop: spacing.lg, borderTopWidth: 1, borderColor: colors.border, paddingTop: spacing.sm },
   privacyCard: {

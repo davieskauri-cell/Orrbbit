@@ -16,7 +16,9 @@ const MENU = [
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
   { icon: "id-card-outline", label: "Vibe Details", route: "/vibe-details", testID: "menu-vibe-details" },
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
+  { icon: "diamond-outline", label: "Intro Plans", route: "/plans", testID: "menu-plans" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
+  { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
   { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
   { icon: "qr-code-outline", label: "Invite People", route: "/invite", testID: "menu-invite" },
@@ -94,6 +96,12 @@ export default function ProfileScreen() {
           <View style={styles.statusItem}>
             <Ionicons name="resize" size={15} color={colors.teal} />
             <Text style={styles.statusText}>{user?.radius || 50}m radius</Text>
+          </View>
+          <View style={styles.statusItem} testID="my-plan-chip">
+            <Ionicons name="diamond" size={14} color={colors.orange} />
+            <Text style={styles.statusText}>
+              {user?.plan === "pro" ? "Intro Pro" : user?.plan === "plus" ? "Intro Plus" : "Free plan"}
+            </Text>
           </View>
           <View style={styles.statusItem}>
             <Ionicons

@@ -67,29 +67,36 @@ export default function RadarScreen() {
       <View style={styles.header}>
         <Logo size={26} />
         <View style={styles.headerRight}>
-          <Pressable testID="visibility-toggle" onPress={flipVisibility} style={styles.iconBtn}>
-            <Ionicons
-              name={hidden ? "eye-off" : "eye"}
-              size={20}
-              color={hidden ? colors.textTertiary : colors.teal}
-            />
-          </Pressable>
           <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
             <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
       </View>
 
-      <Pressable testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeRow}>
-        <VibePill vibe={myVibe} />
-        <Text style={styles.vibeChange}>Change</Text>
-        {sessionMinsLeft !== null && !hidden && (
-          <View style={styles.sessionChip} testID="visibility-session-chip">
-            <Ionicons name="eye" size={11} color={colors.teal} />
-            <Text style={styles.sessionText}>Visible · {sessionMinsLeft}m left</Text>
-          </View>
-        )}
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeSelector}>
+          <VibePill vibe={myVibe} small />
+          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+        </Pressable>
+        <Pressable
+          testID="visibility-toggle"
+          onPress={flipVisibility}
+          style={[styles.visChip, hidden && styles.visChipOff]}
+        >
+          <Ionicons
+            name={hidden ? "eye-off" : "eye"}
+            size={12}
+            color={hidden ? colors.textTertiary : colors.teal}
+          />
+          <Text style={[styles.visChipText, hidden && { color: colors.textTertiary }]}>
+            {hidden
+              ? "Hidden"
+              : sessionMinsLeft !== null
+              ? `Visible · ${sessionMinsLeft}m left`
+              : "Visible"}
+          </Text>
+        </Pressable>
+      </View>
 
       <ModeSelector />
       <ModeCards />
@@ -135,6 +142,8 @@ export default function RadarScreen() {
               meName={user?.name}
               radiusSetting={user?.radius || 50}
               coords={coords}
+              onFilters={() => router.push("/privacy")}
+              onCluster={() => router.push("/(tabs)/nearby")}
             />
             <View style={styles.approxNote}>
               <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
@@ -212,8 +221,8 @@ export default function RadarScreen() {
               <View style={styles.emptyWrap} testID="radar-empty">
                 <Text style={styles.emptyTitle}>No one nearby right now</Text>
                 <Text style={styles.emptyText}>
-                  INTRO works best when people are close by. Try increasing your radius up to
-                  100m, changing your vibe, or inviting people nearby.
+                  INTRO works best when people are close by. Try increasing your radius,
+                  changing your vibe, or inviting people nearby.
                 </Text>
                 <View style={styles.emptyBtns}>
                   <SecondaryButton
@@ -279,25 +288,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  vibeRow: {
+  vibeSelector: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 6,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingLeft: 4,
+    paddingRight: 10,
+    paddingVertical: 4,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.md,
   },
-  vibeChange: { color: colors.orange, fontSize: font.sm, fontWeight: "700" },
-  sessionChip: {
+  visChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     backgroundColor: colors.tealSoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
     borderRadius: 999,
-    marginLeft: "auto",
   },
-  sessionText: { color: colors.teal, fontSize: 11, fontWeight: "700" },
+  visChipOff: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  visChipText: { color: colors.teal, fontSize: 11, fontWeight: "700" },
   trialBanner: {
     flexDirection: "row",
     alignItems: "center",

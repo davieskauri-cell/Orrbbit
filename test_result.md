@@ -101,3 +101,12 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Iteration 7 — Freemium Plans, Map UI, Clustering & Discovery Limits (frontend wiring)
+main agent changes:
+  - Wired /location-privacy and /plans into signup flow: register → /location-privacy?next=setup → /plans?next=setup → (auth)/intent → profile-setup → choose-vibe
+  - Profile menu: added "Intro Plans" (/plans), "How Map Privacy Works" (/location-privacy), plan chip in profile card
+  - Privacy screen: radius options now 10/25/50/100/250/500 with locked states (lock icon) based on user.max_radius; tapping locked shows upgrade Alert → "See plans" → /plans; "Unlock a bigger radius" link
+  - Radar top bar redesigned: compact vibe selector pill (VibePill + chevron-down, routes /vibe) + visibility chip ("Visible · Xm left" / "Hidden", toggles visibility, testID visibility-toggle)
+  - RadarView: dynamic ring sets & map tile zoom per radius (up to 500m), Filters button on map (testID radar-filters → /privacy), marker clustering (max 24 markers: 8 sectors × 3 bands, cluster bubbles show count, tap → nearby tab)
+  - Nearby: cap note "Showing the 100 most relevant people nearby" when list hits 100 (backend already caps at 100)
+needs_retesting: true (frontend focus; backend plan logic already verified in iteration 6/7 scripts)
