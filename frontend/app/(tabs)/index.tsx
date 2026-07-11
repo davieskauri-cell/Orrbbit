@@ -177,6 +177,7 @@ export default function RadarScreen() {
               onFilters={() => router.push("/privacy")}
               onCluster={() => router.push("/(tabs)/nearby")}
               onRadiusPress={() => setShowRadius(true)}
+              onLearnMore={() => router.push("/location-privacy")}
             />
 
             {preview && (
@@ -220,15 +221,6 @@ export default function RadarScreen() {
               </View>
             )}
 
-            <View style={styles.privacyPill}>
-              <Ionicons name="lock-closed" size={11} color={colors.textSecondary} />
-              <Text style={styles.privacyPillText}>
-                Exact locations hidden · You only see approximate nearby users
-              </Text>
-              <Pressable testID="privacy-learn-more" onPress={() => router.push("/location-privacy")} hitSlop={6}>
-                <Text style={styles.learnMore}>Learn more</Text>
-              </Pressable>
-            </View>
             {(user?.radius || 50) >= 250 && (
               <Text style={styles.extendedNote} testID="extended-radius-note">
                 Extended radius shows approximate nearby discovery only. Exact locations stay hidden.
@@ -305,7 +297,10 @@ export default function RadarScreen() {
                       {best.name}, {best.age}
                     </Text>
                     <VibePill vibe={bestVibe} small />
-                    <Text style={styles.bestDist}>{distLabel(best.distance)}</Text>
+                    <Text style={styles.bestDist}>
+                      {distLabel(best.distance)}
+                      {best.context ? ` · ${best.context}` : ""}
+                    </Text>
                   </View>
                 </View>
                 {!!best.bio && (
@@ -484,21 +479,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   previewBtnText: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
-  privacyPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "center",
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    marginTop: spacing.sm,
-  },
-  privacyPillText: { color: colors.textSecondary, fontSize: 10.5, flexShrink: 1 },
-  learnMore: { color: colors.teal, fontSize: 10.5, fontWeight: "800" },
   extendedNote: {
     color: colors.textTertiary,
     fontSize: font.sm,

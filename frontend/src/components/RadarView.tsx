@@ -10,9 +10,9 @@ import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/loc
 import { colors } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const MAP_W = SCREEN_W; // edge to edge
-const MAP_H = 340;
+const MAP_H = Math.min(Math.max(Math.round(SCREEN_H * 0.5), 340), 480); // ~50% of screen
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
@@ -38,9 +38,10 @@ type Props = {
   onFilters?: () => void;
   onCluster?: (users: NearbyUser[]) => void;
   onRadiusPress?: () => void;
+  onLearnMore?: () => void;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -126,6 +127,18 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     savedTy.value = 0;
   };
 
+  const zoomBy = (factor: number) => {
+    const target = Math.min(Math.max(savedScale.value * factor, 1), MAX_SCALE);
+    scale.value = withTiming(target);
+    savedScale.value = target;
+    if (target <= 1.01) {
+      tx.value = withTiming(0);
+      ty.value = withTiming(0);
+      savedTx.value = 0;
+      savedTy.value = 0;
+    }
+  };
+
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.2] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.05] });
@@ -135,7 +148,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : 15;
   const loc = coords || DEMO_LOCATION;
 
-  // place nearby users (fuzzed positions only), clustering into max 24 markers
+  // place nearby users (fuzzed positions only)
   const placed = users.map((u) => {
     const approx = getApproximateDisplayLocation(u, radiusSetting);
     const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
@@ -149,38 +162,80 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       dist: approx.distance,
     };
   });
+  // top 24 most relevant get individual markers, the rest collapse into clusters
   let singles = placed;
   let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
   if (placed.length > MAX_MARKERS) {
-    // 8 direction sectors x 3 distance bands = at most 24 markers
+    singles = placed.slice(0, MAX_MARKERS);
     const buckets = new Map<string, typeof placed>();
-    placed.forEach((p) => {
+    placed.slice(MAX_MARKERS).forEach((p) => {
       const sector = Math.floor((((p.bearing % 360) + 360) % 360) / 45);
       const band = Math.min(2, Math.floor((p.dist / MAX_DIST) * 3));
       const key = `${sector}-${band}`;
       buckets.set(key, [...(buckets.get(key) || []), p]);
     });
-    singles = [];
-    clusters = [];
+    const singletons: typeof placed = [];
     buckets.forEach((group, key) => {
-      if (group.length === 1) singles.push(group[0]);
-      else
-        clusters.push({
-          key,
-          x: group.reduce((s, g) => s + g.x, 0) / group.length,
-          y: group.reduce((s, g) => s + g.y, 0) / group.length,
-          users: group.map((g) => g.u),
-        });
+      if (group.length === 1) {
+        singletons.push(group[0]);
+        return;
+      }
+      clusters.push({
+        key,
+        x: group.reduce((s, g) => s + g.x, 0) / group.length,
+        y: group.reduce((s, g) => s + g.y, 0) / group.length,
+        users: group.map((g) => g.u),
+      });
     });
+    // leftover singletons merge into their nearest cluster (max 24 avatars stays true)
+    singletons.forEach((p) => {
+      if (clusters.length === 0) {
+        singles.push(p);
+        return;
+      }
+      let best = clusters[0];
+      let bestD = Infinity;
+      clusters.forEach((c) => {
+        const d = Math.hypot(c.x - p.x, c.y - p.y);
+        if (d < bestD) {
+          bestD = d;
+          best = c;
+        }
+      });
+      best.users.push(p.u);
+    });
+  }
+  // spacing pass — avatars never stack directly on top of each other
+  const MIN_GAP = 40;
+  for (let i = 0; i < singles.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const dx = singles[i].x - singles[j].x;
+      const dy = singles[i].y - singles[j].y;
+      const d = Math.hypot(dx, dy);
+      if (d < MIN_GAP) {
+        const ang = d > 0.5 ? Math.atan2(dy, dx) : i * 0.9;
+        singles[i] = {
+          ...singles[i],
+          x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 6), MAP_W - 44),
+          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 6), MAP_H - 44),
+        };
+      }
+    }
   }
 
   return (
     <View style={styles.mapArea} testID="radar-map">
       <GestureDetector gesture={gestures}>
         <Reanimated.View style={[styles.radar, zoomStyle]}>
-          {/* real light map centred on YOUR actual location */}
+          {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
+            <View style={styles.tilt}>
+              <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
+            </View>
+            <LinearGradient
+              colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0)", "rgba(255,255,255,0)", "rgba(255,255,255,0.12)"]}
+              style={StyleSheet.absoluteFill}
+            />
           </View>
 
           {rings.map((m) => {
@@ -279,10 +334,18 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         </Reanimated.View>
       </GestureDetector>
 
-      {/* re-centre */}
-      <Pressable testID="radar-recentre" style={styles.recentreBtn} onPress={recentre} hitSlop={8}>
-        <Ionicons name="locate" size={16} color={colors.teal} />
-      </Pressable>
+      {/* re-centre + zoom controls (right side) */}
+      <View style={styles.rightControls}>
+        <Pressable testID="radar-zoom-in" style={styles.ctrlBtn} onPress={() => zoomBy(1.5)} hitSlop={6}>
+          <Ionicons name="add" size={18} color={colors.text} />
+        </Pressable>
+        <Pressable testID="radar-zoom-out" style={styles.ctrlBtn} onPress={() => zoomBy(1 / 1.5)} hitSlop={6}>
+          <Ionicons name="remove" size={18} color={colors.text} />
+        </Pressable>
+        <Pressable testID="radar-recentre" style={styles.ctrlBtn} onPress={recentre} hitSlop={6}>
+          <Ionicons name="locate" size={16} color={colors.teal} />
+        </Pressable>
+      </View>
 
       {/* filters */}
       {onFilters && (
@@ -292,13 +355,26 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         </Pressable>
       )}
 
-      {/* radius selector chip */}
+      {/* radius selector chip — top-left */}
       {onRadiusPress && (
         <Pressable testID="radar-radius-chip" style={styles.radiusChip} onPress={onRadiusPress} hitSlop={8}>
           <Ionicons name="resize" size={13} color={colors.teal} />
           <Text style={styles.radiusChipText}>Radius: {radiusSetting}m</Text>
           <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
         </Pressable>
+      )}
+
+      {/* privacy pill — bottom of map */}
+      {onLearnMore && (
+        <View style={styles.privacyPill}>
+          <Ionicons name="lock-closed" size={10} color={colors.textSecondary} />
+          <Text style={styles.privacyPillText} numberOfLines={1}>
+            Exact locations hidden · You only see approximate nearby users
+          </Text>
+          <Pressable testID="privacy-learn-more" onPress={onLearnMore} hitSlop={8}>
+            <Text style={styles.learnMore}>Learn more</Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -316,6 +392,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   radar: { width: MAP_W, height: MAP_H, alignItems: "center", justifyContent: "center" },
+  tilt: {
+    flex: 1,
+    transform: [{ perspective: 500 }, { rotateX: "9deg" }, { scale: 1.22 }],
+  },
   ring: { position: "absolute", borderWidth: 1.5 },
   ringLabel: {
     position: "absolute",
@@ -345,7 +425,16 @@ const styles = StyleSheet.create({
     borderRadius: 35,
     backgroundColor: colors.teal,
   },
-  me: { position: "absolute", alignItems: "center" },
+  me: {
+    position: "absolute",
+    alignItems: "center",
+    zIndex: 20,
+    shadowColor: "#111827",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
   youLabel: {
     marginTop: 2,
     backgroundColor: colors.teal,
@@ -365,7 +454,14 @@ const styles = StyleSheet.create({
     borderRightColor: "transparent",
     borderTopColor: colors.teal,
   },
-  blip: { position: "absolute" },
+  blip: {
+    position: "absolute",
+    shadowColor: "#111827",
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   cluster: {
     width: 40,
     height: 40,
@@ -375,12 +471,17 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#111827",
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   clusterText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
   clusterVibe: { color: "#FFF", fontSize: 7, fontWeight: "700", maxWidth: 38, textAlign: "center" },
   radiusChip: {
     position: "absolute",
-    bottom: 10,
+    top: 10,
     left: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -391,6 +492,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
+    shadowColor: "#111827",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   radiusChipText: { color: colors.text, fontSize: 12, fontWeight: "700" },
   compatDot: {
@@ -403,19 +509,45 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  recentreBtn: {
+  rightControls: {
     position: "absolute",
-    bottom: 10,
     right: 10,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    top: "50%",
+    marginTop: -60,
+    gap: 8,
+  },
+  ctrlBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#111827",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  privacyPill: {
+    position: "absolute",
+    bottom: 10,
+    alignSelf: "center",
+    maxWidth: MAP_W - 70,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  privacyPillText: { color: colors.textSecondary, fontSize: 10, flexShrink: 1 },
+  learnMore: { color: colors.teal, fontSize: 10, fontWeight: "800" },
   filtersBtn: {
     position: "absolute",
     top: 10,

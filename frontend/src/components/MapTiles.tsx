@@ -16,8 +16,9 @@ function tileXY(lat: number, lng: number, z: number) {
 type Props = { lat: number; lng: number; width: number; height: number; zoom?: number };
 
 /**
- * Real light basemap (CARTO Positron / OpenStreetMap) centred on the user's
- * actual location. Renders raster tiles as plain images — works on web + native.
+ * Bright bird's-eye basemap (CARTO Voyager / OpenStreetMap) centred on the
+ * user's actual location. Colourful premium style — buildings, parks, water.
+ * Renders raster tiles as plain images — works on web + native.
  * Only the CURRENT user's location is used; other users are never placed at
  * real coordinates on this map.
  */
@@ -36,7 +37,7 @@ export default function MapTiles({ lat, lng, width, height, zoom = 17 }: Props) 
       tiles.push(
         <Image
           key={`${tx}-${ty}`}
-          source={{ uri: `https://basemaps.cartocdn.com/light_all/${zoom}/${tx}/${ty}@2x.png` }}
+          source={{ uri: `https://basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}@2x.png` }}
           style={{ position: "absolute", left: cx + (tx - x) * TILE, top: cy + (ty - y) * TILE, width: TILE, height: TILE }}
           contentFit="cover"
           transition={200}

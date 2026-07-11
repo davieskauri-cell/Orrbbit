@@ -165,3 +165,14 @@ Frontend:
 - CRITICAL FIX: react-native-web Alert.alert is a NO-OP → added src/lib/alert.ts showAlert (native Alert / web window.confirm-alert) and swapped in all 20 screens. Web upgrade flow no longer hangs; prompts work on web preview.
 Testing: iteration_8.json 10/11 pass; the 1 flagged issue (HD Nearby tab empty) NOT reproducible — verified working with screenshot (header + 100 profiles render). Vibe prompt + upgrade prompt verified via browser dialogs post alert-fix.
 Known LOW: shadow*/pointerEvents deprecation warnings (web only, cosmetic).
+
+## Radar Map Visual Redesign — Premium Bird's-Eye (June 2026) — COMPLETE
+Visual-only update to Radar map area (no logic/flow changes elsewhere):
+- Map tiles switched CARTO Positron (grey) → CARTO Voyager @2x (colourful: buildings, green parks, blue water) with subtle 3D bird's-eye tilt (perspective+rotateX 9°+scale 1.22 on tile layer only) + soft white vignette gradient.
+- Map height now ~50% of screen (clamp 340–480px).
+- Controls: Radius chip TOP-LEFT, Filters top-right, zoom +/− and re-centre stacked mid-right (radar-zoom-in/out), privacy pill moved INSIDE map bottom-centre (Learn more → /location-privacy via onLearnMore prop; removed from index.tsx below-map).
+- Markers: soft shadows, "me" marker zIndex-top w/ glow, min 40px spacing pass (overlapping avatars offset, clamped to map bounds).
+- Clustering rule now exactly per spec: top-24 most relevant (backend order) render as individual avatars, the REST cluster into sector/band bubbles; leftover singleton buckets merge into nearest cluster (24-avatar cap strictly held).
+- Nearby Now card now shows "· {context}" after distance.
+- Backend demo state: 27 new seeded Melbourne radar demo users (@radar.intro.demo, password Intro123!) incl. Maya (27, Need Advice, Marketing Manager, ~40m, rich vibe_details) + two cluster pockets. Kauri can_help_with += Marketing. Verified: Kauri Pro @500m → exactly 36 nearby, 14 aligned, Maya top compatible with reason "Maya needs marketing advice and you can help with marketing".
+Verified via screenshots (web preview): rings 125/250/375/500, 24 avatars + clusters, all controls, stats 36/14/500m.

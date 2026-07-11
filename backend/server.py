@@ -294,6 +294,53 @@ COMPAT = {
 }
 
 DEMO_PASSWORD = "Intro123!"
+
+# Extra Melbourne radar demo people — makes the Pro 500m radar demo feel alive
+# (36 nearby, ~14 aligned for a Networking user, two dense cluster groups).
+# (name, age, vibe, dist_m, bearing_deg, portrait, bio)
+RADAR_DEMO_USERS = [
+    ("Maya", 27, "need_advice", 40, 300, "women/68", "Marketing manager figuring out my next step."),
+    ("Tom", 30, "networking", 120, 350, "men/52", "Product manager who loves meeting builders."),
+    ("Ava", 25, "open_to_chat", 150, 60, "women/12", "New to Melbourne, always up for a chat."),
+    ("Noah", 33, "coffee_drinks", 190, 160, "men/71", "On a mission to find the best flat white."),
+    ("Isabella", 29, "exploring", 230, 20, "women/33", "Weekend explorer and food market fan."),
+    ("Ethan", 26, "gym_buddy", 270, 250, "men/17", "Training for a half marathon."),
+    ("Lucas", 35, "networking", 480, 310, "men/44", "Sales director open to a quick intro."),
+    # cluster group A — south-east pocket (~+8)
+    ("Grace", 28, "networking", 360, 105, "women/21", "Consultant who loves a good chat."),
+    ("Oscar", 31, "networking", 380, 112, "men/23", "Agency founder, always up for ideas."),
+    ("Ruby", 24, "open_to_chat", 400, 118, "women/47", "Say hi if you see me around!"),
+    ("Henry", 29, "coffee_drinks", 420, 124, "men/61", "Espresso enthusiast."),
+    ("Chloe", 26, "coffee_drinks", 355, 128, "women/8", "Coffee catch-ups are my thing."),
+    ("Leo", 32, "exploring", 440, 108, "men/36", "Discovering laneways one day at a time."),
+    ("Ella", 23, "exploring", 405, 120, "women/85", "New here, exploring everything."),
+    ("Max", 34, "relationship", 445, 115, "men/9", "Looking for something genuine."),
+    # cluster group B — south-west pocket (~+12)
+    ("Aria", 27, "networking", 370, 200, "women/39", "Designer meeting other creatives."),
+    ("Finn", 30, "need_advice", 385, 206, "men/77", "Thinking about a career pivot."),
+    ("Layla", 25, "coffee_drinks", 400, 212, "women/54", "Always keen for a coffee."),
+    ("Kai", 28, "coffee_drinks", 415, 218, "men/29", "Flat white and a chat?"),
+    ("Nina", 31, "coffee_drinks", 430, 203, "women/72", "Cafe hopping today."),
+    ("Owen", 33, "exploring", 445, 209, "men/83", "Wandering the city."),
+    ("Ivy", 22, "exploring", 460, 215, "women/26", "Exploring Melbourne this week."),
+    ("Jude", 29, "exploring", 365, 220, "men/55", "Out and about, open to detours."),
+    ("Sofia", 26, "gym_buddy", 390, 197, "women/90", "Gym in the mornings, walks at lunch."),
+    ("Ali", 32, "gym_buddy", 420, 214, "men/40", "Lifting and running buddy wanted."),
+    ("Lena", 24, "relationship", 450, 207, "women/61", "Hoping to meet someone real."),
+    ("Theo", 35, "relationship", 470, 201, "men/67", "Old-school about meeting people."),
+]
+
+RADAR_DEMO_DETAILS = {
+    "maya@radar.intro.demo": {
+        "intent": "Need marketing advice", "advice_role": "Seeking Advice",
+        "advice_category": "Marketing advice", "context": "Marketing Manager",
+        "background": "Marketing manager at a retail brand",
+        "looking_for": ["Career direction", "Marketing"],
+        "tags": ["Marketing", "Startups", "Business"], "visibility": "public",
+        "availability": "Available now", "intent_strength": "Actively looking now",
+    },
+}
+
 DEMO_ACCOUNTS = [
     {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Intro and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5, "verified": True},
     {"email": "james@intro.demo", "name": "James", "age": 31, "vibe": "networking", "bio": "Startup founder in fintech. Always open to meeting new people and sharing ideas.", "interests": ["Startups", "Finance", "Tech", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/32.jpg", "dist": 32, "bearing": 40, "minutes_ago": 120, "verified": True},
@@ -314,8 +361,8 @@ DEMO_VIBE_DETAILS = {
         "background": "HR professional and founder building Intro", "industry": "HR",
         "experience_level": "3-5 years", "professional_identity": "Founder",
         "looking_for": ["Business contacts", "App feedback", "Early testers"],
-        "can_help_with": ["HR", "Career direction", "Interviews", "Confidence"],
-        "offer_categories": ["Career", "HR", "Confidence"], "offer_experience": "Professional experience",
+        "can_help_with": ["HR", "Career direction", "Interviews", "Confidence", "Marketing"],
+        "offer_categories": ["Career", "HR", "Confidence", "Marketing"], "offer_experience": "Professional experience",
         "tags": ["HR", "Startups", "Business", "Golf"], "visibility": "public",
         "availability": "Available for 30 minutes", "intent_strength": "Actively looking now",
     },
@@ -1561,6 +1608,35 @@ async def seed_demo_accounts():
             doc["created_at"] = now_iso()
             await db.users.insert_one(doc)
     logger.info("Seeded %d demo accounts", len(DEMO_ACCOUNTS))
+    # extra Melbourne radar demo people (Pro 500m demo state)
+    for i, (name, age, vibe, dist, brg, portrait, bio) in enumerate(RADAR_DEMO_USERS):
+        email = f"{name.lower()}@radar.intro.demo"
+        doc = {
+            "email": email, "name": name, "age": age, "vibe": vibe,
+            "bio": bio, "interests": ["Coffee", "Melbourne"],
+            "photo_url": f"https://randomuser.me/api/portraits/{portrait}.jpg",
+            "photos": [
+                f"https://randomuser.me/api/portraits/{portrait}.jpg",
+                f"https://picsum.photos/seed/{email}-a/400/400",
+                f"https://picsum.photos/seed/{email}-b/400/400",
+            ],
+            "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 5 + i * 3,
+            "visible": True, "radius": 100, "ghost_mode": False, "paused": False, "quiet_mode": False,
+            "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
+            "visible_for": 60, "verified": i % 3 == 0, "active_now": i % 4 != 0, "is_demo": True,
+            "trial_mode_active": False, "plan": "free",
+            "vibe_details": RADAR_DEMO_DETAILS.get(email, {}),
+            "lat": None, "lng": None, "last_active": now_iso(),
+        }
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            await db.users.update_one({"email": email}, {"$set": doc})
+        else:
+            doc["id"] = str(uuid.uuid4())
+            doc["hashed_password"] = pwd_context.hash(DEMO_PASSWORD)
+            doc["created_at"] = now_iso()
+            await db.users.insert_one(doc)
+    logger.info("Seeded %d radar demo users", len(RADAR_DEMO_USERS))
     # global demo users (same rules: <=100m within their own city)
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
         doc = {
