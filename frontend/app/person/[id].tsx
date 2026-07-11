@@ -64,7 +64,7 @@ export default function PersonPreview() {
           testID="person-out-of-range"
           icon="location"
           title="Out of range"
-          text="They're outside your visible radius right now. Try increasing your radius up to 100m."
+          text="They're outside your visible radius right now. Try increasing your radius."
         />
       </View>
     );

@@ -29,7 +29,7 @@ export default function IntentScreen() {
       const updated = await api("/users/me/state", { method: "PUT", body: { intent } });
       setUser(updated as any);
     } catch {}
-    router.replace("/(auth)/profile-setup");
+    router.push("/(auth)/profile-setup");
   };
 
   return (
@@ -39,6 +39,11 @@ export default function IntentScreen() {
       showsVerticalScrollIndicator={false}
       testID="intent-screen"
     >
+      {router.canGoBack() && (
+        <Pressable testID="intent-back" onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
+      )}
       <Text style={styles.title}>{STRINGS.intentQuestion}</Text>
       <Text style={styles.sub}>{STRINGS.intentSub}</Text>
 
@@ -57,7 +62,7 @@ export default function IntentScreen() {
         </Pressable>
       ))}
 
-      <Pressable testID="intent-skip" onPress={() => router.replace("/(auth)/profile-setup")} style={styles.skip}>
+      <Pressable testID="intent-skip" onPress={() => router.push("/(auth)/profile-setup")} style={styles.skip}>
         <Text style={styles.skipText}>Skip for now</Text>
       </Pressable>
     </ScrollView>
@@ -66,6 +71,7 @@ export default function IntentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  backBtn: { marginBottom: spacing.md, marginLeft: -6, width: 44, height: 44, justifyContent: "center" },
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.sm, marginBottom: spacing.xl, lineHeight: 21 },
   row: {

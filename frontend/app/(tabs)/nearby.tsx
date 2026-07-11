@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
@@ -59,7 +59,11 @@ export default function NearbyScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <Text style={styles.title}>Nearby</Text>
-      <Text style={styles.sub}>Within {user?.radius || 50}m of you</Text>
+      <Text style={styles.sub}>
+        {nearby.length >= 100
+          ? "100+ people nearby · Showing the best 100 based on your vibe, filters and safety settings."
+          : `Within ${user?.radius || 50}m of you`}
+      </Text>
 
       <View style={{ height: 52 }}>
         <ScrollView
@@ -119,9 +123,22 @@ export default function NearbyScreen() {
         )}
         ListFooterComponent={
           data.length >= 100 ? (
-            <Text style={styles.capNote} testID="nearby-cap-note">
-              Showing the 100 most relevant people nearby
-            </Text>
+            <View style={styles.capCard} testID="nearby-cap-note">
+              <Text style={styles.capTitle}>Showing up to 100 people within your radius</Text>
+              <Text style={styles.capText}>To keep the map clear and safe.</Text>
+              <Pressable
+                testID="nearby-why-limit"
+                onPress={() =>
+                  Alert.alert(
+                    "Why limit?",
+                    "INTRO limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
+                  )
+                }
+                hitSlop={6}
+              >
+                <Text style={styles.capLink}>Why limit?</Text>
+              </Pressable>
+            </View>
           ) : null
         }
         ListEmptyComponent={

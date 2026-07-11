@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,10 +28,15 @@ export default function EtiquetteScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.xxl, paddingBottom: spacing.xxxl, paddingHorizontal: spacing.xl }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: spacing.xxxl, paddingHorizontal: spacing.xl }}
       showsVerticalScrollIndicator={false}
       testID="etiquette-screen"
     >
+      {router.canGoBack() && (
+        <Pressable testID="etiquette-back" onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
+      )}
       <View style={styles.iconWrap}>
         <Ionicons name="hand-left" size={34} color={colors.teal} />
       </View>
@@ -60,6 +65,7 @@ export default function EtiquetteScreen() {
 }
 
 const styles = StyleSheet.create({
+  backBtn: { marginBottom: spacing.md, marginLeft: -6, width: 44, height: 44, justifyContent: "center" },
   container: { flex: 1, backgroundColor: colors.surface },
   iconWrap: { width: 68, height: 68, borderRadius: 34, backgroundColor: colors.tealSoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.lg },
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },

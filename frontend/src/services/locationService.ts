@@ -54,7 +54,7 @@ export const calculateDistanceForMatching = calculateDistanceBetweenUsers;
 /**
  * Returns a fuzzed, privacy-safe display position for another user.
  * Deterministic per user id so markers stay stable (no live-tracking feel),
- * always clamped inside the selected radius and the 100m hard cap.
+ * always clamped inside the selected radius and the 500m absolute cap.
  */
 export function getApproximateDisplayLocation(
   u: { id: string; distance: number; bearing: number },
@@ -64,7 +64,7 @@ export function getApproximateDisplayLocation(
   for (let i = 0; i < u.id.length; i++) h = (h * 31 + u.id.charCodeAt(i)) % 9973;
   const bearingJitter = (h % 25) - 12; // ±12°
   const distJitter = ((h >> 3) % 13) - 6; // ±6m
-  const cap = Math.min(maxRadius, 100);
+  const cap = Math.min(maxRadius, 500);
   const distance = Math.max(4, Math.min(u.distance + distJitter, cap));
   return { distance, bearing: (u.bearing + bearingJitter + 360) % 360 };
 }

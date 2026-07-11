@@ -23,7 +23,7 @@ export default function JoinEventScreen() {
     try {
       const res: any = await api("/events/join-code", { method: "POST", body: { code: code.trim() } });
       setUser(res.user);
-      Alert.alert(`Welcome to ${res.event_name}`, "People at this event are now prioritised on your radar. Max radius stays 100m.");
+      Alert.alert(`Welcome to ${res.event_name}`, "People at this event are now prioritised on your radar.");
       router.back();
     } catch {
       setError("Event code not found.");

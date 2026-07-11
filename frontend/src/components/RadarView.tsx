@@ -37,9 +37,10 @@ type Props = {
   coords?: { lat: number; lng: number } | null;
   onFilters?: () => void;
   onCluster?: (users: NearbyUser[]) => void;
+  onRadiusPress?: () => void;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -238,6 +239,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           <Reanimated.View style={[styles.me, markerStyle]} pointerEvents="none">
             <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
             <View style={styles.mePointer} />
+            <View style={styles.youLabel}>
+              <Text style={styles.youLabelText}>You</Text>
+            </View>
           </Reanimated.View>
 
           {/* nearby blips — approximate/fuzzed positions only, never exact GPS */}
@@ -251,13 +255,27 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           ))}
 
           {/* clusters — dense groups collapse into count bubbles */}
-          {clusters.map((c) => (
-            <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
-              <Pressable testID={`radar-cluster-${c.key}`} style={styles.cluster} onPress={() => onCluster?.(c.users)}>
-                <Text style={styles.clusterText}>{c.users.length}</Text>
-              </Pressable>
-            </Reanimated.View>
-          ))}
+          {clusters.map((c) => {
+            // dominant vibe label when most of the cluster shares one vibe
+            const counts: Record<string, number> = {};
+            c.users.forEach((u) => {
+              if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
+            });
+            const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+            const vibeLabel = top && top[1] / c.users.length >= 0.6 ? vibeMap[top[0]]?.label : null;
+            return (
+              <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
+                <Pressable testID={`radar-cluster-${c.key}`} style={styles.cluster} onPress={() => onCluster?.(c.users)}>
+                  <Text style={styles.clusterText}>+{c.users.length}</Text>
+                  {vibeLabel && (
+                    <Text style={styles.clusterVibe} numberOfLines={1}>
+                      {vibeLabel}
+                    </Text>
+                  )}
+                </Pressable>
+              </Reanimated.View>
+            );
+          })}
         </Reanimated.View>
       </GestureDetector>
 
@@ -271,6 +289,15 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         <Pressable testID="radar-filters" style={styles.filtersBtn} onPress={onFilters} hitSlop={8}>
           <Ionicons name="options-outline" size={14} color={colors.text} />
           <Text style={styles.filtersText}>Filters</Text>
+        </Pressable>
+      )}
+
+      {/* radius selector chip */}
+      {onRadiusPress && (
+        <Pressable testID="radar-radius-chip" style={styles.radiusChip} onPress={onRadiusPress} hitSlop={8}>
+          <Ionicons name="resize" size={13} color={colors.teal} />
+          <Text style={styles.radiusChipText}>Radius: {radiusSetting}m</Text>
+          <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
         </Pressable>
       )}
     </View>
@@ -319,6 +346,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.teal,
   },
   me: { position: "absolute", alignItems: "center" },
+  youLabel: {
+    marginTop: 2,
+    backgroundColor: colors.teal,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 999,
+  },
+  youLabelText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
   mePointer: {
     width: 0,
     height: 0,
@@ -342,6 +377,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   clusterText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+  clusterVibe: { color: "#FFF", fontSize: 7, fontWeight: "700", maxWidth: 38, textAlign: "center" },
+  radiusChip: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  radiusChipText: { color: colors.text, fontSize: 12, fontWeight: "700" },
   compatDot: {
     position: "absolute",
     top: -1,

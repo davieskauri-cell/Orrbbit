@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,12 +20,20 @@ export default function ChangeVibeModal() {
 
   const save = async () => {
     if (!selected) return;
+    const changed = selected !== user?.vibe;
     setBusy(true);
     try {
       const updated = await updateVibe(selected);
       setUser(updated as any);
       await refresh();
-      router.replace("/vibe-details");
+      if (changed) {
+        Alert.alert("You changed your vibe", "Do you want to update your vibe details?", [
+          { text: "Keep for now", style: "cancel", onPress: () => router.back() },
+          { text: "Update details", onPress: () => router.replace("/vibe-details") },
+        ]);
+      } else {
+        router.back();
+      }
     } catch {}
     setBusy(false);
   };

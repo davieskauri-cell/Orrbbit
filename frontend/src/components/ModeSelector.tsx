@@ -11,8 +11,6 @@ const MODES: { key: string; icon: string; route?: string }[] = [
   { key: "Networking", icon: "briefcase", route: "/networking" },
   { key: "Campus", icon: "school", route: "/campus" },
   { key: "Events", icon: "calendar", route: "/event-mode" },
-  { key: "Communities", icon: "people", route: "/communities" },
-  { key: "Dating", icon: "heart" },
   { key: "Fitness", icon: "barbell" },
 ];
 

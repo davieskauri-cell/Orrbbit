@@ -33,7 +33,7 @@ const PLANS = [
     price: "$12.99 / month",
     radius: "250m – 500m max",
     tagline: "For campuses, festivals, conferences and large social spaces.",
-    features: ["Everything in Plus", "Up to 500m radius", "Extended discovery", "Event & Campus Mode priority", "Clusters & insights", "Recruiter & hiring filters"],
+    features: ["Everything in Plus", "Up to 500m radius", "Extended discovery", "Event & Campus Mode", "More clusters and insights", "Advanced intent filters", "Recruiter & hiring filters"],
     color: colors.orange,
   },
 ];
@@ -52,10 +52,10 @@ export default function PlansScreen() {
   };
 
   const choose = async (planKey: string) => {
-    if (planKey === current) return done();
+    if (planKey === current && next !== "setup") return done();
     setBusy(planKey);
     try {
-      if (planKey !== "free") {
+      if (planKey !== "free" && planKey !== current) {
         // placeholder — no live payments in this prototype
         await new Promise<void>((resolve, reject) =>
           Alert.alert(
@@ -68,14 +68,11 @@ export default function PlansScreen() {
           )
         );
       }
-      const updated = await api("/users/me/state", { method: "PUT", body: { plan: planKey } });
-      setUser(updated as any);
-      const label =
-        planKey === "free" ? "You're on the Free plan up to 50m." :
-        planKey === "plus" ? "You're on Intro Plus up to 100m." :
-        "You're on Intro Pro up to 500m.";
-      Alert.alert("You're all set!", `${label}\nStart exploring and meet new people nearby.`);
-      done();
+      if (planKey !== current) {
+        const updated = await api("/users/me/state", { method: "PUT", body: { plan: planKey } });
+        setUser(updated as any);
+      }
+      router.replace(`/plan-confirmed?plan=${planKey}${next === "setup" ? "&next=setup" : ""}`);
     } catch {}
     setBusy(null);
   };
@@ -88,7 +85,7 @@ export default function PlansScreen() {
       testID="plans-screen"
     >
       <View style={styles.header}>
-        {next !== "setup" && (
+        {router.canGoBack() && (
           <Pressable testID="plans-back" onPress={() => router.back()} hitSlop={10}>
             <Ionicons name="chevron-back" size={26} color={colors.text} />
           </Pressable>

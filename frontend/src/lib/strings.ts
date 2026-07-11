@@ -6,7 +6,7 @@ export const STRINGS = {
   tagline: "Real people. Real moments.",
   mainMessage: "See who nearby is open to being approached.",
   campaign: "Stop wondering what could have happened.",
-  maxRadiusNote: "INTRO never shows users beyond 100m.",
+  maxRadiusNote: "Your radius depends on your plan.",
   approxNote: "Approximate distance only. Exact location stays hidden.",
   meetupExpiry: "Meetup location sharing ends after 15 minutes.",
   cityLaunchNote: "Intro launches one zone at a time to create real nearby connections.",

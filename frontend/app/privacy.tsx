@@ -19,7 +19,7 @@ const AUDIENCES = [
 
 const PRIVACY_POINTS = [
   "You control your location.",
-  "INTRO never shows users beyond 100m.",
+  "Bigger radius. Same privacy. Exact locations stay hidden.",
   "Your exact location is hidden until both people accept.",
   "Meetup sharing ends after 15 minutes.",
   "No route history.",
@@ -47,13 +47,15 @@ export default function PrivacyScreen() {
   const planName = user?.plan === "pro" ? "Intro Pro" : user?.plan === "plus" ? "Intro Plus" : "Free";
 
   const onLockedRadius = (r: number) => {
-    const needed = r <= 100 ? "Intro Plus" : "Intro Pro";
+    const needsPlus = r <= 100;
     Alert.alert(
-      `${r}m needs ${needed}`,
-      `Your ${planName} plan allows up to ${maxR}m. Upgrade to unlock a larger discovery radius. Other people always stay approximate — never exact.`,
+      needsPlus ? "Unlock 100m with Intro Plus" : "Unlock extended discovery with Intro Pro",
+      needsPlus
+        ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
+        : "Intro Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
       [
-        { text: "Not now", style: "cancel" },
-        { text: "See plans", onPress: () => router.push("/plans") },
+        { text: "Maybe later", style: "cancel" },
+        { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
       ]
     );
   };
@@ -93,7 +95,7 @@ export default function PrivacyScreen() {
           <Text style={styles.title}>Adjust your visibility</Text>
         </View>
 
-        <Text style={styles.label}>Visible radius</Text>
+        <Text style={styles.label}>Plan & radius</Text>
         <View style={styles.chipRow}>
           {RADII.map((r) => {
             const active = radiusM === r;
@@ -114,7 +116,8 @@ export default function PrivacyScreen() {
           })}
         </View>
         <Text style={styles.hint}>
-          {planName} plan · up to {maxR}m. Intro never shows anyone beyond 500m.
+          {planName} plan · up to {maxR}m. Your plan controls your maximum discovery radius. Higher
+          radius still keeps exact locations hidden.
         </Text>
         {maxR < 500 && (
           <Pressable testID="privacy-see-plans" onPress={() => router.push("/plans")} style={styles.plansLink}>

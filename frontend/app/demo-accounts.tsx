@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { getDemoAccounts } from "@/src/services/userService";
+import { api } from "@/src/lib/api";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -54,7 +55,7 @@ function FilterChips({ label, options, value, onChange, testPrefix }: {
 export default function DemoAccountsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, demoLogin } = useAuth();
+  const { user, demoLogin, setUser } = useAuth();
   const { vibeMap, refresh } = useApp();
   const [accounts, setAccounts] = useState<DemoAccount[]>([]);
   const [switching, setSwitching] = useState<string | null>(null);
@@ -90,6 +91,25 @@ export default function DemoAccountsScreen() {
     }
   };
 
+  const setPlan = async (plan: string) => {
+    try {
+      const updated = await api("/users/me/state", { method: "PUT", body: { plan } });
+      setUser(updated as any);
+      refresh();
+    } catch {}
+  };
+
+  const toggleHighDensity = async () => {
+    try {
+      const updated = await api("/users/me/state", {
+        method: "PUT",
+        body: { high_density_demo: !user?.high_density_demo },
+      });
+      setUser(updated as any);
+      refresh();
+    } catch {}
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -105,6 +125,39 @@ export default function DemoAccountsScreen() {
       <Text style={styles.sub}>
         Tap an account to experience Intro from their perspective. Password for all: Intro123!
       </Text>
+
+      <View style={styles.filterBlock}>
+        <Text style={styles.filterLabel}>Your plan (demo switch)</Text>
+        <View style={{ flexDirection: "row", gap: spacing.xs }}>
+          {[
+            { key: "free", label: "Free" },
+            { key: "plus", label: "Plus" },
+            { key: "pro", label: "Pro" },
+          ].map((p) => {
+            const active = (user?.plan || "free") === p.key;
+            return (
+              <Pressable
+                key={p.key}
+                testID={`switch-plan-${p.key}`}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setPlan(p.key)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{p.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Pressable testID="toggle-high-density" style={styles.verifiedRow} onPress={toggleHighDensity}>
+        <Ionicons
+          name={user?.high_density_demo ? "checkbox" : "square-outline"}
+          size={20}
+          color={user?.high_density_demo ? colors.teal : colors.textTertiary}
+        />
+        <Text style={styles.verifiedText}>High Density Demo</Text>
+        <Text style={styles.countText}>142 people within radius</Text>
+      </Pressable>
 
       <FilterChips label="City" options={cities} value={fCity} onChange={setFCity} testPrefix="filter-city" />
       <FilterChips

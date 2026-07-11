@@ -44,13 +44,13 @@ export default function Welcome() {
       </View>
 
       <Text style={styles.headline}>See who nearby is open to being approached.</Text>
-      <Text style={styles.sub}>Your consent-based icebreaker for real-life conversations.</Text>
+      <Text style={styles.sub}>Your consent-based icebreaker for real-life conversations nearby.</Text>
 
       <View style={styles.heroCard}>
         <Image source={{ uri: HERO }} style={styles.heroImg} contentFit="cover" transition={200} />
         <View style={styles.heroBadge}>
           <Ionicons name="location" size={14} color={colors.orange} />
-          <Text style={styles.heroBadgeText}>Within 100m only</Text>
+          <Text style={styles.heroBadgeText}>Starts free within 50m</Text>
         </View>
       </View>
 

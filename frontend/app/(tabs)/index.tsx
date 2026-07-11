@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useApp } from "@/src/context/AppContext";
+import { useApp, type NearbyUser } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
+import { api } from "@/src/lib/api";
 import { toggleVisibility, startVisibilitySession } from "@/src/services/privacyService";
 import { distLabel } from "@/src/lib/format";
 import RadarView from "@/src/components/RadarView";
@@ -17,13 +18,43 @@ import ModeSelector from "@/src/components/ModeSelector";
 import ModeCards from "@/src/components/ModeCards";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
+const ALL_RADII = [10, 25, 50, 100, 250, 500];
+
 export default function RadarScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, setUser } = useAuth();
   const { coords, permission, nearby, vibeMap, requestLocation, refresh, visibilityEnded } = useApp();
   const [refreshing, setRefreshing] = useState(false);
+  const [showRadius, setShowRadius] = useState(false);
+  const [preview, setPreview] = useState<NearbyUser | null>(null);
   const [, forceTick] = useState(0);
+
+  const maxR = user?.max_radius || 50;
+
+  const pickRadius = async (r: number) => {
+    if (r > maxR) {
+      setShowRadius(false);
+      const needsPlus = r <= 100;
+      Alert.alert(
+        needsPlus ? "Unlock 100m with Intro Plus" : "Unlock extended discovery with Intro Pro",
+        needsPlus
+          ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
+          : "Intro Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+        [
+          { text: "Maybe later", style: "cancel" },
+          { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
+        ]
+      );
+      return;
+    }
+    try {
+      const updated = await api("/users/me/state", { method: "PUT", body: { radius: r } });
+      setUser(updated as any);
+    } catch {}
+    setShowRadius(false);
+    refresh();
+  };
 
   // refresh the session countdown label every 30s
   useEffect(() => {
@@ -137,31 +168,81 @@ export default function RadarScreen() {
             <RadarView
               users={nearby}
               vibeMap={vibeMap}
-              onSelect={(u) => router.push(`/person/${u.id}`)}
+              onSelect={(u) => setPreview(u)}
               meUri={user?.photo_url}
               meName={user?.name}
               radiusSetting={user?.radius || 50}
               coords={coords}
               onFilters={() => router.push("/privacy")}
               onCluster={() => router.push("/(tabs)/nearby")}
+              onRadiusPress={() => setShowRadius(true)}
             />
-            <View style={styles.approxNote}>
-              <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
-              <Text style={styles.approxText}>
-                Approximate distance only. Exact location stays hidden. Your exact location is
-                only visible to you.
+
+            {preview && (
+              <View style={[styles.previewCard, shadow.card]} testID="marker-preview">
+                <View style={styles.bestRow}>
+                  <Avatar
+                    uri={preview.photo_url}
+                    name={preview.name}
+                    size={52}
+                    ringColor={preview.vibe ? vibeMap[preview.vibe]?.color : undefined}
+                  />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={styles.previewName}>
+                      {preview.name}, {preview.age}
+                    </Text>
+                    <VibePill vibe={preview.vibe ? vibeMap[preview.vibe] : undefined} small />
+                    {!!preview.intent && (
+                      <Text style={styles.previewIntent} numberOfLines={1}>
+                        {preview.intent}
+                      </Text>
+                    )}
+                    <Text style={styles.bestDist}>{distLabel(preview.distance)}</Text>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
+                    <Pressable testID="preview-close" onPress={() => setPreview(null)} hitSlop={8}>
+                      <Ionicons name="close" size={18} color={colors.textSecondary} />
+                    </Pressable>
+                    <Pressable
+                      testID="preview-view-profile"
+                      style={styles.previewBtn}
+                      onPress={() => {
+                        const id = preview.id;
+                        setPreview(null);
+                        router.push(`/person/${id}`);
+                      }}
+                    >
+                      <Text style={styles.previewBtnText}>View Profile</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.privacyPill}>
+              <Ionicons name="lock-closed" size={11} color={colors.textSecondary} />
+              <Text style={styles.privacyPillText}>
+                Exact locations hidden · You only see approximate nearby users
               </Text>
+              <Pressable testID="privacy-learn-more" onPress={() => router.push("/location-privacy")} hitSlop={6}>
+                <Text style={styles.learnMore}>Learn more</Text>
+              </Pressable>
             </View>
+            {(user?.radius || 50) >= 250 && (
+              <Text style={styles.extendedNote} testID="extended-radius-note">
+                Extended radius shows approximate nearby discovery only. Exact locations stay hidden.
+              </Text>
+            )}
 
             <View style={[styles.stats, shadow.card]}>
               <View style={styles.statBox}>
-                <Text style={styles.statNum}>{nearby.length}</Text>
-                <Text style={styles.statLabel}>People nearby</Text>
+                <Text style={styles.statNum}>{nearby.length >= 100 ? "100+" : nearby.length}</Text>
+                <Text style={styles.statLabel}>Nearby</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={[styles.statNum, { color: colors.teal }]}>{compatible.length}</Text>
-                <Text style={styles.statLabel}>Open to connect</Text>
+                <Text style={styles.statLabel}>Aligned</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
@@ -169,6 +250,27 @@ export default function RadarScreen() {
                 <Text style={styles.statLabel}>Radius</Text>
               </View>
             </View>
+
+            {nearby.length >= 100 && (
+              <View style={styles.densityCard} testID="high-density-card">
+                <Text style={styles.densityTitle}>100+ people nearby</Text>
+                <Text style={styles.densityText}>
+                  Showing the best 100 based on your vibe, filters and safety settings.
+                </Text>
+                <Pressable
+                  testID="why-limit"
+                  onPress={() =>
+                    Alert.alert(
+                      "Why limit?",
+                      "INTRO limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
+                    )
+                  }
+                  hitSlop={6}
+                >
+                  <Text style={styles.densityLink}>Why limit?</Text>
+                </Pressable>
+              </View>
+            )}
 
             {permission === "denied" && (
               <View style={styles.banner} testID="location-banner">
@@ -210,6 +312,11 @@ export default function RadarScreen() {
                     {best.bio}
                   </Text>
                 )}
+                {!!best.mutual_reason && (
+                  <Text style={styles.whyShown} testID="why-shown">
+                    Why shown: {best.mutual_reason}
+                  </Text>
+                )}
                 <PrimaryButton
                   testID="best-view-profile"
                   title="View Profile"
@@ -247,6 +354,15 @@ export default function RadarScreen() {
               </View>
             ) : null}
 
+            {nearby.length > 0 && (
+              <PrimaryButton
+                testID="see-more-nearby"
+                title="See More Nearby"
+                onPress={() => router.push("/(tabs)/nearby")}
+                style={{ marginTop: spacing.md }}
+              />
+            )}
+
             <View style={styles.actionRow}>
               <SecondaryButton
                 testID="change-vibe-btn"
@@ -264,6 +380,38 @@ export default function RadarScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal visible={showRadius} transparent animationType="slide" onRequestClose={() => setShowRadius(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowRadius(false)}>
+          <Pressable style={[styles.radiusSheet, { paddingBottom: insets.bottom + spacing.xl }]} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>Discovery radius</Text>
+            <Text style={styles.sheetSub}>Your radius depends on your plan.</Text>
+            {ALL_RADII.map((r) => {
+              const locked = r > maxR;
+              const selected = (user?.radius || 50) === r;
+              return (
+                <Pressable
+                  key={r}
+                  testID={`radius-sheet-${r}`}
+                  style={[styles.sheetRow, selected && styles.sheetRowActive]}
+                  onPress={() => pickRadius(r)}
+                >
+                  <Text style={[styles.sheetRowText, locked && { color: colors.textTertiary }]}>{r}m</Text>
+                  {locked ? (
+                    <View style={styles.lockTag}>
+                      <Ionicons name="lock-closed" size={11} color={colors.textTertiary} />
+                      <Text style={styles.lockTagText}>{r <= 100 ? "Plus" : "Pro"}</Text>
+                    </View>
+                  ) : selected ? (
+                    <Ionicons name="checkmark" size={18} color={colors.teal} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+            <Text style={styles.sheetNote}>Bigger radius. Same privacy. Exact locations stay hidden.</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -318,6 +466,89 @@ const styles = StyleSheet.create({
   },
   visChipOff: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   visChipText: { color: colors.teal, fontSize: 11, fontWeight: "700" },
+  previewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  previewName: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  previewIntent: { color: colors.textSecondary, fontSize: font.sm },
+  previewBtn: {
+    backgroundColor: colors.orange,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  previewBtnText: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
+  privacyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "center",
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    marginTop: spacing.sm,
+  },
+  privacyPillText: { color: colors.textSecondary, fontSize: 10.5, flexShrink: 1 },
+  learnMore: { color: colors.teal, fontSize: 10.5, fontWeight: "800" },
+  extendedNote: {
+    color: colors.textTertiary,
+    fontSize: font.sm,
+    textAlign: "center",
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  densityCard: {
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  densityTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  densityText: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 19 },
+  densityLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800", marginTop: spacing.sm },
+  whyShown: { color: colors.teal, fontSize: font.sm, fontWeight: "600", marginTop: spacing.sm, lineHeight: 18 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(17,24,39,0.4)", justifyContent: "flex-end" },
+  radiusSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+  },
+  sheetTitle: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
+  sheetSub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md },
+  sheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    minHeight: 48,
+  },
+  sheetRowActive: { backgroundColor: colors.tealSoft },
+  sheetRowText: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
+  lockTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  lockTagText: { color: colors.textTertiary, fontSize: 11, fontWeight: "800" },
+  sheetNote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.md },
   trialBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -331,14 +562,6 @@ const styles = StyleSheet.create({
   },
   trialDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
   trialText: { color: colors.orange, fontSize: font.sm, fontWeight: "800", flex: 1 },
-  approxNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    marginTop: spacing.sm,
-  },
-  approxText: { color: colors.textTertiary, fontSize: font.sm },
   eventBanner: {
     flexDirection: "row",
     alignItems: "center",

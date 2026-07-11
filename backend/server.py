@@ -102,6 +102,7 @@ class StateUpdate(BaseModel):
     show_recruiters: Optional[bool] = None
     mutual_only: Optional[bool] = None
     plan: Optional[str] = None
+    high_density_demo: Optional[bool] = None
 
 
 class FeedbackIn(BaseModel):
@@ -172,6 +173,7 @@ PLAN_LIMITS = {
     "pro": {"max_radius": 500, "radius_options": [10, 25, 50, 100, 250, 500]},
 }
 MAX_DISCOVERY = 100  # never more than 100 discovery profiles
+PLAN_DEFAULT_RADIUS = {"free": 50, "plus": 100, "pro": 250}
 
 
 def plan_max_radius(u: dict) -> int:
@@ -194,6 +196,7 @@ def public_user(u: dict) -> dict:
         "plan": u.get("plan", "free"),
         "max_radius": plan_max_radius(u),
         "radius_options": PLAN_LIMITS.get(u.get("plan", "free"), PLAN_LIMITS["free"])["radius_options"],
+        "high_density_demo": u.get("high_density_demo", False),
         "ghost_mode": u.get("ghost_mode", False),
         "paused": u.get("paused", False),
         "quiet_mode": u.get("quiet_mode", False),
@@ -564,9 +567,8 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
     if "plan" in fields:
         if fields["plan"] not in PLAN_LIMITS:
             raise HTTPException(status_code=400, detail="Unknown plan")
-        # keep radius within the new plan's limit
-        cur = user.get("radius", 50) or 50
-        fields["radius"] = min(cur, PLAN_LIMITS[fields["plan"]]["max_radius"])
+        # switching plans applies the plan's default radius (Free 50, Plus 100, Pro 250)
+        fields["radius"] = PLAN_DEFAULT_RADIUS.get(fields["plan"], 50)
     if "radius" in fields:
         plan = fields.get("plan", user.get("plan", "free"))
         cap = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["max_radius"]
@@ -683,6 +685,54 @@ async def get_blocked_ids(user_id: str) -> set:
     return ids
 
 
+HD_NAMES = [
+    "Aria", "Ben", "Chloe", "Dev", "Elena", "Finn", "Grace", "Hugo", "Isla", "Jack",
+    "Kira", "Leo", "Maya", "Nico", "Ora", "Priya", "Quinn", "Rosa", "Sam", "Tara",
+    "Uma", "Vik", "Willa", "Xavi", "Yara", "Zane",
+]
+
+
+def synthetic_nearby(user: dict, radius: float, lat: float, lng: float, count: int) -> list:
+    """High Density Demo: deterministic synthetic profiles within the radius.
+    Approximate positions only — never real people, never exact pins."""
+    my_vibe = user.get("vibe")
+    compat = COMPAT.get(my_vibe, []) if my_vibe else []
+    vibe_keys = [v["key"] for v in VIBES if v["key"] != "busy"]
+    out = []
+    for i in range(count):
+        vibe = vibe_keys[i % len(vibe_keys)]
+        dist = 8 + ((i * 37) % max(int(radius) - 8, 8))
+        brg = (i * 53) % 360
+        plat, plng = destination_point(lat, lng, dist, brg)
+        out.append({
+            "id": f"hd-{i}",
+            "name": HD_NAMES[i % len(HD_NAMES)],
+            "age": 21 + (i % 17),
+            "bio": "High-density demo profile.",
+            "photo_url": f"https://i.pravatar.cc/150?img={(i % 70) + 1}",
+            "interests": [],
+            "vibe": vibe,
+            "distance": round(dist),
+            "bearing": brg,
+            "lat": plat,
+            "lng": plng,
+            "compatible": bool(my_vibe and my_vibe != "busy" and vibe in compat),
+            "verified": i % 4 == 0,
+            "active_now": i % 3 != 0,
+            "is_demo": True,
+            "intent": None,
+            "context": None,
+            "tags": [],
+            "vibe_details": {},
+            "availability": None,
+            "intent_strength": None,
+            "event_name": None,
+            "mutual_reason": None,
+            "score": i % 7,
+        })
+    return out
+
+
 async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     cap = plan_max_radius(user)  # Free 50m, Plus 100m, Pro 500m — never beyond 500m
     radius = min(user.get("radius", 50) or 50, cap)
@@ -767,6 +817,11 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "mutual_reason": mutual_reason(user, o),
             "score": detail_score(user, o),
         })
+    # High Density Demo: simulate a packed venue (142 people within radius)
+    if user.get("high_density_demo"):
+        need = 142 - len(results)
+        if need > 0:
+            results.extend(synthetic_nearby(user, radius, lat, lng, need))
     # most relevant first (vibe-detail fit), then closest — capped at 100 discovery profiles
     results.sort(key=lambda r: (-r["score"], r["distance"]))
     return results[:MAX_DISCOVERY]

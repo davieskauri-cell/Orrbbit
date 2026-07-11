@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Text, StyleSheet, ScrollView, View } from "react-native";
+import { Text, StyleSheet, ScrollView, View, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
@@ -27,13 +28,18 @@ export default function ChooseVibe() {
       trackVibeSelected();
       // contextual moment to ask for location — the radar needs it next
       requestLocation();
-      router.replace("/vibe-details?next=tabs");
+      router.push("/vibe-details?next=tabs");
     } catch {}
     setBusy(false);
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+      {router.canGoBack() && (
+        <Pressable testID="choose-vibe-back" onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
+      )}
       <Text style={styles.title}>What are you open to?</Text>
       <Text style={styles.sub}>Choose your vibe. You can change this anytime.</Text>
       <ScrollView
@@ -57,6 +63,7 @@ export default function ChooseVibe() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
+  backBtn: { marginBottom: spacing.sm, marginLeft: -6, width: 44, height: 44, justifyContent: "center" },
   title: { color: colors.text, fontSize: font.display, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs },
   footer: { paddingTop: spacing.md, borderTopWidth: 1, borderColor: colors.border },

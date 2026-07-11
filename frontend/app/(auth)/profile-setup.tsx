@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { updateProfile, addPhoto, removePhoto } from "@/src/services/userService";
@@ -93,7 +94,7 @@ export default function ProfileSetup() {
     try {
       const updated = await updateProfile({ bio, interests: selected });
       setUser(updated as any);
-      router.replace("/(auth)/choose-vibe");
+      router.push("/(auth)/choose-vibe");
     } catch {}
     setBusy(false);
   };
@@ -101,9 +102,14 @@ export default function ProfileSetup() {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
         keyboardShouldPersistTaps="handled"
       >
+        {router.canGoBack() && (
+          <Pressable testID="setup-back" onPress={() => router.back()} hitSlop={10} style={{ marginBottom: spacing.md, marginLeft: -6, width: 44, height: 44, justifyContent: "center" }}>
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          </Pressable>
+        )}
         <Text style={styles.title}>Tell us about you</Text>
         <Text style={styles.sub}>This is what people nearby will see.</Text>
 

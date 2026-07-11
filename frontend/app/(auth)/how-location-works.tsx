@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +8,7 @@ import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const CARDS = [
   { icon: "eye", title: "Visibility is optional", text: "You choose when you are visible." },
-  { icon: "resize", title: "Maximum 100 metres", text: "INTRO only works nearby. Nobody beyond 100m can see you." },
+  { icon: "resize", title: "Radius depends on your plan", text: "Free within 50m. Plus unlocks 100m. Pro unlocks up to 500m. Upgrade to Plus or Pro for larger discovery zones." },
   { icon: "lock-closed", title: "No exact location first", text: "Your exact location is hidden until both people accept." },
   { icon: "time", title: "Temporary sharing", text: "Meetup location sharing ends after 15 minutes." },
   { icon: "moon", title: "Ghost Mode", text: "Go invisible anytime." },
@@ -20,10 +20,13 @@ export default function HowLocationWorks() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + spacing.xxl, paddingBottom: 120, paddingHorizontal: spacing.xl }}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: 120, paddingHorizontal: spacing.xl }}
         showsVerticalScrollIndicator={false}
         testID="how-location-screen"
       >
+        <Pressable testID="how-location-back" onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
         <Text style={styles.kicker}>HOW LOCATION WORKS</Text>
         <Text style={styles.title}>You control your location</Text>
         {CARDS.map((c) => (
@@ -51,6 +54,7 @@ export default function HowLocationWorks() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  backBtn: { marginBottom: spacing.md, marginLeft: -6, width: 44, height: 44, justifyContent: "center" },
   kicker: { color: colors.orange, fontSize: font.sm, fontWeight: "800", letterSpacing: 2 },
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", marginTop: spacing.xs, marginBottom: spacing.lg },
   card: {

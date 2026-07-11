@@ -43,6 +43,7 @@ export type User = {
   country: string;
   ambassador: boolean;
   is_demo: boolean;
+  high_density_demo?: boolean;
 };
 
 export type RegisterPayload = {

@@ -110,3 +110,24 @@ main agent changes:
   - RadarView: dynamic ring sets & map tile zoom per radius (up to 500m), Filters button on map (testID radar-filters → /privacy), marker clustering (max 24 markers: 8 sectors × 3 bands, cluster bubbles show count, tap → nearby tab)
   - Nearby: cap note "Showing the 100 most relevant people nearby" when list hits 100 (backend already caps at 100)
 needs_retesting: true (frontend focus; backend plan logic already verified in iteration 6/7 scripts)
+
+## Iteration 8 — Final Product Update (spec completion)
+main agent changes:
+  Backend:
+  - Plan change now applies plan DEFAULT radius (free→50, plus→100, pro→250) in PUT /users/me/state
+  - high_density_demo flag (StateUpdate + public_user): when on, compute_nearby injects synthetic profiles up to 142 within radius (ids hd-*), still capped at 100
+  Frontend:
+  - Wording: removed all "max 100m" copy (onboarding badge now "Starts free within 50m", how-location-works card "Radius depends on your plan", privacy points "Bigger radius. Same privacy...", strings.ts, join-event, person/[id]); distLabel supports up to 500m
+  - locationService.getApproximateDisplayLocation cap fixed 100→500 (Pro radii now display)
+  - Radar: radius selector chip on map (testID radar-radius-chip) opens bottom-sheet Modal (radius-sheet-10..500) w/ lock tags + spec upgrade prompts ("Unlock 100m with Intro Plus"/"Unlock extended discovery with Intro Pro", Maybe later/Upgrade buttons); marker tap now opens preview card (testID marker-preview: name/age/vibe/intent/approx distance/View Profile/close); privacy pill + "Learn more"→/location-privacy; extended-radius note at >=250m; high-density card at 100+ ("Why limit?" alert); stats labels Nearby/Aligned/Radius; "See More Nearby" CTA (testID see-more-nearby); "You" label under me marker; clusters show "+N" and dominant vibe label
+  - location-privacy: new title "You control your location", 6 cards incl. "Extended discovery stays private", button "I understand", back chevron; setup mode pushes /plans
+  - plans: back chevron always (canGoBack), success → /plan-confirmed?plan=X(&next=setup) instead of Alert
+  - NEW /plan-confirmed: "You're all set!" + plan copy + mini radar preview + Continue (setup→intent) + "Edit setup"→/review-setup
+  - NEW /review-setup: Plan/Radius/Vibe/Vibe details/Visibility/Availability rows with Edit buttons + "Start using Intro"→tabs
+  - Onboarding back buttons: how-location-works, location-privacy, plans, intent, profile-setup, choose-vibe, etiquette (all canGoBack-guarded); intent/profile-setup/choose-vibe now push (not replace) so back preserves flow
+  - vibe.tsx: changing vibe asks "Update details / Keep for now"
+  - privacy.tsx: "Plan & radius" label + spec upgrade prompt wording
+  - demo-accounts: "Your plan (demo switch)" chips (switch-plan-free/plus/pro) + "High Density Demo" toggle (toggle-high-density)
+  - nearby: header shows "100+ people nearby..." at cap; footer cap card w/ "Why limit?"
+  - ModeSelector trimmed to Social/Networking/Campus/Events/Fitness
+Backend verified via curl: plan defaults OK, HD demo 100-cap OK. needs_retesting: true (frontend flows)
