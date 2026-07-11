@@ -1,15 +1,6 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,7 +22,7 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
 
   const social = () =>
-    Alert.alert("Coming soon", "Social sign-in is coming soon. Use email for now.");
+    showAlert("Coming soon", "Social sign-in is coming soon. Use email for now.");
 
   const submit = async () => {
     setError(null);

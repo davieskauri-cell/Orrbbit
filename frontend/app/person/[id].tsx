@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -104,7 +105,7 @@ export default function PersonPreview() {
   };
 
   const doBlock = () => {
-    Alert.alert("Block this user?", `${user.name} won't see you and you won't see them.`, [
+    showAlert("Block this user?", `${user.name} won't see you and you won't see them.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Block",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,28 +33,28 @@ export default function SafetyScreen() {
   const hideProfile = async () => {
     const updated = await toggleVisibility(false);
     setUser(updated as any);
-    Alert.alert("Profile hidden", "You are now invisible on the radar.");
+    showAlert("Profile hidden", "You are now invisible on the radar.");
   };
 
   const endMeetup = async () => {
     const res = await getActiveMeetup(coords || DEMO_LOCATION);
     if (res.meetup) {
       await stopTemporaryLocationSharing(res.meetup.id);
-      Alert.alert("Meetup ended", "Location sharing stopped.");
+      showAlert("Meetup ended", "Location sharing stopped.");
     } else {
-      Alert.alert("No active meetup", "You have no location sharing in progress.");
+      showAlert("No active meetup", "You have no location sharing in progress.");
     }
   };
 
   const emergency = () =>
-    Alert.alert(
+    showAlert(
       "Emergency help",
       "If you feel unsafe, move to a public place and contact local emergency services (000 in Australia).",
       [{ text: "OK" }]
     );
 
   const doBlock = (id: string, name: string) => {
-    Alert.alert("Block user", `Block ${name}? They won't see you and you won't see them.`, [
+    showAlert("Block user", `Block ${name}? They won't see you and you won't see them.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Block",
@@ -62,7 +63,7 @@ export default function SafetyScreen() {
           await blockUser(id);
           await refresh();
           setMode(null);
-          Alert.alert("Blocked", `${name} has been blocked.`);
+          showAlert("Blocked", `${name} has been blocked.`);
         },
       },
     ]);
@@ -73,7 +74,7 @@ export default function SafetyScreen() {
     await reportUser(reportTarget.id, reason);
     setReportTarget(null);
     setMode(null);
-    Alert.alert("Report sent", "Thanks for keeping Intro safe. Our team will review it.");
+    showAlert("Report sent", "Thanks for keeping Intro safe. Our team will review it.");
   };
 
   const CARDS = [

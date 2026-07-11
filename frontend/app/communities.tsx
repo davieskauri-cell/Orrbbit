@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +19,7 @@ export default function CommunitiesScreen() {
 
   const join = (name: string) => {
     setJoined((prev) => (prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]));
-    if (!joined.includes(name)) Alert.alert("Joined!", `You'll see ${name} people nearby first.`);
+    if (!joined.includes(name)) showAlert("Joined!", `You'll see ${name} people nearby first.`);
   };
 
   return (

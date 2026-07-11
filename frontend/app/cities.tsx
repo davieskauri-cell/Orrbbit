@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -104,7 +105,7 @@ export default function CitiesScreen() {
           <Pressable
             testID={`zone-join-${z.name.replace(/ /g, "-")}`}
             style={styles.joinChip}
-            onPress={() => Alert.alert("Zone joined", `You'll be prioritised in ${z.name}.`)}
+            onPress={() => showAlert("Zone joined", `You'll be prioritised in ${z.name}.`)}
           >
             <Text style={styles.joinText}>Join zone</Text>
           </Pressable>
@@ -114,7 +115,7 @@ export default function CitiesScreen() {
       <PrimaryButton
         testID="join-city-launch"
         title="Join City Launch"
-        onPress={() => Alert.alert("You're in!", "You joined the Melbourne city launch.")}
+        onPress={() => showAlert("You're in!", "You joined the Melbourne city launch.")}
         style={{ marginTop: spacing.xl }}
       />
       <SecondaryButton

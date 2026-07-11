@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
@@ -24,7 +25,7 @@ export default function FeedbackScreen() {
     try {
       await api("/feedback", { method: "POST", body: { spoke, experience, comments } });
       trackFeedbackSubmitted();
-      Alert.alert("Thank you!", "Your feedback helps us make Intro better.");
+      showAlert("Thank you!", "Your feedback helps us make Intro better.");
       router.replace("/(tabs)");
     } catch {
       setBusy(false);

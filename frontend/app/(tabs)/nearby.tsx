@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
@@ -129,7 +130,7 @@ export default function NearbyScreen() {
               <Pressable
                 testID="nearby-why-limit"
                 onPress={() =>
-                  Alert.alert(
+                  showAlert(
                     "Why limit?",
                     "INTRO limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
                   )

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,7 +34,7 @@ export default function ReportScreen() {
     setBusy(true);
     try {
       await reportUser(userId, reason, details);
-      Alert.alert("Thanks. We'll review this report.", "You will no longer see this person.");
+      showAlert("Thanks. We'll review this report.", "You will no longer see this person.");
       router.replace("/(tabs)");
     } catch {
       setBusy(false);

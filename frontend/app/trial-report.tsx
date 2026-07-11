@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,7 +88,7 @@ export default function TrialReportScreen() {
             testID="trial-report-export"
             title="Export report (PDF)"
             onPress={() =>
-              Alert.alert("Export coming soon", "PDF export for venues, campuses and city partners will be available in the next release.")
+              showAlert("Export coming soon", "PDF export for venues, campuses and city partners will be available in the next release.")
             }
             style={{ marginTop: spacing.xl }}
           />

@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -61,7 +62,7 @@ export default function NetworkingScreen() {
       <PrimaryButton
         testID="networking-enable"
         title="Enable Networking Mode"
-        onPress={() => Alert.alert("Networking Mode", "Professional vibes are now suggested first. General vibes stay available.")}
+        onPress={() => showAlert("Networking Mode", "Professional vibes are now suggested first. General vibes stay available.")}
         style={{ marginTop: spacing.xl }}
       />
     </ScrollView>

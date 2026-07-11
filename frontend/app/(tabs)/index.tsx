@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal, Alert } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -36,7 +37,7 @@ export default function RadarScreen() {
     if (r > maxR) {
       setShowRadius(false);
       const needsPlus = r <= 100;
-      Alert.alert(
+      showAlert(
         needsPlus ? "Unlock 100m with Intro Plus" : "Unlock extended discovery with Intro Pro",
         needsPlus
           ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
@@ -260,7 +261,7 @@ export default function RadarScreen() {
                 <Pressable
                   testID="why-limit"
                   onPress={() =>
-                    Alert.alert(
+                    showAlert(
                       "Why limit?",
                       "INTRO limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
                     )

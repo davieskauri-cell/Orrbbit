@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,7 +34,7 @@ export default function CityLandingScreen() {
     const updated = await api("/users/me/state", { method: "PUT", body: { city: name } });
     setUser(updated as any);
     await refresh();
-    Alert.alert(`Welcome to Intro ${name}`, "Your radar now shows people in this city.");
+    showAlert(`Welcome to Intro ${name}`, "Your radar now shows people in this city.");
   };
 
   return (

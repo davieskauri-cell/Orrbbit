@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +24,7 @@ export default function JoinEventScreen() {
     try {
       const res: any = await api("/events/join-code", { method: "POST", body: { code: code.trim() } });
       setUser(res.user);
-      Alert.alert(`Welcome to ${res.event_name}`, "People at this event are now prioritised on your radar.");
+      showAlert(`Welcome to ${res.event_name}`, "People at this event are now prioritised on your radar.");
       router.back();
     } catch {
       setError("Event code not found.");
@@ -80,7 +81,7 @@ export default function JoinEventScreen() {
       <SecondaryButton
         testID="scan-qr"
         title="Scan QR code"
-        onPress={() => Alert.alert("QR scanning coming soon", "For now, enter the event code printed under the QR poster.")}
+        onPress={() => showAlert("QR scanning coming soon", "For now, enter the event code printed under the QR poster.")}
         style={{ marginTop: spacing.sm }}
       />
 

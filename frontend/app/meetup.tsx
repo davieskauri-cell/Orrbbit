@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -49,7 +50,7 @@ export default function MeetupScreen() {
     if (reason === "I feel uncomfortable" && meetup?.user) {
       const other = meetup.user;
       setEndedMsg("Meetup ended. Location sharing stopped.");
-      Alert.alert("You're in control", "What would you like to do?", [
+      showAlert("You're in control", "What would you like to do?", [
         { text: "Just end meetup", onPress: () => router.replace("/feedback") },
         {
           text: "Hide from this person",

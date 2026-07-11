@@ -149,3 +149,19 @@ Frontend (this session):
 - RadarView: dynamic ring sets per radius (≤50→10/25/50 … 500→125/250/375/500), map tile zoom adapts (18/17/16/15), "Filters" pill on map top-right → /privacy, marker CLUSTERING max 24 (8 bearing sectors × 3 distance bands; >1 in bucket → teal count bubble, tap → Nearby tab).
 - Nearby: footer note "Showing the 100 most relevant people nearby" at 100-user cap; Profile card shows plan chip (my-plan-chip).
 Testing: iteration_7.json — all 7 frontend flows PASS, no fixes required. MOCKED: plan upgrades (no real payments), Apple/Google sign-in.
+
+## Final Product Update — Spec Completion (June 2026) — COMPLETE
+Backend: plan switch applies default radius (free 50/plus 100/pro 250); high_density_demo flag injects up to 142 synthetic profiles (hd-*) into /nearby, still 100-capped & relevance-ranked.
+Frontend:
+- All "100m maximum" wording removed app-wide (onboarding badge "Starts free within 50m", how-location-works "Radius depends on your plan", privacy points "Bigger radius. Same privacy...", strings.ts, join-event, person/[id]); distLabel supports 500m; getApproximateDisplayLocation cap fixed 100→500 (Pro radii now render correctly).
+- Radar: "Radius: Xm ˅" chip on map opens bottom-sheet with plan locks + spec upgrade prompts ("Unlock 100m with Intro Plus" / "Unlock extended discovery with Intro Pro"); marker tap → preview card (name/age/vibe/intent/approx distance/View Profile); privacy pill "🔒 Exact locations hidden…" + Learn more → /location-privacy; extended-radius note ≥250m; high-density card at 100+ w/ "Why limit?"; stats Nearby/Aligned/Radius; See More Nearby CTA; "You" label on me-marker; clusters "+N" + dominant vibe label.
+- NEW /plan-confirmed ("You're all set!" + plan copy + mini radar preview + Edit setup) and /review-setup (6 rows w/ Edit + Start using Intro).
+- Onboarding back buttons on: how-location-works, location-privacy, plans, intent, profile-setup, choose-vibe, etiquette (canGoBack-guarded); intent/profile-setup/choose-vibe now push (state preserved on back — data persists server-side per step).
+- location-privacy rewritten per spec (6 cards incl. "Extended discovery stays private", button "I understand").
+- vibe change prompt: "You changed your vibe → Update details / Keep for now".
+- demo-accounts: plan switcher chips + High Density Demo toggle (142 people, clusters, best-100).
+- Nearby: "100+ people nearby · Showing the best 100…" header + cap footer card w/ Why limit.
+- ModeSelector trimmed to Social/Networking/Campus/Events/Fitness.
+- CRITICAL FIX: react-native-web Alert.alert is a NO-OP → added src/lib/alert.ts showAlert (native Alert / web window.confirm-alert) and swapped in all 20 screens. Web upgrade flow no longer hangs; prompts work on web preview.
+Testing: iteration_8.json 10/11 pass; the 1 flagged issue (HD Nearby tab empty) NOT reproducible — verified working with screenshot (header + 100 profiles render). Vibe prompt + upgrade prompt verified via browser dialogs post alert-fix.
+Known LOW: shadow*/pointerEvents deprecation warnings (web only, cosmetic).

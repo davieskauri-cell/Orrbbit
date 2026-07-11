@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable, Alert, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,10 +17,10 @@ export default function InviteScreen() {
     if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(LINK).catch(() => {});
     }
-    Alert.alert("Link copied", LINK);
+    showAlert("Link copied", LINK);
   };
 
-  const share = () => Alert.alert("Share trial invite", `Share this link with people nearby:\n${LINK}`);
+  const share = () => showAlert("Share trial invite", `Share this link with people nearby:\n${LINK}`);
 
   return (
     <View

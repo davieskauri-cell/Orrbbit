@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,7 +88,7 @@ export default function EventModeScreen() {
       <SecondaryButton
         testID="event-create"
         title="Create Event"
-        onPress={() => Alert.alert("Coming soon", "Event creation opens with your first venue partnership.")}
+        onPress={() => showAlert("Coming soon", "Event creation opens with your first venue partnership.")}
         style={{ marginTop: spacing.sm }}
       />
       <SecondaryButton

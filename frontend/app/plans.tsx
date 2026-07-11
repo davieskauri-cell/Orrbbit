@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -58,7 +59,7 @@ export default function PlansScreen() {
       if (planKey !== "free" && planKey !== current) {
         // placeholder — no live payments in this prototype
         await new Promise<void>((resolve, reject) =>
-          Alert.alert(
+          showAlert(
             "Payments are not active in this prototype",
             "Continue with a demo upgrade?",
             [
