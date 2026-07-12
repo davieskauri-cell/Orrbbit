@@ -3,7 +3,13 @@ import { View, Text, StyleSheet, Animated, Easing, Pressable, Dimensions } from 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from "react-native-reanimated";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  type SharedValue,
+} from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
 import MapTiles from "@/src/components/MapTiles";
 import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
@@ -31,6 +37,93 @@ const SHORT_VIBE: Record<string, string> = {
 };
 
 const isStrong = (u: NearbyUser) => !!u.compatible && (u.score ?? 0) >= 6;
+
+type ZoomSV = { scale: SharedValue<number>; tx: SharedValue<number>; ty: SharedValue<number> };
+
+/** Positions crisp overlay content at a map coordinate under the current zoom/pan.
+ *  Content renders at scale 1, so avatars, borders and text never pixelate. */
+function MapAnchor({
+  cx,
+  cy,
+  w,
+  h,
+  z,
+  style,
+  children,
+}: {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  z: ZoomSV;
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const a = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: z.tx.value + CX + (cx - CX) * z.scale.value - w / 2 },
+      { translateY: z.ty.value + CY + (cy - CY) * z.scale.value - h / 2 },
+    ],
+  }));
+  return (
+    <Reanimated.View style={[styles.anchor, { width: w, height: h }, style, a]}>
+      {children}
+    </Reanimated.View>
+  );
+}
+
+/** Radius ring that grows geometrically with zoom while its border stays 1-1.5px crisp. */
+function ZoomRing({
+  m,
+  maxDist,
+  z,
+  selected,
+  active,
+}: {
+  m: number;
+  maxDist: number;
+  z: ZoomSV;
+  selected: boolean;
+  active: boolean;
+}) {
+  const a = useAnimatedStyle(() => {
+    const r = (m / maxDist) * MAX_R * z.scale.value;
+    return {
+      width: r * 2,
+      height: r * 2,
+      borderRadius: r,
+      transform: [{ translateX: z.tx.value }, { translateY: z.ty.value }],
+    };
+  });
+  return (
+    <Reanimated.View
+      pointerEvents="none"
+      style={[
+        styles.ring,
+        {
+          borderWidth: selected ? 1.5 : 1,
+          borderColor: selected ? colors.teal + "99" : active ? colors.teal + "38" : "rgba(160,175,180,0.45)",
+        },
+        a,
+      ]}
+    />
+  );
+}
+
+/** Ring distance label — crisp text that tracks its ring under zoom/pan. */
+function RingLabelA({ m, maxDist, z }: { m: number; maxDist: number; z: ZoomSV }) {
+  const a = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: z.tx.value },
+      { translateY: z.ty.value + CY - (m / maxDist) * MAX_R * z.scale.value - 14 - CY },
+    ],
+  }));
+  return (
+    <Reanimated.View pointerEvents="none" style={[styles.ringLabelWrap, a]}>
+      <Text style={styles.ringLabel}>{m}m</Text>
+    </Reanimated.View>
+  );
+}
 
 function ringSet(r: number): number[] {
   if (r <= 25) return [10, 25];
@@ -66,9 +159,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
 
-  // sharper tiles while zoomed in: swap to higher-zoom tiles instead of scaling pixels
-  const [tileBoost, setTileBoost] = useState(0);
-  const applyBoost = (s: number) => setTileBoost(s >= 2.6 ? 2 : s >= 1.5 ? 1 : 0);
+  // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in
+  const [tileBoost, setTileBoost] = useState(1);
+  const applyBoost = (s: number) => setTileBoost(s >= 2 ? 2 : 1);
 
   useEffect(() => {
     Animated.loop(
@@ -132,9 +225,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
   }));
 
-  // markers shrink as the map zooms in (inverse scale keeps them a constant screen size feel)
-  const markerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 / scale.value }],
+  // crisp overlays: markers/rings are positioned mathematically instead of scaling pixels
+  const z: ZoomSV = { scale, tx, ty };
+  const meAnchor = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }, { translateY: ty.value }],
   }));
 
   const recentre = () => {
@@ -169,15 +263,15 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : 15;
   const loc = coords || DEMO_LOCATION;
 
-  // place nearby users (fuzzed positions only)
+  // place nearby users (fuzzed positions only) — centre coordinates in map space
   const placed = users.map((u) => {
     const approx = getApproximateDisplayLocation(u, radiusSetting);
     const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
     const rad = (approx.bearing * Math.PI) / 180;
     return {
       u,
-      x: CX + r * Math.sin(rad) - 19,
-      y: CY - r * Math.cos(rad) - 19,
+      x: CX + r * Math.sin(rad),
+      y: CY - r * Math.cos(rad),
       color: (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
       bearing: approx.bearing,
       dist: approx.distance,
@@ -239,12 +333,23 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         const ang = d > 0.5 ? Math.atan2(dy, dx) : i * 0.9;
         singles[i] = {
           ...singles[i],
-          x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 6), MAP_W - 44),
-          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 6), MAP_H - 44),
+          x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 26), MAP_W - 26),
+          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 26), MAP_H - 26),
         };
       }
     }
   }
+  // keep the centre clear — nothing may sit under the "You" marker (it would block taps)
+  const clearCentre = (px: number, py: number, brg: number, min: number) => {
+    const dx = px - CX;
+    const dy = py - CY;
+    const d = Math.hypot(dx, dy);
+    if (d >= min) return { x: px, y: py };
+    const ang = d > 0.5 ? Math.atan2(dy, dx) : ((brg - 90) * Math.PI) / 180;
+    return { x: CX + Math.cos(ang) * min, y: CY + Math.sin(ang) * min };
+  };
+  singles = singles.map((p) => ({ ...p, ...clearCentre(p.x, p.y, p.bearing, 52) }));
+  clusters = clusters.map((c) => ({ ...c, ...clearCentre(c.x, c.y, 0, 56) }));
 
   // dominant vibe per cluster (drives bubble colour, label and heat zones)
   const clusterInfo = clusters.map((c) => {
@@ -264,12 +369,13 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   return (
     <View style={styles.mapArea} testID="radar-map">
       <GestureDetector gesture={gestures}>
-        <Reanimated.View style={[styles.radar, zoomStyle]}>
-          {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <View style={styles.tilt}>
-              {tileBoost > 0 ? (
-                // zoomed in: render higher-zoom tiles at native resolution so the map stays crisp
+        <View style={styles.radar}>
+          {/* WORLD LAYER — only this zooms/pans (tiles + soft visuals) */}
+          <Reanimated.View style={[styles.worldLayer, zoomStyle]} pointerEvents="none">
+            {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <View style={styles.tilt}>
+                {/* higher-zoom tiles rendered at native resolution so the map stays crisp */}
                 <View
                   style={{
                     width: MAP_W * 2 ** tileBoost,
@@ -287,146 +393,130 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                     zoom={zoom + tileBoost}
                   />
                 </View>
-              ) : (
-                <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
-              )}
-            </View>
-            <LinearGradient
-              colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0)", "rgba(255,255,255,0)", "rgba(255,255,255,0.12)"]}
-              style={StyleSheet.absoluteFill}
-            />
-          </View>
-
-          {/* social heat zones — soft, approximate density glow (privacy-safe) */}
-          {clusterInfo
-            .filter((c) => c.users.length >= 5)
-            .map((c) => (
-              <View
-                key={`heat-${c.key}`}
-                pointerEvents="none"
-                style={[styles.heatOuter, { left: c.x + 20 - 72, top: c.y + 20 - 72, backgroundColor: c.color + "12" }]}
-              >
-                <View style={[styles.heatInner, { backgroundColor: c.color + "1A" }]} />
               </View>
-            ))}
-
-          {rings.map((m) => {
-            const f = m / MAX_DIST;
-            const selected = m === radiusSetting;
-            const active = m <= radiusSetting;
-            return (
-              <View
-                key={m}
-                pointerEvents="none"
-                style={[
-                  styles.ring,
-                  {
-                    width: MAX_R * 2 * f,
-                    height: MAX_R * 2 * f,
-                    borderRadius: MAX_R * f,
-                    borderWidth: selected ? 1.5 : 1,
-                    borderColor: selected
-                      ? colors.teal + "99"
-                      : active
-                      ? colors.teal + "38"
-                      : "rgba(160,175,180,0.45)",
-                  },
-                ]}
+              <LinearGradient
+                colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0)", "rgba(255,255,255,0)", "rgba(255,255,255,0.12)"]}
+                style={StyleSheet.absoluteFill}
               />
-            );
-          })}
-          {rings.map((m) => (
-            <Text key={`label-${m}`} style={[styles.ringLabel, { top: CY - (m / MAX_DIST) * MAX_R - 14 }]}>
-              {m}m
-            </Text>
-          ))}
-
-          {/* selected radius fill */}
-          <View
-            pointerEvents="none"
-            style={[
-              styles.radiusFill,
-              {
-                width: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                height: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                borderRadius: MAX_R * (radiusSetting / MAX_DIST),
-              },
-            ]}
-          />
-
-          {/* rotating sweep */}
-          <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ rotate }] }]}>
-            <LinearGradient
-              colors={["rgba(32,178,170,0.28)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
-              start={{ x: 1, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.sweepGrad}
-            />
-          </Animated.View>
-
-          {/* center pulse + me (exact position — visible only to you) */}
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
-          />
-          <Reanimated.View style={[styles.me, markerStyle]} pointerEvents="none">
-            <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
-            <View style={styles.mePointer} />
-            <View style={styles.youLabel}>
-              <Text style={styles.youLabelText}>You</Text>
             </View>
+
+            {/* social heat zones — soft, approximate density glow (privacy-safe) */}
+            {clusterInfo
+              .filter((c) => c.users.length >= 5)
+              .map((c) => (
+                <View
+                  key={`heat-${c.key}`}
+                  pointerEvents="none"
+                  style={[styles.heatOuter, { left: c.x - 72, top: c.y - 72, backgroundColor: c.color + "12" }]}
+                >
+                  <View style={[styles.heatInner, { backgroundColor: c.color + "1A" }]} />
+                </View>
+              ))}
+
+            {/* selected radius fill */}
+            <View
+              pointerEvents="none"
+              style={[
+                styles.radiusFill,
+                {
+                  width: MAX_R * 2 * (radiusSetting / MAX_DIST),
+                  height: MAX_R * 2 * (radiusSetting / MAX_DIST),
+                  borderRadius: MAX_R * (radiusSetting / MAX_DIST),
+                },
+              ]}
+            />
+
+            {/* rotating sweep */}
+            <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ rotate }] }]}>
+              <LinearGradient
+                colors={["rgba(32,178,170,0.28)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.sweepGrad}
+              />
+            </Animated.View>
+
+            {/* center pulse */}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+            />
           </Reanimated.View>
 
-          {/* nearby blips — approximate/fuzzed positions only, never exact GPS.
-              Strong matches glow, lower relevance fades. */}
-          {singles.map((p) => {
-            const strong = isStrong(p.u);
-            const size = strong ? 42 : p.u.compatible ? 38 : 34;
-            return (
-              <Reanimated.View
-                key={p.u.id}
-                style={[styles.blip, { left: p.x, top: p.y }, !p.u.compatible && styles.blipFaded, markerStyle]}
-              >
-                <Pressable testID={`radar-blip-${p.u.id}`} onPress={() => onSelect(p.u)}>
-                  {strong && (
-                    <View
-                      style={[
-                        styles.glow,
-                        {
-                          backgroundColor: p.color + "40",
-                          shadowColor: p.color,
-                          width: size + 14,
-                          height: size + 14,
-                          borderRadius: (size + 14) / 2,
-                        },
-                      ]}
-                    />
-                  )}
-                  <Avatar uri={p.u.photo_url} name={p.u.name} size={size} ringColor={p.color} />
-                  {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
-                </Pressable>
-              </Reanimated.View>
-            );
-          })}
+          {/* OVERLAY LAYER — crisp components positioned by coordinates, never scaled */}
+          <View style={styles.overlayLayer}>
+            {rings.map((m) => (
+              <ZoomRing key={m} m={m} maxDist={MAX_DIST} z={z} selected={m === radiusSetting} active={m <= radiusSetting} />
+            ))}
+            {rings.map((m) => (
+              <RingLabelA key={`label-${m}`} m={m} maxDist={MAX_DIST} z={z} />
+            ))}
 
-          {/* clusters — vibe-coloured count bubbles */}
-          {clusterInfo.map((c) => (
-            <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
-              <Pressable
-                testID={`radar-cluster-${c.key}`}
-                style={[styles.cluster, { backgroundColor: c.color }]}
-                onPress={() => onCluster?.(c.users)}
-              >
-                <Text style={styles.clusterText}>+{c.users.length}</Text>
-                {c.label && (
-                  <Text style={styles.clusterVibe} numberOfLines={1}>
-                    {c.label}
-                  </Text>
-                )}
-              </Pressable>
+            {/* me (exact position — visible only to you) */}
+            <Reanimated.View style={[styles.me, meAnchor]} pointerEvents="none">
+              <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
+              <View style={styles.mePointer} />
+              <View style={styles.youLabel}>
+                <Text style={styles.youLabelText}>You</Text>
+              </View>
             </Reanimated.View>
-          ))}
-        </Reanimated.View>
+
+            {/* nearby blips — approximate/fuzzed positions only, never exact GPS.
+                Strong matches glow, lower relevance fades. */}
+            {singles.map((p) => {
+              const strong = isStrong(p.u);
+              const size = strong ? 42 : p.u.compatible ? 38 : 34;
+              return (
+                <MapAnchor
+                  key={p.u.id}
+                  cx={p.x}
+                  cy={p.y}
+                  w={size}
+                  h={size}
+                  z={z}
+                  style={[styles.blip, !p.u.compatible && styles.blipFaded]}
+                >
+                  <Pressable testID={`radar-blip-${p.u.id}`} onPress={() => onSelect(p.u)}>
+                    {strong && (
+                      <View
+                        style={[
+                          styles.glow,
+                          {
+                            backgroundColor: p.color + "40",
+                            shadowColor: p.color,
+                            width: size + 14,
+                            height: size + 14,
+                            borderRadius: (size + 14) / 2,
+                          },
+                        ]}
+                      />
+                    )}
+                    <Avatar uri={p.u.photo_url} name={p.u.name} size={size} ringColor={p.color} />
+                    {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
+                  </Pressable>
+                </MapAnchor>
+              );
+            })}
+
+            {/* clusters — vibe-coloured count bubbles */}
+            {clusterInfo.map((c) => (
+              <MapAnchor key={`cluster-${c.key}`} cx={c.x} cy={c.y} w={40} h={40} z={z} style={styles.blip}>
+                <Pressable
+                  testID={`radar-cluster-${c.key}`}
+                  style={[styles.cluster, { backgroundColor: c.color }]}
+                  onPress={() => onCluster?.(c.users)}
+                >
+                  <Text style={styles.clusterText}>+{c.users.length}</Text>
+                  {c.label && (
+                    <Text style={styles.clusterVibe} numberOfLines={1}>
+                      {c.label}
+                    </Text>
+                  )}
+                </Pressable>
+              </MapAnchor>
+            ))}
+          </View>
+        </View>
       </GestureDetector>
 
       {/* re-centre + zoom controls (right side) */}
@@ -496,15 +586,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  radar: { width: MAP_W, height: MAP_H, alignItems: "center", justifyContent: "center" },
+  radar: { width: MAP_W, height: MAP_H },
+  worldLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  anchor: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tilt: {
     flex: 1,
     transform: [{ perspective: 500 }, { rotateX: "9deg" }, { scale: 1.22 }],
   },
   ring: { position: "absolute", borderWidth: 1.5 },
+  ringLabelWrap: { position: "absolute", top: CY },
   ringLabel: {
-    position: "absolute",
-    alignSelf: "center",
     color: colors.textSecondary,
     fontSize: 10,
     fontWeight: "600",
