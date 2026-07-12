@@ -190,3 +190,7 @@ Radar-only update (no other flows touched):
 - NEARBY NOW secondary row (testID nearby-now-row): orange kicker + See More Nearby button + 4-avatar stack + "+57 more".
 - DEMO STATE: RADAR_DEMO_USERS rebuilt via _build_radar_demo() → 52 users (10 strong w/ intent_strength "Actively looking now", 12 Chat pocket, 8 Coffee pocket, 6 Advice pocket, 16 scattered). With 9 core accounts: EXACTLY 61 nearby / 47 aligned / 12 strong / ~48 active for Kauri (Pro, radius 500 now in seed). Stale radar users auto-deleted on seed ($nin cleanup). Kauri seed radius=500.
 Verified via screenshots: focus chip, vibe-coloured clusters (+14 Chat, +10 Coffee, +7 Advice), heat zones, glows, stats microcopy, BEST NEARBY MATCH, cluster-tap filtering.
+
+## Fix: crisp map zoom (June 2026)
+- RadarView now swaps to higher-zoom CARTO tiles while zoomed (tileBoost 0/1/2 at scale >=1.5 / >=2.6): renders 2x/4x-size MapTiles at zoom+1/+2 scaled down, so pixels stay native instead of CSS-upscaled. Boost updates on pinch end, double-tap, +/- buttons and re-centre (runOnJS for gesture callbacks).
+- Verified via screenshot at 2.25x: street names crisp.

@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated, Easing, Pressable, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Reanimated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
 import MapTiles from "@/src/components/MapTiles";
 import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
@@ -66,6 +66,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
 
+  // sharper tiles while zoomed in: swap to higher-zoom tiles instead of scaling pixels
+  const [tileBoost, setTileBoost] = useState(0);
+  const applyBoost = (s: number) => setTileBoost(s >= 2.6 ? 2 : s >= 1.5 ? 1 : 0);
+
   useEffect(() => {
     Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 4000, easing: Easing.linear, useNativeDriver: true })
@@ -84,6 +88,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     })
     .onEnd(() => {
       savedScale.value = scale.value;
+      runOnJS(applyBoost)(scale.value);
       if (scale.value <= 1.01) {
         tx.value = withTiming(0);
         ty.value = withTiming(0);
@@ -112,6 +117,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       const target = scale.value > 1.2 ? 1 : 2;
       scale.value = withTiming(target);
       savedScale.value = target;
+      runOnJS(applyBoost)(target);
       if (target === 1) {
         tx.value = withTiming(0);
         ty.value = withTiming(0);
@@ -134,6 +140,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const recentre = () => {
     scale.value = withTiming(1);
     savedScale.value = 1;
+    applyBoost(1);
     tx.value = withTiming(0);
     ty.value = withTiming(0);
     savedTx.value = 0;
@@ -144,6 +151,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     const target = Math.min(Math.max(savedScale.value * factor, 1), MAX_SCALE);
     scale.value = withTiming(target);
     savedScale.value = target;
+    applyBoost(target);
     if (target <= 1.01) {
       tx.value = withTiming(0);
       ty.value = withTiming(0);
@@ -260,7 +268,28 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <View style={styles.tilt}>
-              <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
+              {tileBoost > 0 ? (
+                // zoomed in: render higher-zoom tiles at native resolution so the map stays crisp
+                <View
+                  style={{
+                    width: MAP_W * 2 ** tileBoost,
+                    height: MAP_H * 2 ** tileBoost,
+                    marginLeft: (-MAP_W * (2 ** tileBoost - 1)) / 2,
+                    marginTop: (-MAP_H * (2 ** tileBoost - 1)) / 2,
+                    transform: [{ scale: 1 / 2 ** tileBoost }],
+                  }}
+                >
+                  <MapTiles
+                    lat={loc.lat}
+                    lng={loc.lng}
+                    width={MAP_W * 2 ** tileBoost}
+                    height={MAP_H * 2 ** tileBoost}
+                    zoom={zoom + tileBoost}
+                  />
+                </View>
+              ) : (
+                <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W} height={MAP_H} zoom={zoom} />
+              )}
             </View>
             <LinearGradient
               colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0)", "rgba(255,255,255,0)", "rgba(255,255,255,0.12)"]}
