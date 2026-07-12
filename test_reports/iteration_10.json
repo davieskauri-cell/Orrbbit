@@ -1,0 +1,51 @@
+{
+  "summary": "Iter 10 BETA production-readiness pass (both backend + frontend). Backend: 11/11 pytest cases PASS covering register+login regression, demo-login (kauri), account deletion (DELETE /api/users/me → 200 for regular user + old login blocked with 401; demo account = 403 'Demo accounts cannot be deleted'; unauth = 401), block hides target from /api/nearby, POST /api/reports, plan/radius clamp (free 50m, pro 500m, hard cap 500m). Frontend (mobile viewport 390x844): fresh session on /login has NO 'Use Demo Account' button (login-demo hidden per useTestMode gate) — PASS. 7-tap on 'Intro v1.0.0' (testID app-version) fires 'Test mode enabled' native alert and sets localStorage intro_test_mode='1' — PASS. After enabling test mode, Profile shows the 'Test & Trial Tools' section with menu-admin, menu-metrics, menu-trial-report, menu-launch-checklist, and disable-test-mode all visible — PASS. delete-account-btn is rendered below Log Out on Profile for a freshly registered user, tapping it fires the web window.confirm dialog with exact copy 'Delete your account? This permanently deletes your profile, pings, matches and meetup history. This can't be undone.' — the confirm→delete→signOut→router.replace('/(auth)/onboarding') path is covered by the corresponding backend test which verified the actual deletion + subsequent login block. FOUND BUG: In public (non-test) mode, the Profile MENU array (top public menu) still contains 'Demo Accounts' (menu-demo-accounts) and 'Trial Mode' (menu-trial) rows — they leak to every logged-in regular user. The other four demo tools (Admin, Metrics, Trial Report, Launch Checklist) are correctly hidden. Reference: /app/frontend/app/(tabs)/profile.tsx lines 25 (Trial Mode) and 27 (Demo Accounts) — those entries need to be removed from the public MENU const; they already exist in DEMO_MENU (lines 42-43) and are shown under 'Test & Trial Tools' when test mode is on. PRIVACY OBSERVATION: /api/nearby response still contains raw 'lat' and 'lng' fields for every user (server.py line 888-889 in compute_nearby). For demo users these are synthesised via destination_point(requester_lat, requester_lng, demo_dist, demo_bearing) so they're not real positions, BUT for any real (non-demo) user the field maps directly to o['lat']/o['lng'] i.e. their exact stored coordinates. Distance ('About Nm away') is correctly fuzzed in the preview UI (verified iter_9) so end-users don't see it, but the raw API leaks it. Recommendation: strip lat/lng from the nearby serialiser OR replace with fuzzed values before real-user beta launch. Distances/no addresses/street: PASS. Push notifications remain intentionally MOCKED (in-app pings only) per user decision — NOT flagged as a bug. No red screens, no crashes; only carry-over shadow*→boxShadow deprecation warnings from theme.ts.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/nearby", "issue": "Response still exposes exact 'lat' and 'lng' fields for every user (compute_nearby, server.py line 888-889). Demo users get synthesised positions so it's benign for the current demo cohort, but real (non-demo) users would leak their true stored coordinates. Beta requirement says '/api/nearby response ... never expose other users' exact lat/lng'. Recommend: remove those fields from the serialiser (or fuzz them) and let the frontend plot markers from distance+bearing instead."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Profile tab MENU (public)", "issue": "'Demo Accounts' (menu-demo-accounts) and 'Trial Mode' (menu-trial) rows are still in the public MENU array and are visible to every regular (non-test-mode) user. They should live only under the 'Test & Trial Tools' section (DEMO_MENU). Reference: /app/frontend/app/(tabs)/profile.tsx lines 25 and 27 — remove those two entries from MENU; they already exist in DEMO_MENU (lines 42-43) so no duplication is needed.", "testID": "menu-demo-accounts, menu-trial", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.card", "issue": "Carry-over from iter 5–9: Expo Web console emits 'shadow* style props are deprecated. Use boxShadow.' Cosmetic only, no functional impact. Reference: /app/frontend/src/theme.ts."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter10_beta_readiness.py",
+    "/app/test_reports/pytest/pytest_iter10.xml",
+    "/app/test_reports/iteration_10.json"
+  ],
+  "action_items": [
+    "Remove 'Demo Accounts' and 'Trial Mode' entries from the public MENU const in /app/frontend/app/(tabs)/profile.tsx (lines 25 and 27). They must only appear in the DEMO_MENU section rendered under `{testMode && (...)}` (already present at lines 42-43). Verify by loading Profile as a freshly registered non-demo user and confirming those two rows are gone unless test mode is unlocked.",
+    "Strip or fuzz `lat` and `lng` on /api/nearby responses (server.py compute_nearby, line 878-895). For real users these currently expose exact stored coordinates. If the radar needs positional data, keep only `distance` + `bearing` and let the frontend project synthetic screen coords from those.",
+    "OPTIONAL (carry-over from iter 5-9): migrate deprecated shadow* style props in /app/frontend/src/theme.ts to boxShadow to silence Expo Web console warnings."
+  ],
+  "critical_code_review_comments": [
+    "profile.tsx: MENU (lines 16-28) mixes public rows with demo-only rows. Result: 'Trial Mode' and 'Demo Accounts' render for every user regardless of test-mode. The DEMO_MENU (lines 41-48) already re-declares the same two rows for the gated section, so simply removing them from MENU keeps behaviour intact when test mode IS on and hides them when it is off.",
+    "profile.tsx onDeleteAccount (lines 76-104) correctly guards is_demo (shows friendly alert), then calls DELETE /users/me via api(), awaits signOut, and router.replace('/(auth)/onboarding'). Web uses window.confirm — Playwright must page.on('dialog', d.accept()). Verified the confirm dialog fires with correct copy.",
+    "server.py delete_account (lines 525-539) is idempotent-safe and cascades to pings/matches/meetups/saved/blocks/hides. Correctly returns 403 for demo accounts. Reports are intentionally retained (moderation audit) — this is documented in the code comment.",
+    "testMode.ts (lines 8-31): getTestMode reads AsyncStorage key 'intro_test_mode'; on web AsyncStorage falls back to localStorage. Playwright can enable by localStorage.setItem('intro_test_mode','1') + reload. Verified.",
+    "login.tsx line 111-119: SecondaryButton for 'Use Demo Account' is wrapped in `{testMode && (...)}` — correctly hidden on fresh sessions.",
+    "compute_nearby (server.py 820-905) still emits lat/lng — see minor backend issue above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter10_beta_readiness.py (new — 11 test cases, all pass)",
+    "/app/test_reports/pytest/pytest_iter10.xml",
+    "/app/test_reports/iteration_10.json"
+  ],
+  "success_rate": {
+    "backend": "11/11 (100%) — register+login, demo-login, delete regular user (+ login-401 after delete), delete demo (403), delete unauth (401), block hides from nearby, POST /reports, free radius clamped to 50m, pro radius=500 accepted, radius=10000 clamped to <=500, /nearby returns coarse distance (with lat/lng caveat above).",
+    "frontend": "8/9 verified — PASS: login-demo hidden on fresh session, admin/metrics/trial-report/launch-checklist hidden in public menu, test-mode unlock (7-tap → alert + localStorage flag), Test & Trial Tools section appears with all 6 rows + disable-test-mode, delete-account-btn renders + confirm dialog fires with correct copy, register+setup flow reaches profile-setup+, no red screens/crashes on Profile navigation. FAIL: menu-demo-accounts + menu-trial LEAK to public users (Profile MENU array bug)."
+  },
+  "seed_data_creation": "Created 3 test users via /api/auth/register (email pattern TEST_iter10_*@example.com and iter10*@example.com, password Intro123!). One was deleted as part of test_delete_regular_user. The other two are lightweight and won't be discoverable in demo radar (their city defaults to Melbourne with visible=false initially).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Test the fix for the MENU leak by: (1) clear localStorage; (2) register a new @example.com user (age 25) — .test/.demo TLDs are still rejected by the email validator; (3) navigate to /profile; (4) assert query_selector('[data-testid=\"menu-demo-accounts\"]') and query_selector('[data-testid=\"menu-trial\"]') both return None. Then to verify test mode re-enables them: page.evaluate(\"() => localStorage.setItem('intro_test_mode','1')\") + page.reload() — both testIDs should appear again inside the 'Test & Trial Tools' section along with menu-admin/menu-metrics/menu-trial-report/menu-launch-checklist/disable-test-mode. Auth response uses `access_token` (not `token`) — the older iterations of backend_test.py used a different key and would fail; the new /app/backend/tests/test_iter10_beta_readiness.py has the correct field. /api/nearby requires ?lat=..&lng=.. query params (422 otherwise) and returns {count, radius, my_vibe, users:[…]}. window.confirm() is used for showAlert() with buttons — always attach page.on('dialog', lambda d: d.accept()) BEFORE navigating.",
+  "rca_of_issue": "menu-demo-accounts + menu-trial leak: the two entries were added to the public MENU array (profile.tsx lines 25, 27) at some point and never removed when DEMO_MENU was introduced. Because both arrays are iterated unconditionally except that DEMO_MENU is wrapped in `{testMode && (...)}`, the public MENU rows always render. Fix: delete the two lines from the MENU const. Reproduction: (1) clear localStorage; (2) register a new user via /register (needs @example.com or similar real TLD); (3) navigate to /profile — Demo Accounts and Trial Mode rows are visible in the top public menu even though they should only be part of the Test & Trial Tools section."
+}

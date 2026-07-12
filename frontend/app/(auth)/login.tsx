@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
+import { useTestMode } from "@/src/lib/testMode";
 import { LogoMark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -21,6 +22,7 @@ export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signIn, demoLogin } = useAuth();
+  const [testMode] = useTestMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -106,13 +108,15 @@ export default function Login() {
           loading={busy}
           style={{ marginTop: spacing.xl }}
         />
-        <SecondaryButton
-          testID="login-demo"
-          title={demoBusy ? "Loading demo…" : "Use Demo Account"}
-          onPress={demo}
-          color={colors.teal}
-          style={{ marginTop: spacing.md, borderColor: colors.teal }}
-        />
+        {testMode && (
+          <SecondaryButton
+            testID="login-demo"
+            title={demoBusy ? "Loading demo…" : "Use Demo Account"}
+            onPress={demo}
+            color={colors.teal}
+            style={{ marginTop: spacing.md, borderColor: colors.teal }}
+          />
+        )}
 
         <Pressable onPress={() => router.replace("/(auth)/register")} style={styles.linkRow}>
           <Text style={styles.linkText}>New here? </Text>

@@ -9,6 +9,7 @@ const SECTIONS: { title: string; items: string[] }[] = [
   {
     title: "Pre-launch",
     items: [
+      "⚠️ Real push notifications NOT active yet — in-app pings only. Enable Firebase / Emergent push + device builds before public store launch",
       "Pick a dense launch zone (CBD, campus, venue)",
       "Recruit 1–2 local ambassadors",
       "Seed demo users for the zone",

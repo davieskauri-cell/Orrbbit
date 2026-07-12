@@ -522,6 +522,23 @@ async def me(user: dict = Depends(get_current_user)):
     return public_user(user)
 
 
+@api_router.delete("/users/me")
+async def delete_account(user: dict = Depends(get_current_user)):
+    """Permanently delete the account and personal data (App Store / Play Store requirement)."""
+    if user.get("is_demo"):
+        raise HTTPException(status_code=403, detail="Demo accounts cannot be deleted")
+    uid = user["id"]
+    await db.users.delete_one({"id": uid})
+    await db.pings.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
+    await db.matches.delete_many({"$or": [{"user_a": uid}, {"user_b": uid}]})
+    await db.meetups.delete_many({"$or": [{"user_a": uid}, {"user_b": uid}]})
+    await db.saved.delete_many({"$or": [{"owner_id": uid}, {"user_id": uid}]})
+    await db.blocks.delete_many({"$or": [{"blocker_id": uid}, {"blocked_id": uid}]})
+    await db.hides.delete_many({"$or": [{"hider_id": uid}, {"hidden_id": uid}]})
+    # Reports are retained (anonymously) as safety/moderation records.
+    return {"ok": True, "message": "Your account and personal data have been deleted"}
+
+
 @api_router.get("/demo-accounts")
 async def demo_accounts():
     users = await db.users.find({"is_demo": True}).to_list(50)

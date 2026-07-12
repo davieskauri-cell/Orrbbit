@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { api } from "@/src/lib/api";
+import { showAlert } from "@/src/lib/alert";
+import { useTestMode } from "@/src/lib/testMode";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import InterestChip from "@/src/components/InterestChip";
@@ -37,6 +39,8 @@ const GLOBAL_MENU = [
 ] as const;
 
 const DEMO_MENU = [
+  { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
+  { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
   { icon: "shield-half-outline", label: "Admin Dashboard", route: "/admin", testID: "menu-admin" },
   { icon: "bar-chart-outline", label: "Test Metrics", route: "/metrics", testID: "menu-metrics" },
   { icon: "document-text-outline", label: "Trial Report", route: "/trial-report", testID: "menu-trial-report" },
@@ -50,6 +54,54 @@ export default function ProfileScreen() {
   const { vibeMap } = useApp();
   const vibe = user?.vibe ? vibeMap[user.vibe] : undefined;
   const [completion, setCompletion] = React.useState<any>(null);
+  const [testMode, setTestModeOn] = useTestMode();
+  const versionTaps = React.useRef(0);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const onVersionTap = () => {
+    if (testMode) return;
+    versionTaps.current += 1;
+    if (versionTaps.current >= 7) {
+      versionTaps.current = 0;
+      setTestModeOn(true);
+      showAlert("Test mode enabled", "Demo accounts and trial tools are now visible. Tap the version again to disable.");
+    }
+  };
+
+  const onDisableTestMode = () => {
+    setTestModeOn(false);
+    showAlert("Test mode disabled", "Demo and trial tools are hidden again.");
+  };
+
+  const onDeleteAccount = () => {
+    if (user?.is_demo) {
+      showAlert("Not available", "Demo accounts can't be deleted.");
+      return;
+    }
+    showAlert(
+      "Delete your account?",
+      "This permanently deletes your profile, pings, matches and meetup history. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await api("/users/me", { method: "DELETE" });
+              await signOut();
+              router.replace("/(auth)/onboarding");
+            } catch (e: any) {
+              showAlert("Couldn't delete account", e.message || "Please try again.");
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -170,9 +222,9 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      {user?.is_demo && (
+      {testMode && (
         <>
-          <Text style={styles.sectionTitle}>Trial Tools</Text>
+          <Text style={styles.sectionTitle}>Test &amp; Trial Tools</Text>
           <View style={styles.menu}>
             {DEMO_MENU.map((m) => (
               <Pressable
@@ -186,6 +238,14 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
               </Pressable>
             ))}
+            <Pressable
+              testID="disable-test-mode"
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
+              onPress={onDisableTestMode}
+            >
+              <Ionicons name="eye-off-outline" size={20} color={colors.grey} />
+              <Text style={styles.menuLabel}>Disable Test Mode</Text>
+            </Pressable>
           </View>
         </>
       )}
@@ -200,6 +260,15 @@ export default function ProfileScreen() {
       >
         <Ionicons name="log-out-outline" size={18} color={colors.pink} />
         <Text style={styles.logoutText}>Log Out</Text>
+      </Pressable>
+
+      <Pressable testID="delete-account-btn" style={styles.deleteBtn} onPress={onDeleteAccount} disabled={deleting}>
+        <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
+        <Text style={styles.deleteText}>{deleting ? "Deleting…" : "Delete Account"}</Text>
+      </Pressable>
+
+      <Pressable testID="app-version" onPress={onVersionTap} style={styles.versionRow} hitSlop={10}>
+        <Text style={styles.versionText}>Intro v1.0.0{testMode ? " · Test mode" : ""}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -280,4 +349,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   logoutText: { color: colors.pink, fontSize: font.lg, fontWeight: "700" },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+  },
+  deleteText: { color: colors.textTertiary, fontSize: font.base, fontWeight: "600" },
+  versionRow: { alignItems: "center", marginTop: spacing.md, paddingVertical: spacing.sm },
+  versionText: { color: colors.textTertiary, fontSize: font.sm },
 });
