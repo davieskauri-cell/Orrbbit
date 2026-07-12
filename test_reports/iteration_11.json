@@ -1,0 +1,42 @@
+{
+  "summary": "Iter 11 retest: BOTH fixes from iter 10 PASS. FIX 1 — Profile menu leak resolved: profile.tsx MENU const (lines 16-26) no longer contains 'Demo Accounts' or 'Trial Mode'; those two rows exist only in DEMO_MENU (lines 39-46) which is rendered inside the `{testMode && (...)}` guard. Playwright verified with a fresh session (localStorage cleared): navigating to /profile shows menu-edit-profile but menu-demo-accounts, menu-trial, and menu-admin are all absent. After setting localStorage.intro_test_mode='1' + reload: menu-demo-accounts, menu-trial, menu-admin, menu-metrics, and disable-test-mode all become visible under 'Test & Trial Tools'. FIX 2 — /api/nearby privacy resolved: server.py compute_nearby (lines 873-896) and synthetic_nearby (lines 790-813) no longer emit 'lat'/'lng' keys. pytest test_iter11_privacy_fix.py: 4/4 PASS covering (a) kauri demo-login + /api/nearby regular list (lat/lng stripped, distance+bearing kept), (b) high_density_demo=true via PUT /api/users/me/state → 100 users returned including hd-* synthetic profiles, no lat/lng on any of them, (c) fresh @example.com regular user register+/api/nearby → no lat/lng leak, (d) response-shape regression (id/name/vibe/distance/bearing/compatible all present, distance & bearing numeric). REGRESSION — Radar map: kauri demo-login (test mode enabled to reveal login-demo button) → tap Radar tab → radar-map testID renders, 12 radar-blip-* elements + multiple radar-cluster-* bubbles + radar-zoom-in/out + radar-recentre + radar-radius-chip (Radius: 500m — pro plan) + radius rings (75m, 250m, 500m labels visible). Tapping a blip opens the marker preview overlay with 'About 40m away' (Maya, 27 · Need Advice); zero console errors mentioning undefined lat/lng. REGRESSION — Nearby list: still renders with '60 nearby · Showing your best 12' header, category chips (Networking/Social/Campus/…), mode cards (Hiring/Founders/Advice), and see-more-nearby row all visible. Push notifications intentionally MOCKED (not flagged). Only carry-over noise: shadow* deprecation warnings from theme.ts and a benign background /api 401 during pre-login state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.card", "issue": "Carry-over from iter 5–10: Expo Web console emits 'shadow* style props are deprecated. Use boxShadow.' Cosmetic only, no functional impact. Reference: /app/frontend/src/theme.ts."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter11_privacy_fix.py",
+    "/app/test_reports/pytest/pytest_iter11.xml",
+    "/app/test_reports/iteration_11.json"
+  ],
+  "action_items": [
+    "OPTIONAL (carry-over): migrate deprecated shadow* style props in /app/frontend/src/theme.ts to boxShadow to silence Expo Web console warnings. Non-blocking for beta."
+  ],
+  "critical_code_review_comments": [
+    "profile.tsx: MENU const (lines 16-26) is now cleanly a public-only list; DEMO_MENU (lines 39-46) is gated by `{testMode && (...)}` at line 223. No demo-tool leakage.",
+    "server.py compute_nearby (lines 873-896) and synthetic_nearby (lines 790-813) emit only distance + bearing (no lat/lng). Radar client uses these plus a client-side bearing/distance projection — verified by successful map render with 12 blips + clusters + rings.",
+    "Backend still stores lat/lng internally on the user document (as expected); those are used server-side to compute distance/bearing and never returned in the /nearby users[] payload."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter11_privacy_fix.py (new — 4 tests, all pass)",
+    "/app/test_reports/pytest/pytest_iter11.xml",
+    "/app/test_reports/iteration_11.json"
+  ],
+  "success_rate": {
+    "backend": "4/4 (100%) — kauri /api/nearby regular list has no lat/lng; HD demo (100 users incl. hd-* synthetics) has no lat/lng; fresh @example.com user /api/nearby has no lat/lng; response shape (distance+bearing numeric) intact.",
+    "frontend": "5/5 (100%) — fresh session /profile: no menu-demo-accounts, no menu-trial (leak fixed); test-mode enabled: DEMO_MENU renders all 6 rows + disable-test-mode; Radar tab: radar-map + 12 blips + clusters + zoom controls + 500m radius chip + rings; marker tap → preview overlay with 'About 40m away'; Nearby tab: mode cards + see-more-nearby + user preview visible."
+  },
+  "seed_data_creation": "Created 1 test user via /api/auth/register (email pattern TEST_iter11_<uuid>@example.com, password Intro123!) and deleted them in the same test via DELETE /api/users/me. No residual test data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both iter-10 fixes fully verified in iter-11. Backend suite: /app/backend/tests/test_iter11_privacy_fix.py (4 tests) + earlier /app/backend/tests/test_iter10_beta_readiness.py (11 tests) constitute the beta-readiness regression baseline. For Playwright, enable test mode via localStorage.setItem('intro_test_mode','1') BEFORE navigating to /login to expose the 'Use Demo Account' button (data-testid=login-demo). Radar tab has radar-map, radar-blip-<uuid>, radar-cluster-<n>-<n>, radar-zoom-in/out, radar-recentre, radar-radius-chip, radar-filters testIDs; marker-preview shows fuzzed 'About Nm away' text.",
+  "rca_of_issue": "Both fixes correctly implemented: (1) menu-demo-accounts + menu-trial removed from MENU array in profile.tsx (kept only in DEMO_MENU); (2) 'lat'/'lng' keys removed from the dict literal returned by both compute_nearby and synthetic_nearby in server.py — distance + bearing are the only positional signals now leaving the server. No further action needed."
+}

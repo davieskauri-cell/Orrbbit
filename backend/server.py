@@ -776,7 +776,7 @@ HD_NAMES = [
 ]
 
 
-def synthetic_nearby(user: dict, radius: float, lat: float, lng: float, count: int) -> list:
+def synthetic_nearby(user: dict, radius: float, count: int) -> list:
     """High Density Demo: deterministic synthetic profiles within the radius.
     Approximate positions only — never real people, never exact pins."""
     my_vibe = user.get("vibe")
@@ -787,7 +787,6 @@ def synthetic_nearby(user: dict, radius: float, lat: float, lng: float, count: i
         vibe = vibe_keys[i % len(vibe_keys)]
         dist = 8 + ((i * 37) % max(int(radius) - 8, 8))
         brg = (i * 53) % 360
-        plat, plng = destination_point(lat, lng, dist, brg)
         out.append({
             "id": f"hd-{i}",
             "name": HD_NAMES[i % len(HD_NAMES)],
@@ -798,8 +797,6 @@ def synthetic_nearby(user: dict, radius: float, lat: float, lng: float, count: i
             "vibe": vibe,
             "distance": round(dist),
             "bearing": brg,
-            "lat": plat,
-            "lng": plng,
             "compatible": bool(my_vibe and my_vibe != "busy" and vibe in compat),
             "verified": i % 4 == 0,
             "active_now": i % 3 != 0,
@@ -839,11 +836,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         if o.get("is_demo") and o.get("demo_dist") is not None:
             dist = o["demo_dist"]
             brg = o.get("demo_bearing", 0)
-            plat, plng = destination_point(lat, lng, dist, brg)
         elif o.get("lat") is not None:
             dist = haversine(lat, lng, o["lat"], o["lng"])
             brg = bearing_between(lat, lng, o["lat"], o["lng"])
-            plat, plng = o["lat"], o["lng"]
         else:
             continue
         if dist > radius or dist > cap or dist > 500:
@@ -885,8 +880,6 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "vibe": o_vibe,
             "distance": round(dist),
             "bearing": round(brg),
-            "lat": plat,
-            "lng": plng,
             "compatible": bool(my_vibe and my_vibe != "busy" and o_vibe in compat),
             "verified": o.get("verified", False),
             "active_now": o.get("active_now", True),
@@ -905,7 +898,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     if user.get("high_density_demo"):
         need = 142 - len(results)
         if need > 0:
-            results.extend(synthetic_nearby(user, radius, lat, lng, need))
+            results.extend(synthetic_nearby(user, radius, need))
     # most relevant first (vibe-detail fit), then closest — capped at 100 discovery profiles
     results.sort(key=lambda r: (-r["score"], r["distance"]))
     return results[:MAX_DISCOVERY]

@@ -22,9 +22,7 @@ const MENU = [
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
   { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
-  { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
   { icon: "qr-code-outline", label: "Invite People", route: "/invite", testID: "menu-invite" },
-  { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
 ] as const;
 
 const GLOBAL_MENU = [
