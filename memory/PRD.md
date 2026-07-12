@@ -194,3 +194,12 @@ Verified via screenshots: focus chip, vibe-coloured clusters (+14 Chat, +10 Coff
 ## Fix: crisp map zoom (June 2026)
 - RadarView now swaps to higher-zoom CARTO tiles while zoomed (tileBoost 0/1/2 at scale >=1.5 / >=2.6): renders 2x/4x-size MapTiles at zoom+1/+2 scaled down, so pixels stay native instead of CSS-upscaled. Boost updates on pinch end, double-tap, +/- buttons and re-centre (runOnJS for gesture callbacks).
 - Verified via screenshot at 2.25x: street names crisp.
+
+## Beta Production-Readiness Pass (June 2026) — COMPLETE
+User goal: prepare Intro for beta release; no new features.
+- DEMO CONTROLS HIDDEN from public users. Private Test Mode: tap "Intro v1.0.0" version text in Profile 7x → unlocks "Test & Trial Tools" (Demo Accounts, Trial Mode, Admin Dashboard, Test Metrics, Trial Report, Launch Checklist) + "Use Demo Account" login button + "Disable Test Mode" row. Flag: AsyncStorage `intro_test_mode` (src/lib/testMode.ts).
+- ACCOUNT DELETION (store compliance): DELETE /api/users/me — deletes user + pings/matches/meetups/saved/blocks/hides (reports retained for moderation). Demo accounts → 403. Frontend: Profile → "Delete Account" (testID delete-account-btn) with confirm dialog → signOut → onboarding.
+- PRIVACY HARDENING: /api/nearby no longer returns ANY lat/lng for other users (regular, demo, or synthetic HD) — only rounded distance + bearing; frontend fuzzes display positions client-side (unchanged).
+- PUSH NOTIFICATIONS: intentionally MOCKED for beta (in-app ping popups via PingModal). notificationService.ts kept structured for later Firebase/Emergent push. Warning item added to Launch Checklist. Real push = post-beta task (needs google-services.json + device builds).
+- Testing: iteration_10 (11/11 backend, 8/9 frontend) + iteration_11 retest (all pass). pytest: /app/backend/tests/test_iter10_beta_readiness.py, test_iter11_privacy_fix.py.
+- Location permissions: expo-location foreground flow with canAskAgain handling; app.json has iOS infoPlist descriptions + Android ACCESS_FINE/COARSE_LOCATION.

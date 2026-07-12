@@ -620,11 +620,13 @@ async def list_saved(user: dict = Depends(get_current_user)):
     saved = await db.saved.find({"owner_id": user["id"]}).to_list(200)
     saved.sort(key=lambda s: s["saved_at"], reverse=True)
     blocked = await get_blocked_ids(user["id"])
+    ids = [s["user_id"] for s in saved if s["user_id"] not in blocked]
+    users_by_id = {u["id"]: u async for u in db.users.find({"id": {"$in": ids}}, {"hashed_password": 0, "_id": 0})}
     out = []
     for s in saved:
         if s["user_id"] in blocked:
             continue
-        u = await db.users.find_one({"id": s["user_id"]})
+        u = users_by_id.get(s["user_id"])
         if not u:
             continue
         vd = u.get("vibe_details") or {}
@@ -821,7 +823,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     compat = COMPAT.get(my_vibe, []) if my_vibe else []
     blocked = await get_blocked_ids(user["id"])
     results = []
-    others = await db.users.find({"id": {"$ne": user["id"]}}).to_list(500)
+    others = await db.users.find({"id": {"$ne": user["id"]}}, {"hashed_password": 0, "_id": 0}).to_list(500)
     for o in others:
         if o["id"] in blocked:
             continue
@@ -1290,7 +1292,7 @@ async def profile_completion(user: dict = Depends(get_current_user)):
 # ----------------------------- Admin / moderation dashboard -----------------------------
 @api_router.get("/admin/dashboard")
 async def admin_dashboard(user: dict = Depends(get_current_user)):
-    users = await db.users.find({}).to_list(2000)
+    users = await db.users.find({}, {"hashed_password": 0, "_id": 0}).to_list(2000)
     active = [u for u in users if u.get("visible", True) and u.get("active_now", True)]
     by_city: Dict[str, int] = {}
     for u in active:
@@ -1299,13 +1301,14 @@ async def admin_dashboard(user: dict = Depends(get_current_user)):
     reports = await db.reports.find({}).to_list(200)
     reports.sort(key=lambda r: r["created_at"], reverse=True)
     blocks = await db.blocks.find({}).to_list(200)
+    recent_blocks = blocks[-50:]
+    block_ids = {b["blocker_id"] for b in recent_blocks} | {b["blocked_id"] for b in recent_blocks}
+    names_by_id = {u["id"]: u.get("name") async for u in db.users.find({"id": {"$in": list(block_ids)}}, {"id": 1, "name": 1})}
     block_rows = []
-    for b in blocks[-50:]:
-        blocker = await db.users.find_one({"id": b["blocker_id"]})
-        blocked_u = await db.users.find_one({"id": b["blocked_id"]})
+    for b in recent_blocks:
         block_rows.append({
-            "blocker": (blocker or {}).get("name") or "Unknown",
-            "blocked": (blocked_u or {}).get("name") or "Unknown",
+            "blocker": names_by_id.get(b["blocker_id"]) or "Unknown",
+            "blocked": names_by_id.get(b["blocked_id"]) or "Unknown",
             "created_at": b.get("created_at"),
         })
     incidents = {"high": 0, "medium": 0, "low": 0}
