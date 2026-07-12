@@ -176,3 +176,17 @@ Visual-only update to Radar map area (no logic/flow changes elsewhere):
 - Nearby Now card now shows "· {context}" after distance.
 - Backend demo state: 27 new seeded Melbourne radar demo users (@radar.intro.demo, password Intro123!) incl. Maya (27, Need Advice, Marketing Manager, ~40m, rich vibe_details) + two cluster pockets. Kauri can_help_with += Marketing. Verified: Kauri Pro @500m → exactly 36 nearby, 14 aligned, Maya top compatible with reason "Maya needs marketing advice and you can help with marketing".
 Verified via screenshots (web preview): rings 125/250/375/500, 24 avatars + clusters, all controls, stats 36/14/500m.
+
+## INTRO Focus Map — Radar Visual Experience v3 (June 2026) — COMPLETE
+Radar-only update (no other flows touched):
+- FOCUS VIEW: only top-12 most relevant people get individual markers (hard cap 24 unchanged); rest cluster. "61 nearby · Showing your best 12" summary chip (testID focus-summary) top-left under radius chip.
+- RELEVANCE LEVELS: strong match (compatible && score>=6) = 42px avatar + vibe-coloured glow halo; possible match = 38px normal; non-compatible = 34px @ 0.55 opacity.
+- CLUSTERS: vibe-coloured bubbles (+N + short label: Chat/Coffee/Advice/Networking/Dating/Gym/Exploring when >=50% share vibe). Tap → Nearby list PRE-FILTERED to dominant vibe (nearby.tsx reads ?vibe= param; added Exploring filter chip).
+- SOCIAL HEAT ZONES: clusters >=5 users render soft two-layer semi-transparent vibe-colour circles behind rings (privacy-safe, approximate).
+- RINGS SOFTER: selected radius ring strongest (teal 1.5px), inner active rings faint teal, guides light grey.
+- CENTRE PULSE: existing teal pulse retained (represents broadcasting; map hidden entirely when invisible).
+- STATS MICROCOPY: "48 active now" / "12 strong matches" / "Pro Plan 👑|Plus Plan|Free Plan" sub-lines.
+- BEST NEARBY MATCH card (testID best-match-card, was nearby-now-card): only shows when a strong match exists (best = strongMatches[0], no fallback), kicker BEST NEARBY MATCH, button "View".
+- NEARBY NOW secondary row (testID nearby-now-row): orange kicker + See More Nearby button + 4-avatar stack + "+57 more".
+- DEMO STATE: RADAR_DEMO_USERS rebuilt via _build_radar_demo() → 52 users (10 strong w/ intent_strength "Actively looking now", 12 Chat pocket, 8 Coffee pocket, 6 Advice pocket, 16 scattered). With 9 core accounts: EXACTLY 61 nearby / 47 aligned / 12 strong / ~48 active for Kauri (Pro, radius 500 now in seed). Stale radar users auto-deleted on seed ($nin cleanup). Kauri seed radius=500.
+Verified via screenshots: focus chip, vibe-coloured clusters (+14 Chat, +10 Coffee, +7 Advice), heat zones, glows, stats microcopy, BEST NEARBY MATCH, cluster-tap filtering.

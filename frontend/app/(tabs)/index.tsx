@@ -90,7 +90,9 @@ export default function RadarScreen() {
 
   const myVibe = user?.vibe ? vibeMap[user.vibe] : undefined;
   const compatible = nearby.filter((n) => n.compatible);
-  const best = compatible[0];
+  const strongMatches = compatible.filter((n) => (n.score ?? 0) >= 6);
+  const activeCount = nearby.filter((n) => n.active_now).length;
+  const best = strongMatches[0];
   const bestVibe = best?.vibe ? vibeMap[best.vibe] : undefined;
   const hidden = !user?.visible || user?.ghost_mode || user?.paused;
 
@@ -175,7 +177,15 @@ export default function RadarScreen() {
               radiusSetting={user?.radius || 50}
               coords={coords}
               onFilters={() => router.push("/privacy")}
-              onCluster={() => router.push("/(tabs)/nearby")}
+              onCluster={(us) => {
+                const counts: Record<string, number> = {};
+                us.forEach((u) => {
+                  if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
+                });
+                const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+                if (top && top[1] / us.length >= 0.5) router.push(`/(tabs)/nearby?vibe=${top[0]}`);
+                else router.push("/(tabs)/nearby");
+              }}
               onRadiusPress={() => setShowRadius(true)}
               onLearnMore={() => router.push("/location-privacy")}
             />
@@ -231,16 +241,21 @@ export default function RadarScreen() {
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{nearby.length >= 100 ? "100+" : nearby.length}</Text>
                 <Text style={styles.statLabel}>Nearby</Text>
+                <Text style={styles.statSub}>{activeCount} active now</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={[styles.statNum, { color: colors.teal }]}>{compatible.length}</Text>
                 <Text style={styles.statLabel}>Aligned</Text>
+                <Text style={styles.statSub}>{strongMatches.length} strong matches</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={[styles.statNum, { color: colors.orange }]}>{user?.radius || 50}m</Text>
                 <Text style={styles.statLabel}>Radius</Text>
+                <Text style={styles.statSub}>
+                  {user?.plan === "pro" ? "Pro Plan 👑" : user?.plan === "plus" ? "Plus Plan" : "Free Plan"}
+                </Text>
               </View>
             </View>
 
@@ -288,8 +303,8 @@ export default function RadarScreen() {
                 </Pressable>
               </View>
             ) : best ? (
-              <View style={[styles.bestCard, shadow.card]} testID="nearby-now-card">
-                <Text style={styles.bestKicker}>NEARBY NOW</Text>
+              <View style={[styles.bestCard, shadow.card]} testID="best-match-card">
+                <Text style={styles.bestKicker}>BEST NEARBY MATCH</Text>
                 <View style={styles.bestRow}>
                   <Avatar uri={best.photo_url} name={best.name} size={62} ringColor={bestVibe?.color} />
                   <View style={{ flex: 1, gap: 4 }}>
@@ -315,7 +330,7 @@ export default function RadarScreen() {
                 )}
                 <PrimaryButton
                   testID="best-view-profile"
-                  title="View Profile"
+                  title="View"
                   onPress={() => router.push(`/person/${best.id}`)}
                   style={{ marginTop: spacing.md }}
                 />
@@ -351,12 +366,25 @@ export default function RadarScreen() {
             ) : null}
 
             {nearby.length > 0 && (
-              <PrimaryButton
-                testID="see-more-nearby"
-                title="See More Nearby"
-                onPress={() => router.push("/(tabs)/nearby")}
-                style={{ marginTop: spacing.md }}
-              />
+              <View style={styles.nearbyNow} testID="nearby-now-row">
+                <Text style={styles.nearbyNowKicker}>NEARBY NOW</Text>
+                <View style={styles.nearbyNowInner}>
+                  <PrimaryButton
+                    testID="see-more-nearby"
+                    title="See More Nearby"
+                    onPress={() => router.push("/(tabs)/nearby")}
+                    style={{ flex: 1, minHeight: 46 }}
+                  />
+                  <View style={styles.avatarStack}>
+                    {nearby.slice(0, 4).map((u, i) => (
+                      <View key={u.id} style={[styles.stackItem, i > 0 && { marginLeft: -10 }]}>
+                        <Avatar uri={u.photo_url} name={u.name} size={30} />
+                      </View>
+                    ))}
+                  </View>
+                  {nearby.length > 4 && <Text style={styles.moreText}>+{nearby.length - 4} more</Text>}
+                </View>
+              </View>
             )}
 
             <View style={styles.actionRow}>
@@ -495,6 +523,13 @@ const styles = StyleSheet.create({
   densityTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   densityText: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 19 },
   densityLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800", marginTop: spacing.sm },
+  statSub: { color: colors.textTertiary, fontSize: 9.5, fontWeight: "600", marginTop: 2, textAlign: "center" },
+  nearbyNow: { marginTop: spacing.md },
+  nearbyNowKicker: { color: colors.orange, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: spacing.sm },
+  nearbyNowInner: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  avatarStack: { flexDirection: "row", alignItems: "center" },
+  stackItem: { borderWidth: 2, borderColor: colors.surface, borderRadius: 17 },
+  moreText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
   whyShown: { color: colors.teal, fontSize: font.sm, fontWeight: "600", marginTop: spacing.sm, lineHeight: 18 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(17,24,39,0.4)", justifyContent: "flex-end" },
   radiusSheet: {

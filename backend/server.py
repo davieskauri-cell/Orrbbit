@@ -295,51 +295,71 @@ COMPAT = {
 
 DEMO_PASSWORD = "Intro123!"
 
-# Extra Melbourne radar demo people — makes the Pro 500m radar demo feel alive
-# (36 nearby, ~14 aligned for a Networking user, two dense cluster groups).
-# (name, age, vibe, dist_m, bearing_deg, portrait, bio)
-RADAR_DEMO_USERS = [
-    ("Maya", 27, "need_advice", 40, 300, "women/68", "Marketing manager figuring out my next step."),
-    ("Tom", 30, "networking", 120, 350, "men/52", "Product manager who loves meeting builders."),
-    ("Ava", 25, "open_to_chat", 150, 60, "women/12", "New to Melbourne, always up for a chat."),
-    ("Noah", 33, "coffee_drinks", 190, 160, "men/71", "On a mission to find the best flat white."),
-    ("Isabella", 29, "exploring", 230, 20, "women/33", "Weekend explorer and food market fan."),
-    ("Ethan", 26, "gym_buddy", 270, 250, "men/17", "Training for a half marathon."),
-    ("Lucas", 35, "networking", 480, 310, "men/44", "Sales director open to a quick intro."),
-    # cluster group A — south-east pocket (~+8)
-    ("Grace", 28, "networking", 360, 105, "women/21", "Consultant who loves a good chat."),
-    ("Oscar", 31, "networking", 380, 112, "men/23", "Agency founder, always up for ideas."),
-    ("Ruby", 24, "open_to_chat", 400, 118, "women/47", "Say hi if you see me around!"),
-    ("Henry", 29, "coffee_drinks", 420, 124, "men/61", "Espresso enthusiast."),
-    ("Chloe", 26, "coffee_drinks", 355, 128, "women/8", "Coffee catch-ups are my thing."),
-    ("Leo", 32, "exploring", 440, 108, "men/36", "Discovering laneways one day at a time."),
-    ("Ella", 23, "exploring", 405, 120, "women/85", "New here, exploring everything."),
-    ("Max", 34, "relationship", 445, 115, "men/9", "Looking for something genuine."),
-    # cluster group B — south-west pocket (~+12)
-    ("Aria", 27, "networking", 370, 200, "women/39", "Designer meeting other creatives."),
-    ("Finn", 30, "need_advice", 385, 206, "men/77", "Thinking about a career pivot."),
-    ("Layla", 25, "coffee_drinks", 400, 212, "women/54", "Always keen for a coffee."),
-    ("Kai", 28, "coffee_drinks", 415, 218, "men/29", "Flat white and a chat?"),
-    ("Nina", 31, "coffee_drinks", 430, 203, "women/72", "Cafe hopping today."),
-    ("Owen", 33, "exploring", 445, 209, "men/83", "Wandering the city."),
-    ("Ivy", 22, "exploring", 460, 215, "women/26", "Exploring Melbourne this week."),
-    ("Jude", 29, "exploring", 365, 220, "men/55", "Out and about, open to detours."),
-    ("Sofia", 26, "gym_buddy", 390, 197, "women/90", "Gym in the mornings, walks at lunch."),
-    ("Ali", 32, "gym_buddy", 420, 214, "men/40", "Lifting and running buddy wanted."),
-    ("Lena", 24, "relationship", 450, 207, "women/61", "Hoping to meet someone real."),
-    ("Theo", 35, "relationship", 470, 201, "men/67", "Old-school about meeting people."),
-]
-
-RADAR_DEMO_DETAILS = {
-    "maya@radar.intro.demo": {
+# Focus Map demo people — with the 9 core demo accounts this yields
+# 61 nearby, 47 aligned and 12 strong matches (score >= 6) for a
+# Networking Pro user at 500m in Melbourne.
+def _build_radar_demo():
+    users = []  # (name, age, vibe, dist_m, bearing_deg, portrait, bio)
+    details = {}
+    # 10 strong matches (high relevance -> individual markers with glow)
+    strong = [
+        ("Maya", 27, "need_advice", 40, 300, "women/68", "Marketing manager figuring out my next step."),
+        ("Tom", 30, "networking", 90, 350, "men/52", "Product manager who loves meeting builders."),
+        ("Grace", 28, "networking", 130, 45, "women/21", "Consultant who loves a good chat."),
+        ("Oscar", 31, "networking", 160, 140, "men/23", "Agency founder, always up for ideas."),
+        ("Ava", 25, "open_to_chat", 185, 240, "women/12", "New to Melbourne, always up for a chat."),
+        ("Finn", 30, "need_advice", 215, 320, "men/77", "Thinking about a career pivot."),
+        ("Aria", 27, "networking", 245, 70, "women/39", "Designer meeting other creatives."),
+        ("Lucas", 35, "networking", 280, 180, "men/44", "Sales director open to a quick intro."),
+        ("Ruby", 24, "open_to_chat", 320, 20, "women/47", "Say hi if you see me around!"),
+        ("Theo", 33, "networking", 355, 260, "men/67", "Founder happy to swap stories."),
+    ]
+    users.extend(strong)
+    for name, *_rest in strong[1:]:
+        details[f"{name.lower()}@radar.intro.demo"] = {
+            "intent_strength": "Actively looking now", "visibility": "public",
+        }
+    details["maya@radar.intro.demo"] = {
         "intent": "Need marketing advice", "advice_role": "Seeking Advice",
         "advice_category": "Marketing advice", "context": "Marketing Manager",
         "background": "Marketing manager at a retail brand",
         "looking_for": ["Career direction", "Marketing"],
         "tags": ["Marketing", "Startups", "Business"], "visibility": "public",
         "availability": "Available now", "intent_strength": "Actively looking now",
-    },
-}
+    }
+    # heat pocket: +12 Chat (sector 90-135, outer band)
+    chat = [("Poppy", "women/23"), ("Arlo", "men/12"), ("Daisy", "women/30"), ("Felix", "men/57"),
+            ("Hazel", "women/44"), ("Jasper", "men/2"), ("Luna", "women/79"), ("Milo", "men/31"),
+            ("Nora", "women/50"), ("Reuben", "men/86"), ("Sadie", "women/15"), ("Toby", "men/64")]
+    for i, (n, p) in enumerate(chat):
+        users.append((n, 22 + i % 12, "open_to_chat", 340 + i * 10, 96 + i * 3, p, "Around the city today — say hi."))
+    # heat pocket: +8 Coffee (sector 180-225, outer band)
+    coffee = [("Willow", "women/3"), ("Ezra", "men/19"), ("Iris", "women/62"), ("Hugo", "men/47"),
+              ("Pearl", "women/71"), ("Angus", "men/74"), ("Bonnie", "women/36"), ("Callum", "men/38")]
+    for i, (n, p) in enumerate(coffee):
+        users.append((n, 23 + i % 10, "coffee_drinks", 350 + i * 13, 192 + i * 4, p, "Keen for a coffee catch-up."))
+    # heat pocket: +6 Advice (sector 270-315, middle band)
+    advice = [("Elsie", "women/56"), ("Rory", "men/25"), ("Freya", "women/82"),
+              ("Lachlan", "men/91"), ("Matilda", "women/28"), ("Patrick", "men/6")]
+    for i, (n, p) in enumerate(advice):
+        users.append((n, 24 + i % 9, "need_advice", 210 + i * 17, 282 + i * 3, p, "Could use a second opinion on a few things."))
+    # scattered crowd (mostly aligned, low relevance -> clustered organically)
+    scatter = [
+        ("Harvey", "men/33", "networking", 70, 15), ("Bella", "women/9", "open_to_chat", 110, 205),
+        ("Archie", "men/48", "need_advice", 150, 95), ("Georgia", "women/41", "networking", 190, 165),
+        ("Louis", "men/59", "open_to_chat", 230, 340), ("Evie", "women/66", "networking", 265, 120),
+        ("Albie", "men/70", "need_advice", 300, 30), ("Millie", "women/18", "open_to_chat", 335, 225),
+        ("Freddie", "men/81", "networking", 370, 305), ("Lottie", "women/88", "open_to_chat", 405, 55),
+        ("Ollie", "men/16", "networking", 440, 150), ("Phoebe", "women/76", "need_advice", 465, 275),
+        ("Barney", "men/28", "open_to_chat", 480, 10), ("Clara", "women/59", "networking", 490, 190),
+        ("Ned", "men/93", "gym_buddy", 300, 155), ("Rosa", "women/95", "relationship", 430, 335),
+    ]
+    for i, (n, p, v, d, b) in enumerate(scatter):
+        users.append((n, 22 + i % 15, v, d, b, p, "Out and about in Melbourne."))
+    return users, details
+
+
+RADAR_DEMO_USERS, RADAR_DEMO_DETAILS = _build_radar_demo()
 
 DEMO_ACCOUNTS = [
     {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Intro and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5, "verified": True},
@@ -1591,7 +1611,9 @@ async def seed_demo_accounts():
                 f"https://picsum.photos/seed/{acc['email']}-b/400/400",
             ],
             "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
-            "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
+            "visible": True,
+            "radius": {"kauri@intro.demo": 500}.get(acc["email"], 50),
+            "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
             "visible_for": 30, "verified": acc["verified"], "active_now": True, "is_demo": True,
             "trial_mode_active": False,
@@ -1623,7 +1645,7 @@ async def seed_demo_accounts():
             "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 5 + i * 3,
             "visible": True, "radius": 100, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
-            "visible_for": 60, "verified": i % 3 == 0, "active_now": i % 4 != 0, "is_demo": True,
+            "visible_for": 60, "verified": i % 3 == 0, "active_now": i % 4 != 3, "is_demo": True,
             "trial_mode_active": False, "plan": "free",
             "vibe_details": RADAR_DEMO_DETAILS.get(email, {}),
             "lat": None, "lng": None, "last_active": now_iso(),
@@ -1636,6 +1658,9 @@ async def seed_demo_accounts():
             doc["hashed_password"] = pwd_context.hash(DEMO_PASSWORD)
             doc["created_at"] = now_iso()
             await db.users.insert_one(doc)
+    # remove stale radar demo users from older seeds
+    valid_emails = [f"{u[0].lower()}@radar.intro.demo" for u in RADAR_DEMO_USERS]
+    await db.users.delete_many({"email": {"$regex": "@radar\\.intro\\.demo$", "$nin": valid_emails}})
     logger.info("Seeded %d radar demo users", len(RADAR_DEMO_USERS))
     # global demo users (same rules: <=100m within their own city)
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):

@@ -131,3 +131,8 @@ main agent changes:
   - nearby: header shows "100+ people nearby..." at cap; footer cap card w/ "Why limit?"
   - ModeSelector trimmed to Social/Networking/Campus/Events/Fitness
 Backend verified via curl: plan defaults OK, HD demo 100-cap OK. needs_retesting: true (frontend flows)
+
+## Iteration 9 — Focus Map (visual, self-verified via screenshots)
+- Focus top-12 markers + vibe clusters + heat zones + relevance glow; stats microcopy; BEST NEARBY MATCH card (strong-only); NEARBY NOW row w/ avatar stack; cluster tap → /nearby?vibe=X pre-filter.
+- Demo: 61 nearby / 47 aligned / 12 strong for Kauri Pro @500m (seed rebuilt, stale radar users cleaned).
+- needs_retesting: false (self-verified end-to-end via browser screenshots)

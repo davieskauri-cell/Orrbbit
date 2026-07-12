@@ -17,7 +17,20 @@ const CX = MAP_W / 2;
 const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
 const MAX_SCALE = 3;
-const MAX_MARKERS = 24; // markers cluster beyond this so dense areas stay readable
+const MAX_MARKERS = 24; // absolute hard cap for individual avatars
+const FOCUS_MARKERS = 12; // Focus Map: only the most relevant people get their own marker
+
+const SHORT_VIBE: Record<string, string> = {
+  open_to_chat: "Chat",
+  coffee_drinks: "Coffee",
+  need_advice: "Advice",
+  networking: "Networking",
+  relationship: "Dating",
+  gym_buddy: "Gym",
+  exploring: "Exploring",
+};
+
+const isStrong = (u: NearbyUser) => !!u.compatible && (u.score ?? 0) >= 6;
 
 function ringSet(r: number): number[] {
   if (r <= 25) return [10, 25];
@@ -162,13 +175,15 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       dist: approx.distance,
     };
   });
-  // top 24 most relevant get individual markers, the rest collapse into clusters
+  // Focus Map: top 8-12 most relevant get individual markers, the rest collapse
+  // into clusters (hard cap of 24 individual avatars always holds)
+  const FOCUS = Math.min(FOCUS_MARKERS, MAX_MARKERS);
   let singles = placed;
   let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
-  if (placed.length > MAX_MARKERS) {
-    singles = placed.slice(0, MAX_MARKERS);
+  if (placed.length > FOCUS) {
+    singles = placed.slice(0, FOCUS);
     const buckets = new Map<string, typeof placed>();
-    placed.slice(MAX_MARKERS).forEach((p) => {
+    placed.slice(FOCUS).forEach((p) => {
       const sector = Math.floor((((p.bearing % 360) + 360) % 360) / 45);
       const band = Math.min(2, Math.floor((p.dist / MAX_DIST) * 3));
       const key = `${sector}-${band}`;
@@ -223,6 +238,21 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     }
   }
 
+  // dominant vibe per cluster (drives bubble colour, label and heat zones)
+  const clusterInfo = clusters.map((c) => {
+    const counts: Record<string, number> = {};
+    c.users.forEach((u) => {
+      if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
+    });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    const dominant = top && top[1] / c.users.length >= 0.5 ? top[0] : null;
+    return {
+      ...c,
+      color: (dominant && vibeMap[dominant]?.color) || colors.teal,
+      label: dominant ? SHORT_VIBE[dominant] || null : null,
+    };
+  });
+
   return (
     <View style={styles.mapArea} testID="radar-map">
       <GestureDetector gesture={gestures}>
@@ -238,8 +268,22 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
             />
           </View>
 
+          {/* social heat zones — soft, approximate density glow (privacy-safe) */}
+          {clusterInfo
+            .filter((c) => c.users.length >= 5)
+            .map((c) => (
+              <View
+                key={`heat-${c.key}`}
+                pointerEvents="none"
+                style={[styles.heatOuter, { left: c.x + 20 - 72, top: c.y + 20 - 72, backgroundColor: c.color + "12" }]}
+              >
+                <View style={[styles.heatInner, { backgroundColor: c.color + "1A" }]} />
+              </View>
+            ))}
+
           {rings.map((m) => {
             const f = m / MAX_DIST;
+            const selected = m === radiusSetting;
             const active = m <= radiusSetting;
             return (
               <View
@@ -251,7 +295,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                     width: MAX_R * 2 * f,
                     height: MAX_R * 2 * f,
                     borderRadius: MAX_R * f,
-                    borderColor: active ? colors.teal + "77" : "#B9C4C7",
+                    borderWidth: selected ? 1.5 : 1,
+                    borderColor: selected
+                      ? colors.teal + "99"
+                      : active
+                      ? colors.teal + "38"
+                      : "rgba(160,175,180,0.45)",
                   },
                 ]}
               />
@@ -299,38 +348,55 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
             </View>
           </Reanimated.View>
 
-          {/* nearby blips — approximate/fuzzed positions only, never exact GPS */}
-          {singles.map((p) => (
-            <Reanimated.View key={p.u.id} style={[styles.blip, { left: p.x, top: p.y }, markerStyle]}>
-              <Pressable testID={`radar-blip-${p.u.id}`} onPress={() => onSelect(p.u)}>
-                <Avatar uri={p.u.photo_url} name={p.u.name} size={38} ringColor={p.color} />
-                {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
-              </Pressable>
-            </Reanimated.View>
-          ))}
-
-          {/* clusters — dense groups collapse into count bubbles */}
-          {clusters.map((c) => {
-            // dominant vibe label when most of the cluster shares one vibe
-            const counts: Record<string, number> = {};
-            c.users.forEach((u) => {
-              if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
-            });
-            const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-            const vibeLabel = top && top[1] / c.users.length >= 0.6 ? vibeMap[top[0]]?.label : null;
+          {/* nearby blips — approximate/fuzzed positions only, never exact GPS.
+              Strong matches glow, lower relevance fades. */}
+          {singles.map((p) => {
+            const strong = isStrong(p.u);
+            const size = strong ? 42 : p.u.compatible ? 38 : 34;
             return (
-              <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
-                <Pressable testID={`radar-cluster-${c.key}`} style={styles.cluster} onPress={() => onCluster?.(c.users)}>
-                  <Text style={styles.clusterText}>+{c.users.length}</Text>
-                  {vibeLabel && (
-                    <Text style={styles.clusterVibe} numberOfLines={1}>
-                      {vibeLabel}
-                    </Text>
+              <Reanimated.View
+                key={p.u.id}
+                style={[styles.blip, { left: p.x, top: p.y }, !p.u.compatible && styles.blipFaded, markerStyle]}
+              >
+                <Pressable testID={`radar-blip-${p.u.id}`} onPress={() => onSelect(p.u)}>
+                  {strong && (
+                    <View
+                      style={[
+                        styles.glow,
+                        {
+                          backgroundColor: p.color + "40",
+                          shadowColor: p.color,
+                          width: size + 14,
+                          height: size + 14,
+                          borderRadius: (size + 14) / 2,
+                        },
+                      ]}
+                    />
                   )}
+                  <Avatar uri={p.u.photo_url} name={p.u.name} size={size} ringColor={p.color} />
+                  {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
                 </Pressable>
               </Reanimated.View>
             );
           })}
+
+          {/* clusters — vibe-coloured count bubbles */}
+          {clusterInfo.map((c) => (
+            <Reanimated.View key={`cluster-${c.key}`} style={[styles.blip, { left: c.x, top: c.y }, markerStyle]}>
+              <Pressable
+                testID={`radar-cluster-${c.key}`}
+                style={[styles.cluster, { backgroundColor: c.color }]}
+                onPress={() => onCluster?.(c.users)}
+              >
+                <Text style={styles.clusterText}>+{c.users.length}</Text>
+                {c.label && (
+                  <Text style={styles.clusterVibe} numberOfLines={1}>
+                    {c.label}
+                  </Text>
+                )}
+              </Pressable>
+            </Reanimated.View>
+          ))}
         </Reanimated.View>
       </GestureDetector>
 
@@ -362,6 +428,16 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           <Text style={styles.radiusChipText}>Radius: {radiusSetting}m</Text>
           <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
         </Pressable>
+      )}
+
+      {/* focus summary — curated view indicator */}
+      {clusters.length > 0 && (
+        <View style={styles.focusChip} testID="focus-summary">
+          <Text style={styles.focusChipText}>
+            {users.length}
+            {users.length >= 100 ? "+" : ""} nearby · Showing your best {singles.length}
+          </Text>
+        </View>
       )}
 
       {/* privacy pill — bottom of map */}
@@ -462,6 +538,37 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
+  blipFaded: { opacity: 0.55 },
+  glow: {
+    position: "absolute",
+    top: -7,
+    left: -7,
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  heatOuter: {
+    position: "absolute",
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heatInner: { width: 92, height: 92, borderRadius: 46 },
+  focusChip: {
+    position: "absolute",
+    top: 52,
+    left: 10,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  focusChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
   cluster: {
     width: 40,
     height: 40,

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable } from "react-native";
 import { showAlert } from "@/src/lib/alert";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -17,6 +17,7 @@ const FILTERS = [
   { key: "networking", label: "Networking" },
   { key: "need_advice", label: "Need Advice" },
   { key: "gym_buddy", label: "Gym Buddy" },
+  { key: "exploring", label: "Exploring" },
 ];
 
 export default function NearbyScreen() {
@@ -27,6 +28,12 @@ export default function NearbyScreen() {
   const [filter, setFilter] = useState("all");
   const [detailFilters, setDetailFilters] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const { vibe: vibeParam } = useLocalSearchParams<{ vibe?: string }>();
+
+  // cluster taps on the radar open this list pre-filtered to the cluster's vibe
+  useEffect(() => {
+    if (vibeParam && FILTERS.some((f) => f.key === vibeParam)) setFilter(String(vibeParam));
+  }, [vibeParam]);
 
   const DETAIL_FILTERS: { key: string; label: string; test: (n: any) => boolean }[] = [
     { key: "active", label: "Active now", test: (n) => !!n.active_now },
