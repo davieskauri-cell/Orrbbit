@@ -30,7 +30,7 @@ export default function ChangeVibeModal() {
       if (changed) {
         showAlert("You changed your vibe", "Do you want to update your vibe details?", [
           { text: "Keep for now", style: "cancel", onPress: () => router.back() },
-          { text: "Update details", onPress: () => router.replace("/vibe-details") },
+          { text: "Update details", onPress: () => router.replace(selected === "opportunity" ? "/opportunity-details" : "/vibe-details") },
         ]);
       } else {
         router.back();

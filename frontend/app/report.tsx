@@ -10,6 +10,11 @@ import { colors, spacing, radius, font } from "@/src/theme";
 
 const REASONS = [
   "Spam",
+  "Scam",
+  "Misleading opportunity",
+  "Unsafe item or service",
+  "Illegal activity",
+  "Payment dispute",
   "No-show",
   "Harassment",
   "Fake profile",

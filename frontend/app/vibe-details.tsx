@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -23,6 +23,14 @@ export default function VibeDetailsScreen() {
   const fields = VIBE_FORMS[vibeKey] || VIBE_FORMS.open_to_chat;
   const [details, setDetails] = useState<Record<string, any>>(user?.vibe_details || {});
   const [busy, setBusy] = useState(false);
+
+  // Opportunity has its own dedicated details screen
+  useEffect(() => {
+    if (vibeKey === "opportunity") {
+      router.replace(next ? `/opportunity-details?next=${next}` : "/opportunity-details");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vibeKey]);
 
   const done = () => {
     if (next === "tabs") router.replace("/etiquette?next=tabs");

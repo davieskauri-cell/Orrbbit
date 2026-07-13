@@ -34,7 +34,37 @@ const SHORT_VIBE: Record<string, string> = {
   relationship: "Dating",
   gym_buddy: "Gym",
   exploring: "Exploring",
+  opportunity: "Opportunity",
 };
+
+const AMBER = "#F59E0B";
+
+/** Cluster label for opportunity-dominant bubbles: "+6 Paid Tasks", "+4 Business", "+2 Help"… */
+function opportunityClusterLabel(users: NearbyUser[]): string {
+  const opp = users.filter((u) => u.vibe === "opportunity");
+  const byType: Record<string, number> = {};
+  const byCat: Record<string, number> = {};
+  opp.forEach((u) => {
+    const t = u.vibe_details?.opportunity_type;
+    const c = u.vibe_details?.category;
+    if (t) byType[t] = (byType[t] || 0) + 1;
+    if (c) byCat[c] = (byCat[c] || 0) + 1;
+  });
+  const topT = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+  if (topT && topT[1] / opp.length >= 0.5) {
+    const short: Record<string, string> = {
+      "Paid task": "Paid Tasks",
+      "Need help": "Help",
+      "Can help": "Can Help",
+      "Selling something": "Selling",
+      "Collaboration": "Collab",
+    };
+    if (short[topT[0]]) return short[topT[0]];
+  }
+  const topC = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+  if (topC && topC[1] / opp.length >= 0.5) return topC[0];
+  return "Opportunities";
+}
 
 const isStrong = (u: NearbyUser) => !!u.compatible && (u.score ?? 0) >= 6;
 
@@ -159,9 +189,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
 
-  // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in
+  // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in.
+  // Boost updates DURING the pinch (not just on release) so detail loads immediately.
   const [tileBoost, setTileBoost] = useState(1);
-  const applyBoost = (s: number) => setTileBoost(s >= 2 ? 2 : 1);
+  const boostSV = useSharedValue(1);
+  const applyBoost = (s: number) => setTileBoost(s >= 1.5 ? 2 : 1);
 
   useEffect(() => {
     Animated.loop(
@@ -178,6 +210,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const pinch = Gesture.Pinch()
     .onUpdate((e) => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
+      // load higher-detail tiles as soon as the zoom threshold is crossed
+      const nb = scale.value >= 1.5 ? 2 : 1;
+      if (nb !== boostSV.value) {
+        boostSV.value = nb;
+        runOnJS(applyBoost)(scale.value);
+      }
     })
     .onEnd(() => {
       savedScale.value = scale.value;
@@ -210,6 +248,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       const target = scale.value > 1.2 ? 1 : 2;
       scale.value = withTiming(target);
       savedScale.value = target;
+      boostSV.value = target >= 1.5 ? 2 : 1;
       runOnJS(applyBoost)(target);
       if (target === 1) {
         tx.value = withTiming(0);
@@ -234,6 +273,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const recentre = () => {
     scale.value = withTiming(1);
     savedScale.value = 1;
+    boostSV.value = 1;
     applyBoost(1);
     tx.value = withTiming(0);
     ty.value = withTiming(0);
@@ -245,6 +285,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     const target = Math.min(Math.max(savedScale.value * factor, 1), MAX_SCALE);
     scale.value = withTiming(target);
     savedScale.value = target;
+    boostSV.value = target >= 1.5 ? 2 : 1;
     applyBoost(target);
     if (target <= 1.01) {
       tx.value = withTiming(0);
@@ -362,7 +403,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     return {
       ...c,
       color: (dominant && vibeMap[dominant]?.color) || colors.teal,
-      label: dominant ? SHORT_VIBE[dominant] || null : null,
+      label:
+        dominant === "opportunity"
+          ? opportunityClusterLabel(c.users)
+          : dominant
+          ? SHORT_VIBE[dominant] || null
+          : null,
     };
   });
 
@@ -375,24 +421,40 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
             {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <View style={styles.tilt}>
-                {/* higher-zoom tiles rendered at native resolution so the map stays crisp */}
+                {/* BASE retina layer — always mounted so zooming never drops to a blank/blurry map */}
                 <View
                   style={{
-                    width: MAP_W * 2 ** tileBoost,
-                    height: MAP_H * 2 ** tileBoost,
-                    marginLeft: (-MAP_W * (2 ** tileBoost - 1)) / 2,
-                    marginTop: (-MAP_H * (2 ** tileBoost - 1)) / 2,
-                    transform: [{ scale: 1 / 2 ** tileBoost }],
+                    width: MAP_W * 2,
+                    height: MAP_H * 2,
+                    marginLeft: -MAP_W / 2,
+                    marginTop: -MAP_H / 2,
+                    transform: [{ scale: 0.5 }],
                   }}
                 >
-                  <MapTiles
-                    lat={loc.lat}
-                    lng={loc.lng}
-                    width={MAP_W * 2 ** tileBoost}
-                    height={MAP_H * 2 ** tileBoost}
-                    zoom={zoom + tileBoost}
-                  />
+                  <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W * 2} height={MAP_H * 2} zoom={zoom + 1} />
                 </View>
+                {/* HIGH-DETAIL layer — sharper, higher-zoom tiles load on top while zoomed in */}
+                {tileBoost >= 2 && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: (-MAP_W * 3) / 2,
+                      top: (-MAP_H * 3) / 2,
+                      width: MAP_W * 4,
+                      height: MAP_H * 4,
+                      transform: [{ scale: 0.25 }],
+                    }}
+                  >
+                    <MapTiles
+                      lat={loc.lat}
+                      lng={loc.lng}
+                      width={MAP_W * 4}
+                      height={MAP_H * 4}
+                      zoom={zoom + 2}
+                      showFallback={false}
+                    />
+                  </View>
+                )}
               </View>
               <LinearGradient
                 colors={["rgba(255,255,255,0.16)", "rgba(255,255,255,0)", "rgba(255,255,255,0)", "rgba(255,255,255,0.12)"]}
@@ -493,6 +555,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                     )}
                     <Avatar uri={p.u.photo_url} name={p.u.name} size={size} ringColor={p.color} />
                     {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
+                    {p.u.vibe === "opportunity" && (
+                      <View style={styles.oppBadge}>
+                        <Ionicons name="sparkles" size={8} color="#FFF" />
+                      </View>
+                    )}
                   </Pressable>
                 </MapAnchor>
               );
@@ -750,6 +817,19 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 2,
     borderColor: colors.surface,
+  },
+  oppBadge: {
+    position: "absolute",
+    bottom: -2,
+    left: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: AMBER,
+    borderWidth: 1.5,
+    borderColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   rightControls: {
     position: "absolute",

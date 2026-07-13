@@ -278,18 +278,20 @@ VIBES = [
     {"key": "need_advice", "label": "Need Advice", "description": "Get or offer advice", "color": "#8B5CF6", "icon": "help-circle", "ping_title": "Someone nearby needs advice 💬", "action": "Offer Advice"},
     {"key": "gym_buddy", "label": "Gym Buddy", "description": "Train together", "color": "#22C55E", "icon": "barbell", "ping_title": "Someone nearby wants to train 🏋️", "action": "Let's Train"},
     {"key": "exploring", "label": "Exploring", "description": "Discover nearby", "color": "#F59E0B", "icon": "walk", "ping_title": "Someone nearby wants to explore 🧭", "action": "Explore Together"},
+    {"key": "opportunity", "label": "Opportunity", "description": "Ask for help, offer a service, or share a local opportunity", "color": "#F59E0B", "icon": "sparkles", "ping_title": "Opportunity nearby ✨", "action": "Connect to Discuss"},
     {"key": "busy", "label": "Busy", "description": "Not available", "color": "#9CA3AF", "icon": "notifications-off", "ping_title": None, "action": None},
 ]
 VIBE_KEYS = {v["key"] for v in VIBES}
 
 COMPAT = {
-    "open_to_chat": ["open_to_chat", "coffee_drinks", "exploring", "networking", "need_advice"],
+    "open_to_chat": ["open_to_chat", "coffee_drinks", "exploring", "networking", "need_advice", "opportunity"],
     "relationship": ["relationship"],
     "coffee_drinks": ["open_to_chat", "coffee_drinks", "exploring"],
-    "networking": ["networking", "open_to_chat", "need_advice"],
-    "need_advice": ["need_advice", "networking", "open_to_chat"],
+    "networking": ["networking", "open_to_chat", "need_advice", "opportunity"],
+    "need_advice": ["need_advice", "networking", "open_to_chat", "opportunity"],
     "gym_buddy": ["gym_buddy", "open_to_chat"],
     "exploring": ["exploring", "coffee_drinks", "open_to_chat"],
+    "opportunity": ["opportunity", "networking", "need_advice", "open_to_chat"],
     "busy": [],
 }
 
@@ -343,6 +345,29 @@ def _build_radar_demo():
               ("Lachlan", "men/91"), ("Matilda", "women/28"), ("Patrick", "men/6")]
     for i, (n, p) in enumerate(advice):
         users.append((n, 24 + i % 9, "need_advice", 210 + i * 17, 282 + i * 3, p, "Could use a second opinion on a few things."))
+    # opportunity pocket: hero at ~80m + small amber cluster (sector ~210-230)
+    users.append(("Priya", 34, "opportunity", 80, 220, "women/33", "Small business owner in the CBD."))
+    details["priya@radar.intro.demo"] = {
+        "opportunity_type": "Need help", "category": "Business",
+        "public_summary": "Need help with a staff issue",
+        "private_details": "I run a small business and need practical HR help with a staff matter. Happy to discuss and pay for the right support.",
+        "payment": "Open to paying", "intent": "Need help with a staff issue",
+        "tags": ["Business", "HR"], "visibility": "public",
+        "availability": "Available now", "intent_strength": "Actively looking now",
+    }
+    opportunity = [
+        ("Dev", 29, "men/36", "Can help", "Tech", "Can help with websites and app bugs", "Free advice", 150, 212),
+        ("Sana", 31, "women/85", "Paid task", "Home", "Paid task: help moving a couch this arvo", "Paid task", 260, 228),
+        ("Jade", 26, "women/90", "Collaboration", "Fitness", "Looking for a run-club co-organiser", "Skill swap", 290, 221),
+        ("Marco", 38, "men/85", "Selling something", "Car", "Selling roof racks, near new", "Not sure", 320, 215),
+    ]
+    for oname, oage, op, otype, ocat, osummary, opay, od, ob in opportunity:
+        users.append((oname, oage, "opportunity", od, ob, op, "Sharing an opportunity nearby."))
+        details[f"{oname.lower()}@radar.intro.demo"] = {
+            "opportunity_type": otype, "category": ocat, "public_summary": osummary,
+            "private_details": "Happy to share the full details once we connect.", "payment": opay,
+            "intent": osummary, "visibility": "public",
+        }
     # scattered crowd (mostly aligned, low relevance -> clustered organically)
     scatter = [
         ("Harvey", "men/33", "networking", 70, 15), ("Bella", "women/9", "open_to_chat", 110, 205),
@@ -595,9 +620,22 @@ async def remove_photo(index: int, user: dict = Depends(get_current_user)):
     return public_user(user)
 
 
+BANNED_OPPORTUNITY_TERMS = [
+    "weapon", "gun", "firearm", "ammunition", "drugs", "cocaine", "heroin", "meth", "mdma",
+    "escort", "adult service", "sexual service", "gambling", "casino", "betting ring",
+    "investment scheme", "guaranteed returns", "pyramid scheme", "cure for", "miracle cure",
+]
+
+
 @api_router.put("/users/me/vibe-details")
 async def update_vibe_details(body: VibeDetailsIn, user: dict = Depends(get_current_user)):
     details = {k: v for k, v in body.details.items() if v not in (None, "", [])}
+    text = " ".join(str(details.get(k, "")) for k in ("public_summary", "private_details", "intent", "context")).lower()
+    if any(t in text for t in BANNED_OPPORTUNITY_TERMS):
+        raise HTTPException(
+            status_code=400,
+            detail="This opportunity isn't allowed on Intro. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.",
+        )
     await db.users.update_one({"id": user["id"]}, {"$set": {"vibe_details": details}})
     user = await db.users.find_one({"id": user["id"]})
     return public_user(user)
@@ -872,6 +910,8 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
                 continue
         vis = ovd.get("visibility", "public")
         shown_details = ovd if vis == "public" else ({"intent": ovd.get("intent")} if vis in ("after_view", "after_accept") else {})
+        # opportunity private details unlock only after a mutual connection — never in discovery
+        shown_details = {k: v for k, v in shown_details.items() if k != "private_details"}
         results.append({
             "id": o["id"],
             "name": o.get("name"),
@@ -1049,6 +1089,36 @@ async def create_match(body: MatchIn, user: dict = Depends(get_current_user)):
     }
 
 
+@api_router.get("/opportunity/{user_id}")
+async def get_opportunity(user_id: str, user: dict = Depends(get_current_user)):
+    """Public opportunity info for a nearby user. Private details unlock ONLY after a mutual connection."""
+    other = await db.users.find_one({"id": user_id}, {"hashed_password": 0, "_id": 0})
+    if not other:
+        raise HTTPException(status_code=404, detail="User not found")
+    vd = other.get("vibe_details") or {}
+    match = await db.matches.find_one({
+        "active": True,
+        "$or": [{"user_a": user["id"], "user_b": user_id}, {"user_a": user_id, "user_b": user["id"]}],
+    })
+    connected = bool(match)
+    return {
+        "user": {
+            "id": other["id"], "name": other.get("name"), "age": other.get("age"),
+            "photo_url": other.get("photo_url"), "verified": other.get("verified", False),
+            "active_now": other.get("active_now", True), "bio": other.get("bio", ""),
+            "city": other.get("city", "Melbourne"),
+        },
+        "opportunity": {
+            "opportunity_type": vd.get("opportunity_type"),
+            "category": vd.get("category"),
+            "public_summary": vd.get("public_summary") or vd.get("intent"),
+            "payment": vd.get("payment"),
+        },
+        "connected": connected,
+        "private_details": (vd.get("private_details") or None) if connected else None,
+    }
+
+
 # ----------------------------- Meetups -----------------------------
 @api_router.post("/meetups")
 async def start_meetup(body: MeetupIn, user: dict = Depends(get_current_user)):
@@ -1172,8 +1242,8 @@ async def block_user(body: BlockIn, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
-HIGH_RISK_WORDS = ["unsafe", "threat", "sexual", "stalk", "danger"]
-MEDIUM_RISK_WORDS = ["harass", "fake", "repeated", "recruiter spam", "mislead", "uncomfortable", "inappropriate"]
+HIGH_RISK_WORDS = ["unsafe", "threat", "sexual", "stalk", "danger", "illegal", "weapon"]
+MEDIUM_RISK_WORDS = ["harass", "fake", "repeated", "recruiter spam", "mislead", "uncomfortable", "inappropriate", "scam", "payment dispute", "spam"]
 
 
 def classify_risk(reason: str) -> str:

@@ -1,0 +1,69 @@
+{
+  "summary": "Iter 12 — Opportunity vibe + HD Radar zoom testing. BACKEND: 8/8 pytest PASS (vibes list has opportunity{amber,sparkles}; kauri /api/nearby returns 5 opportunity demo users Priya/Dev/Sana/Jade/Marco with public_summary + payment but never private_details; GET /api/opportunity/{priya_id} returns connected=false/private_details=null pre-match, and after POST /api/matches returns connected=true and unlocks the HR-help private text; PUT /api/users/me/vibe-details rejects 'selling a gun' with 400 prohibition message and accepts normal opportunity payloads). Backend restarted after tests to re-seed kauri to demo state. FRONTEND: Radar renders /(tabs)/index.tsx correctly for kauri with amber opportunity blips (Priya sparkle badge visible), amber '+3 Opportunity' cluster (radar-cluster-*), radar-blip-<id> testIDs for individuals, radar-zoom-in/out + radar-recentre buttons, radius rings, privacy pill 'Exact locations hidden'. /opportunity/{priya_id} deep-link works end-to-end: PUBLIC SUMMARY card, PRIVATE DETAILS locked card (testID private-locked) with 'Small business owner in the CBD.' bio + Report link, tapping 'Discuss Opportunity' creates the match and swaps in testID private-unlocked showing 'I run a small business and need practical HR help…' — full lock/unlock flow verified. /report shows all 5 new reasons (Scam, Misleading opportunity, Unsafe item or service, Illegal activity, Payment dispute). HD ZOOM works once the PingModal is dismissed: zoom-in click ×2 animates worldLayer to scale(1.5) then scale(2.25), tile img srcs now include https://basemaps.cartocdn.com/rastertiles/voyager/17/... (16 base z=16 + 56 new z=17 high-detail tiles) so streets stay sharp, and radar-blip pixel size stays exactly 42×42 (overlayLayer not scaled) — matches the 'worldLayer scales, overlayLayer stays 1x' architecture. Double-click on radar-map animates to scale(2). TWO BUGS FOUND — both frontend regressions caused by the auto-PingModal: (1) The PingModal auto-opens for the closest opportunity user (Priya, ping_title='Opportunity nearby ✨') as soon as the Radar tab mounts, and its full-viewport Modal backdrop swallows pointer events → radar-zoom-in / radar-zoom-out / double-click / individual blip tap ALL fail while the ping is on screen (scale stays at 1, tiles never upgrade to z=17, opportunity-preview never renders). Only after tapping ping-dismiss does the HD zoom + blip tap → opportunity-preview flow work. (2) On the Nearby tab, tapping the filter-opportunity chip highlights the chip amber but the list renders the empty state 'No one nearby right now' instead of the 5 opportunity users — reproducible whether Nearby is entered directly or via Radar → Nearby, and even after ping dismissal. Backend /api/nearby returns all 5 opportunity users at radius 500m, so the bug is in the client filter (app/(tabs)/nearby.tsx line 63: `nearby.filter((n) => n.vibe === filter)` — likely the local `nearby` list this tab uses is not the same set the radar receives, or opportunity users are dropped by an upstream filter/dedup). Push notifications remain intentionally MOCKED (in-app pings only) — not flagged.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "src/components/PingModal.tsx",
+        "issue": "Modal (transparent backdrop) auto-opens on Radar for the nearest opportunity user (Priya, 'Opportunity nearby ✨') and its rgba(15,23,42,0.45) backdrop intercepts all touches/clicks on the radar underneath. While the ping is visible, radar-zoom-in, radar-zoom-out, radar-recentre, double-click zoom and radar-blip-* taps are all swallowed by the modal backdrop — worldLayer transform stays at scale(1), no z=17 tiles load, and tapping a blip cannot open opportunity-preview. Repro: fresh kauri demo-login → land on Radar → PingModal appears within 1–2s → click radar-zoom-in twice → transform still 'scale(1)'. Dismissing the ping via ping-dismiss restores all radar interactivity. Fix likely needs Modal 'pointerEvents=box-none' on the backdrop or gating the auto-ping to fire only after a user gesture. Reference: /app/frontend/src/components/PingModal.tsx:39-92.",
+        "testID": "ping-modal, ping-dismiss",
+        "priority": "HIGH"
+      },
+      {
+        "component": "app/(tabs)/nearby.tsx",
+        "issue": "filter-opportunity chip is present and toggles active state, but selecting it renders the empty state ('No one nearby right now') even though kauri's /api/nearby returns 5 opportunity users (Priya, Dev, Sana, Jade, Marco). All other vibe filters were not exhaustively tested but 'Opportunity' clearly filters everything out. Filter line: `nearby.filter((n) => n.vibe === filter)` at line 63 — either the local `nearby` array here excludes opportunity users, or the equality check is against a different key. Reference: /app/frontend/app/(tabs)/nearby.tsx:63.",
+        "testID": "filter-opportunity",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Radar tap → opportunity-preview → /opportunity/{id}",
+        "issue": "Blocked by ping-modal auto-popup (see UI bug #1). Once ping is dismissed the flow works end-to-end: tap Priya's radar-blip-* → 'opportunity-preview' bottom card with amber border + category · type + payment + public summary + 'Connect to Discuss' button navigates to /opportunity/{id}, which then unlocks private-details after match.",
+        "affected_testIDs": ["radar-blip-<priya_id>", "opportunity-preview", "opportunity-connect"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "src/theme.ts shadow.card",
+        "issue": "Carry-over from iter 5–11: Expo Web console emits 'shadow* style props are deprecated. Use boxShadow.' Cosmetic only, no functional impact."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter12_opportunity.py",
+    "/app/test_reports/pytest/pytest_iter12.xml",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "action_items": [
+    "HIGH — Stop PingModal from swallowing radar interactions. Options: (a) render the sheet with `pointerEvents=\"box-none\"` on the outer backdrop so only the sheet itself captures touches, (b) suppress the auto-ping while the user is on '/' (Radar) and only surface pings in the Pings tab / on non-map screens, or (c) delay the initial ping by 3–5s and cancel it as soon as the user taps a radar-blip / zoom control. Repro is 100% on a fresh demo-login.",
+    "HIGH — Fix Nearby tab 'Opportunity' filter. Investigate why `nearby.filter((n) => n.vibe === 'opportunity')` yields 0 rows while /api/nearby returns 5 with `vibe==='opportunity'`. Likely candidates: a mode/detail sub-filter dropping opportunity users (nearby.tsx:64 DETAIL_FILTERS), the parent context slicing to compatible-only, or a stale `data` memo. Add a testID on the FlatList / empty state to make future regression easier.",
+    "OPTIONAL (carry-over) — migrate deprecated shadow* style props in /app/frontend/src/theme.ts to boxShadow."
+  ],
+  "critical_code_review_comments": [
+    "server.py:281 opportunity vibe correctly includes ping_title='Opportunity nearby ✨' — this drives the auto-PingModal that is now colliding with the new blip-tap flow. Consider making ping_title advisory only for opportunity vibe (route through Pings tab, not the intrusive modal).",
+    "server.py:913-914 correctly strips 'private_details' from vibe_details in /api/nearby responses. Confirmed by test_iter12_opportunity.test_nearby_never_leaks_private_details.",
+    "server.py:1092-1119 /api/opportunity/{id} correctly gates private_details on an active mongo match. `active:true` predicate is essential — verified.",
+    "app/(tabs)/index.tsx:193-235 correctly branches to `opportunity-preview` on preview.vibe==='opportunity' with the amber border, category·type meta, payment chip, distance label and 'Connect to Discuss' → /opportunity/{id}. The card never renders private_details.",
+    "src/components/RadarView.tsx:212-259 pinch/zoomBy/doubleTap all set boostSV + call applyBoost so the high-detail (zoom+2) MapTiles layer mounts once scale>=1.5. Verified: 56 z=17 tile fetches after scale hits 2.25.",
+    "src/components/PingModal.tsx:39 <Modal visible transparent animationType='slide'> — the RN <Modal> primitive on web renders a fullscreen overlay that captures pointer events across the whole viewport, which is what breaks radar taps beneath. Non-obvious, but reproducible."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter12_opportunity.py (new — 8 tests, all pass; includes mongo cleanup of kauri matches + backend supervisor restart in teardown)",
+    "/app/test_reports/pytest/pytest_iter12.xml",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "success_rate": {
+    "backend": "8/8 (100%) — vibes list opportunity entry, 5 opportunity users in kauri /api/nearby, no private_details leak, /api/opportunity locked pre-match, /api/opportunity unlocked post-match, PUT vibe-details banned term rejected 400, PUT vibe-details normal payload 200, Priya public summary visible with distance≤500m.",
+    "frontend": "6/8 (75%) — PASS: Radar renders amber opportunity blips + amber '+3 Opportunity' cluster + sparkle on Priya; /opportunity/{id} locked→unlocked flow after 'Discuss Opportunity' click; /report shows all 5 new reasons; HD zoom (button+dblclick) works when ping is dismissed (tiles /17/ load, blip stays 42px); Nearby tab filter chip renders; existing Networking (marker-preview) regression untouched. FAIL: PingModal blocks radar interactions until dismissed (HIGH); Nearby 'Opportunity' filter renders empty state despite 5 users in /api/nearby (HIGH)."
+  },
+  "seed_data_creation": "None persisted. Test created 1 match (kauri↔priya) then deleted via direct db.matches.delete_many; then supervisor restart re-seeded kauri opportunity payload back to its Networking demo state. Verified curl /api/auth/demo-login after restart shows kauri intact.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend suite for this feature: /app/backend/tests/test_iter12_opportunity.py (8 tests) — run with `EXPO_PUBLIC_BACKEND_URL=<url> pytest`. The teardown_class attempts `supervisorctl restart backend` to re-seed kauri; if that fails on your box run it manually. Playwright fast-login: PUT /api/users/me/state {visible:true} then addInitScript to set localStorage.auth_token = JSON.stringify(token) + intro_test_mode='1' BEFORE goto('/'). Priya's radar-blip id is dynamic per DB seed — fetch it live from /api/nearby. To test radar interactions reliably you MUST first dismiss the ping-modal (data-testid=ping-dismiss) or navigate through /profile → /nearby to sidestep it (still triggers on /nearby though). Cleanup after opportunity tests: `python3 -c \"from pymongo import MongoClient; MongoClient('mongodb://localhost:27017')['test_database'].matches.delete_many({'\\$or':[{'user_a':'<kauri_id>'},{'user_b':'<kauri_id>'}]})\"` + `sudo supervisorctl restart backend`.",
+  "rca_of_issue": "Bug #1 (PingModal blocking radar): PingModal.tsx line 39 uses RN <Modal transparent animationType='slide'> without pointerEvents='box-none' on the backdrop. On web, this Modal renders a full-viewport overlay div that captures all pointer events even where the backdrop is transparent, so the underlying radar-zoom / blip Pressables receive no events until the modal is closed. The opportunity vibe (server.py:281) has ping_title='Opportunity nearby ✨', and Priya is the closest opportunity user for kauri, so this auto-ping fires immediately on Radar mount and blocks the entire new-in-iter-12 flow. Bug #2 (Nearby 'Opportunity' filter empty): app/(tabs)/nearby.tsx:63 filters purely by `n.vibe === filter`, which should work — but the resulting list is empty despite /api/nearby returning 5 opportunity users. Likely an upstream context/list transform (see AppContext.nearby population or a compatible-only slicing) is stripping opportunity vibes on the client. Reproducible on both direct /nearby load and post-radar navigation."
+}

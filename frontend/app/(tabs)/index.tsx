@@ -190,7 +190,51 @@ export default function RadarScreen() {
               onLearnMore={() => router.push("/location-privacy")}
             />
 
-            {preview && (
+            {preview && preview.vibe === "opportunity" ? (
+              <View style={[styles.previewCard, shadow.card, { borderColor: "#F59E0B66" }]} testID="opportunity-preview">
+                <View style={styles.oppHeader}>
+                  <View style={styles.oppIconWrap}>
+                    <Ionicons name="sparkles" size={13} color="#F59E0B" />
+                  </View>
+                  <Text style={styles.oppHeading}>Opportunity Nearby</Text>
+                  <Pressable testID="preview-close" onPress={() => setPreview(null)} hitSlop={8}>
+                    <Ionicons name="close" size={18} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+                <View style={styles.bestRow}>
+                  <Avatar uri={preview.photo_url} name={preview.name} size={46} ringColor="#F59E0B" />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    {!!(preview.vibe_details?.category || preview.vibe_details?.opportunity_type) && (
+                      <Text style={styles.oppMeta}>
+                        {[preview.vibe_details?.category, preview.vibe_details?.opportunity_type]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </Text>
+                    )}
+                    {!!preview.vibe_details?.payment && (
+                      <Text style={styles.oppPay}>{preview.vibe_details.payment}</Text>
+                    )}
+                    <Text style={styles.bestDist}>{distLabel(preview.distance)}</Text>
+                  </View>
+                </View>
+                {!!(preview.vibe_details?.public_summary || preview.intent) && (
+                  <Text style={styles.oppSummary} numberOfLines={2}>
+                    {preview.vibe_details?.public_summary || preview.intent}
+                  </Text>
+                )}
+                <PrimaryButton
+                  testID="opportunity-connect"
+                  title="Connect to Discuss"
+                  color="#F59E0B"
+                  onPress={() => {
+                    const id = preview.id;
+                    setPreview(null);
+                    router.push(`/opportunity/${id}`);
+                  }}
+                  style={{ marginTop: spacing.md }}
+                />
+              </View>
+            ) : preview ? (
               <View style={[styles.previewCard, shadow.card]} testID="marker-preview">
                 <View style={styles.bestRow}>
                   <Avatar
@@ -229,7 +273,7 @@ export default function RadarScreen() {
                   </View>
                 </View>
               </View>
-            )}
+            ) : null}
 
             {(user?.radius || 50) >= 250 && (
               <Text style={styles.extendedNote} testID="extended-radius-note">
@@ -500,6 +544,19 @@ const styles = StyleSheet.create({
   },
   previewName: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   previewIntent: { color: colors.textSecondary, fontSize: font.sm },
+  oppHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  oppIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#F59E0B1A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  oppHeading: { flex: 1, color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  oppMeta: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  oppPay: { color: "#F59E0B", fontSize: font.sm, fontWeight: "700" },
+  oppSummary: { color: colors.textSecondary, fontSize: font.base, lineHeight: 20, marginTop: spacing.md },
   previewBtn: {
     backgroundColor: colors.orange,
     borderRadius: 999,

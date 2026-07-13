@@ -13,17 +13,18 @@ function tileXY(lat: number, lng: number, z: number) {
   return { x, y };
 }
 
-type Props = { lat: number; lng: number; width: number; height: number; zoom?: number };
+type Props = { lat: number; lng: number; width: number; height: number; zoom?: number; showFallback?: boolean };
 
 /**
  * Bright bird's-eye basemap (CARTO Voyager / OpenStreetMap) centred on the
  * user's actual location. Colourful premium style — buildings, parks, water.
- * Renders raster tiles as plain images — works on web + native.
+ * Renders retina (@2x) raster tiles as plain images — works on web + native.
  * Only the CURRENT user's location is used; other users are never placed at
  * real coordinates on this map.
  */
-export default function MapTiles({ lat, lng, width, height, zoom = 17 }: Props) {
-  const { x, y } = tileXY(lat, lng, zoom);
+export default function MapTiles({ lat, lng, width, height, zoom = 17, showFallback = true }: Props) {
+  const z = Math.min(zoom, 20); // CARTO voyager max zoom
+  const { x, y } = tileXY(lat, lng, z);
   const cx = width / 2;
   const cy = height / 2;
   const x0 = Math.floor(x - cx / TILE);
@@ -37,7 +38,7 @@ export default function MapTiles({ lat, lng, width, height, zoom = 17 }: Props) 
       tiles.push(
         <Image
           key={`${tx}-${ty}`}
-          source={{ uri: `https://basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}@2x.png` }}
+          source={{ uri: `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${tx}/${ty}@2x.png` }}
           style={{ position: "absolute", left: cx + (tx - x) * TILE, top: cy + (ty - y) * TILE, width: TILE, height: TILE }}
           contentFit="cover"
           transition={200}
@@ -49,11 +50,13 @@ export default function MapTiles({ lat, lng, width, height, zoom = 17 }: Props) 
   return (
     <View style={{ width, height, overflow: "hidden" }} pointerEvents="none">
       {/* stylised fallback shows until tiles load / if offline */}
-      <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", opacity: 0.6 }]}>
-        <MapBackground size={Math.max(width, height)} />
-      </View>
+      {showFallback && (
+        <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", opacity: 0.6 }]}>
+          <MapBackground size={Math.max(width, height)} />
+        </View>
+      )}
       {tiles}
-      <Text style={styles.attribution}>© OpenStreetMap · CARTO</Text>
+      {showFallback && <Text style={styles.attribution}>© OpenStreetMap · CARTO</Text>}
     </View>
   );
 }

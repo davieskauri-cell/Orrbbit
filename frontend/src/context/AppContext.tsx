@@ -27,8 +27,6 @@ export type NearbyUser = {
   vibe: string | null;
   distance: number;
   bearing: number;
-  lat: number;
-  lng: number;
   compatible: boolean;
   verified: boolean;
   active_now: boolean;

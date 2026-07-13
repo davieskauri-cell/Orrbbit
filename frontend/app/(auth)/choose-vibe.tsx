@@ -28,7 +28,7 @@ export default function ChooseVibe() {
       trackVibeSelected();
       // contextual moment to ask for location — the radar needs it next
       requestLocation();
-      router.push("/vibe-details?next=tabs");
+      router.push(selected === "opportunity" ? "/opportunity-details?next=tabs" : "/vibe-details?next=tabs");
     } catch {}
     setBusy(false);
   };
@@ -51,7 +51,7 @@ export default function ChooseVibe() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
         <PrimaryButton
           testID="set-vibe-btn"
-          title="Set My Vibe"
+          title="Continue"
           onPress={save}
           disabled={!selected}
           loading={busy}
