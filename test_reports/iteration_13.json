@@ -1,0 +1,50 @@
+{
+  "summary": "Iter 13 — RETEST of iter 12 FIX #1 (PingModal deadlock) + FIX #2 (direct /nearby entry) + previously UNTESTED opportunity create/edit/delete flow. Frontend-only. RESULTS: (1) FIX #1 PASS — PingModal.tsx now wraps its backdrop in a <Pressable onPress={dismissActivePing}> with a nested sheet Pressable that swallows taps. On radar (Kauri), the auto-opened 'Opportunity nearby ✨' ping is dismissed by tapping the dimmed area above the sheet (mouse click at 195,60). After dismissal the ping-modal disappears, radar-zoom-in works (2× click → 56 z=17 high-detail CartoCDN tiles fetched, up from 16 base z=16), and sheet buttons ping-view-profile / ping-dismiss are both present and tappable. (2) FIX #2 PASS — fresh Kauri session goto('/nearby') directly (without visiting Radar first) populates the discovery list. Opportunity filter chip loads Priya/Dev/Sana/Jade/Marco with amber Opportunity pills, public summaries ('Need help with a staff issue', 'Can help with website…', 'Paid task: help moving…', 'Looking for a run-clu…', 'Selling roof racks, ne…'), 'About 80m/150m/250m/300m/325m away' distance labels, and 'Available now' / 'You both like Business' badges on Priya. All 5 user-row-* rendered. requestLocation() on mount is verified working. (3) UNTESTED OPPORTUNITY FLOW PASS — registered opp_test_<ts>@example.com age 28, set localStorage token, forced visible+Melbourne location, navigated /choose-vibe: 'Opportunity' card visible with subtitle 'Ask for help, offer a service, or share a local opportunity' (found via text). Continue routes to /opportunity-details?next=tabs → testID opportunity-details-screen mounts. 'opp-how-it-works' block renders with the 4 steps. Empty-save validation shows opp-error='Pick a type, a category and add a short public summary.'. Filling Need help + Business + 'Need a hand moving boxes' (24/80 counter) + 'Have a small business, need 2 hours help Saturday' (49/300 lock helper visible) + Open to paying, then Save → navigates to /etiquette?next=tabs (correct signup progression). Re-opening /vibe-details correctly redirects to /opportunity-details (vibe==='opportunity' effect), fields are pre-filled (opp-summary='Need a hand moving boxes', opp-private='Have a small business, need 2 hours help Saturday'), and opp-delete button now shows (isEditing=true). Tapping Delete Opportunity fires window.confirm dialog 'Delete your Opportunity? It will disappear from the Radar and your vibe will switch to Open to Chat.' — accepted successfully. (4) REGRESSION — 12 radar-blip-<id> elements visible on Kauri radar after ping dismissal (includes the 5 opportunity blips per iter12); iter12 already end-to-end verified radar → opportunity-preview → /opportunity/{id} once the ping is dismissed, and now with the new backdrop-dismiss fix that path is fully reachable via a single tap. Deprecated `shadow*` style-prop warning still present (cosmetic). Push notifications remain intentionally MOCKED (in-app pings only).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "src/theme.ts shadow.card",
+        "issue": "Carry-over from iter 5–12: Expo Web console emits 'shadow* style props are deprecated. Use boxShadow.' — cosmetic only, no functional impact."
+      },
+      {
+        "component": "PingModal.tsx (Modal / Pressable)",
+        "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' — likely from RN Modal on web. Cosmetic; does not block behaviour. Reference: /app/frontend/src/components/PingModal.tsx:39-40."
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_13.json",
+    "/app/backend/tests/test_iter12_opportunity.py (existing regression suite for backend, not re-run this iteration — testing_type was frontend only)"
+  ],
+  "action_items": [
+    "OPTIONAL — Add data-testid=\"vibe-opportunity\" (and per-vibe testIDs) to the Opportunity card in src/components/VibePicker.tsx so future automation doesn't rely on visible text matching. The flow itself works (tapped by text label; Continue routes to /opportunity-details as expected).",
+    "OPTIONAL — Migrate deprecated `shadow*` style props in src/theme.ts to `boxShadow`, and swap `props.pointerEvents` (in PingModal or referenced RN Modal) to `style.pointerEvents` to silence Expo Web deprecation warnings.",
+    "OPTIONAL — /api/nearby appears to reject unknown query params (returned 422 for `?radius=500&limit=100`). If limit is intended to be supported, either accept it or ignore unknown params; low priority since the browser flow works fine without it."
+  ],
+  "critical_code_review_comments": [
+    "PingModal.tsx:40-41 — Backdrop is now `<Pressable style={styles.backdrop} onPress={() => dismissActivePing(false)}>` with a nested `<Pressable style={styles.sheet} onPress={() => {}}>`; this is the correct pattern for RN Modal to swallow sheet taps while dismissing on backdrop tap. Verified working end-to-end on Expo Web.",
+    "PingModal.tsx:34-35 — ALLOWED = ['/', '/nearby', '/pings', '/encounters']. Ping only interrupts main discovery tabs; auto-dismiss on navigation elsewhere. Good UX guard.",
+    "nearby.tsx:35-38 — useEffect on mount calls `requestLocation()` when `coords` is null. Confirmed fixes iter12 Bug #2 (direct /nearby now populates with all 5 opportunity users under the filter).",
+    "opportunity-details.tsx:41 — `isEditing = user?.vibe === 'opportunity' && !!existing.public_summary` correctly gates the delete button; verified visible only after a successful save + re-open.",
+    "opportunity-details.tsx:79-96 — deleteOpportunity clears vibe_details then calls updateVibe('open_to_chat'); confirm dialog fires (verified via page.on('dialog')).",
+    "vibe-details.tsx:28-33 — Redirects to /opportunity-details when user.vibe === 'opportunity'; verified deep-link /vibe-details lands the tester on /opportunity-details.",
+    "choose-vibe.tsx:31 — `router.push(selected === 'opportunity' ? '/opportunity-details?next=tabs' : '/vibe-details?next=tabs')` — correct branching, verified in fresh-user flow.",
+    "opportunity-details.tsx save() correctly persists opportunity_type/category/public_summary/private_details/payment/intent/visibility via PUT /api/users/me/vibe-details; on success routes to /etiquette?next=tabs to continue signup."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_13.json"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only iteration per review_request testing_type)",
+    "frontend": "4/4 (100%) — FIX #1 PingModal backdrop dismiss ✅, FIX #2 direct /nearby Opportunity filter ✅, opportunity create/validate/save/reopen/prefill/delete-confirm flow ✅, radar regression (12 blips post-dismiss + iter12 preview→/opportunity/{id} evidence) ✅. No blocking bugs found."
+  },
+  "seed_data_creation": "One fresh test user created (opp_test_<epoch>@example.com / Password123! / age 28) to exercise the signup opportunity flow. Not deleted — main agent noted 'fresh test users may be left; do NOT modify kauri's vibe'. If cleanup desired: db.users.delete_many({email:{$regex:'^opp_test_'}}). Kauri was NOT modified beyond visible=true; her demo Networking vibe is intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both iter12 blockers are fixed. Playwright fast-login sequence that works reliably on this app: 1) goto /login; 2) fetch POST /api/auth/demo-login {} → response key is `access_token` (NOT `token`); 3) PUT /api/users/me/state {visible:true} with Bearer token; 4) localStorage.setItem('auth_token', JSON.stringify(access_token)) + localStorage.setItem('intro_test_mode','1'); 5) goto target route. To dismiss the auto-ping on Radar, `page.mouse.click(195, 60)` (above the sheet) reliably hits the backdrop Pressable. window.confirm dialogs must be handled via `page.on('dialog', lambda d: d.accept())` and are used for opportunity delete. NEW USER SIGNUP: register response returns {access_token,user}; setting only the token in localStorage and jumping to /choose-vibe works (app tolerates skipping /location-privacy /plans /plan-confirmed /intent /profile-setup for this test if you set visible+location via API first). /api/nearby query rejects unknown params (limit=100 → 422); use only `radius`. The opp-* testIDs on opportunity-details.tsx use hyphenated non-alphanumeric-stripped labels: e.g. `opp-type-Need-help`, `opp-category-Business`, `opp-payment-Open-to-paying`.",
+  "rca_of_issue": "Iter12 Bug #1 root-caused to RN <Modal> capturing pointer events across the full viewport on web; iter13 fix in PingModal.tsx correctly restructures the modal as backdrop-Pressable(onPress=dismiss) + inner sheet-Pressable(swallow) so the backdrop area above the sheet becomes a dismiss target while the sheet itself keeps its buttons active. Iter12 Bug #2 was AppContext.nearby being empty on direct /nearby entry because requestLocation() was only called by the Radar screen; iter13 fix adds a mount-time useEffect in nearby.tsx that calls requestLocation() when coords is null, causing /api/nearby to be re-issued as soon as the user grants (or the app falls back to) a location, which populates all vibe filters including Opportunity."
+}

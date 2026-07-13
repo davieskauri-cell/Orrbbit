@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Modal } from "react-native";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
@@ -36,9 +36,9 @@ export default function PingModal() {
   const vibe = vibeMap[activePing.vibe];
 
   return (
-    <Modal visible transparent animationType="slide" testID="ping-modal">
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+    <Modal visible transparent animationType="slide" testID="ping-modal" onRequestClose={() => dismissActivePing(false)}>
+      <Pressable style={styles.backdrop} onPress={() => dismissActivePing(false)}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <Text style={styles.title}>{activePing.title}</Text>
           {!!(activePing as any).reason && (
@@ -86,8 +86,8 @@ export default function PingModal() {
             onPress={() => dismissActivePing(true)}
             style={{ marginTop: spacing.sm, borderWidth: 0 }}
           />
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

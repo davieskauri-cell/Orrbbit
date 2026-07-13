@@ -25,11 +25,17 @@ export default function NearbyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { nearby, vibeMap, refresh } = useApp();
+  const { nearby, vibeMap, refresh, coords, requestLocation } = useApp();
   const [filter, setFilter] = useState("all");
   const [detailFilters, setDetailFilters] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const { vibe: vibeParam } = useLocalSearchParams<{ vibe?: string }>();
+
+  // direct entry to this tab (deep link / cluster tap) — make sure discovery is loaded
+  useEffect(() => {
+    if (!coords) requestLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // cluster taps on the radar open this list pre-filtered to the cluster's vibe
   useEffect(() => {
