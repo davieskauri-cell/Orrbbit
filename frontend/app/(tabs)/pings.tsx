@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "r
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, Ping } from "@/src/context/AppContext";
-import { listPings, dismissPing } from "@/src/services/pingService";
+import { listPings, dismissPing, acceptPing, declinePing, listConnectionRequests } from "@/src/services/pingService";
+import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
@@ -31,11 +32,14 @@ export default function PingsScreen() {
   const router = useRouter();
   const { vibeMap } = useApp();
   const [pings, setPings] = useState<Ping[]>([]);
+  const [outgoing, setOutgoing] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      setPings(await listPings());
+      const [p, reqs] = await Promise.all([listPings(), listConnectionRequests()]);
+      setPings(p);
+      setOutgoing(reqs.outgoing);
     } catch {}
   }, []);
 
@@ -58,13 +62,31 @@ export default function PingsScreen() {
     dismissPing(id).catch(() => {});
   };
 
+  const accept = async (p: Ping) => {
+    try {
+      await acceptPing(p.id);
+      setPings((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: "accepted" } : x)));
+      showAlert("You're connected 🎉", `You and ${p.user.name} can now discuss and meet safely.`, [
+        { text: "Later", style: "cancel" },
+        { text: "View Profile", onPress: () => router.push(`/person/${p.user.id}`) },
+      ]);
+    } catch (e: any) {
+      showAlert("Couldn't accept", e.message || "Please try again.");
+    }
+  };
+
+  const decline = async (p: Ping) => {
+    setPings((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: "declined" } : x)));
+    declinePing(p.id).catch(() => {});
+  };
+
   const sections: { title: string; items: Ping[] }[] = [
     { title: "New", items: pings.filter((p) => p.status === "new") },
-    { title: "Recent", items: pings.filter((p) => p.status === "recent") },
-    { title: "Dismissed", items: pings.filter((p) => p.status === "dismissed") },
+    { title: "Recent", items: pings.filter((p) => p.status === "recent" || p.status === "accepted") },
+    { title: "Dismissed", items: pings.filter((p) => p.status === "dismissed" || p.status === "declined") },
   ];
 
-  const empty = pings.length === 0;
+  const empty = pings.length === 0 && outgoing.length === 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
@@ -91,33 +113,55 @@ export default function PingsScreen() {
                   <Text style={styles.sectionTitle}>{s.title}</Text>
                   {s.items.map((p) => {
                     const vibe = vibeMap[p.vibe];
+                    const isRequest = p.kind === "request";
                     return (
                       <View key={p.id} style={styles.row} testID={`ping-row-${p.id}`}>
                         <Avatar uri={p.user.photo_url} name={p.user.name} size={52} ringColor={vibe?.color} />
                         <View style={{ flex: 1, gap: 3 }}>
                           <Text style={styles.headline}>
                             <Text style={{ fontWeight: "800" }}>{p.user.name}</Text>{" "}
-                            {PHRASE[p.vibe] || "wants to connect"}
+                            {isRequest
+                              ? p.about === "opportunity"
+                                ? "wants to discuss your Opportunity"
+                                : "wants to connect with you"
+                              : PHRASE[p.vibe] || "wants to connect"}
                           </Text>
                           <View style={styles.metaRow}>
                             <VibePill vibe={vibe} small />
-                            <Text style={styles.meta}>{p.distance}m</Text>
+                            {p.distance != null && <Text style={styles.meta}>{p.distance}m</Text>}
                             <Text style={styles.meta}>·</Text>
                             <Text style={styles.meta}>{timeAgo(p.created_at)}</Text>
                           </View>
                         </View>
                         <View style={styles.actions}>
-                          <Pressable
-                            testID={`ping-view-${p.id}`}
-                            style={styles.viewBtn}
-                            onPress={() => router.push(`/person/${p.user.id}`)}
-                          >
-                            <Text style={styles.viewText}>View</Text>
-                          </Pressable>
-                          {p.status !== "dismissed" && (
-                            <Pressable testID={`ping-dismiss-${p.id}`} onPress={() => dismiss(p.id)}>
-                              <Text style={styles.dismissText}>Dismiss</Text>
-                            </Pressable>
+                          {isRequest && p.status === "new" ? (
+                            <>
+                              <Pressable
+                                testID={`request-accept-${p.id}`}
+                                style={[styles.viewBtn, { backgroundColor: colors.teal }]}
+                                onPress={() => accept(p)}
+                              >
+                                <Text style={styles.viewText}>Accept</Text>
+                              </Pressable>
+                              <Pressable testID={`request-decline-${p.id}`} onPress={() => decline(p)}>
+                                <Text style={styles.dismissText}>Decline</Text>
+                              </Pressable>
+                            </>
+                          ) : (
+                            <>
+                              <Pressable
+                                testID={`ping-view-${p.id}`}
+                                style={styles.viewBtn}
+                                onPress={() => router.push(`/person/${p.user.id}`)}
+                              >
+                                <Text style={styles.viewText}>View</Text>
+                              </Pressable>
+                              {p.status !== "dismissed" && p.status !== "declined" && !isRequest && (
+                                <Pressable testID={`ping-dismiss-${p.id}`} onPress={() => dismiss(p.id)}>
+                                  <Text style={styles.dismissText}>Dismiss</Text>
+                                </Pressable>
+                              )}
+                            </>
                           )}
                         </View>
                       </View>
@@ -126,6 +170,37 @@ export default function PingsScreen() {
                 </View>
               )
           )
+        )}
+        {outgoing.length > 0 && (
+          <View testID="sent-requests">
+            <Text style={styles.sectionTitle}>Sent Requests</Text>
+            {outgoing.map((r) => {
+              const statusLabel =
+                r.status === "new" ? "Pending" : r.status === "accepted" ? "Accepted 🎉" : r.status === "declined" ? "No longer active" : r.status;
+              const statusColor =
+                r.status === "accepted" ? colors.success : r.status === "new" ? colors.orange : colors.textTertiary;
+              return (
+                <View key={r.id} style={styles.row} testID={`sent-request-${r.id}`}>
+                  <Avatar uri={r.user.photo_url} name={r.user.name} size={44} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={styles.headline}>
+                      <Text style={{ fontWeight: "800" }}>{r.user.name}</Text>
+                      {r.about === "opportunity" ? " · Opportunity" : ""}
+                    </Text>
+                    <Text style={styles.meta}>{timeAgo(r.created_at)}</Text>
+                  </View>
+                  <View style={styles.actions}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+                    {r.status === "accepted" && (
+                      <Pressable testID={`sent-view-${r.id}`} onPress={() => router.push(`/person/${r.user.id}`)}>
+                        <Text style={styles.dismissText}>View</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </View>
@@ -164,5 +239,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   viewText: { color: "#FFF", fontSize: font.sm, fontWeight: "700" },
+  statusText: { fontSize: font.sm, fontWeight: "800" },
   dismissText: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "600", padding: 4 },
 });

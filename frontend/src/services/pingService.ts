@@ -13,6 +13,12 @@ export const acceptPing = (pingId: string) =>
 export const dismissPing = (pingId: string) =>
   api(`/pings/${pingId}/dismiss`, { method: "POST" });
 
+export const declinePing = (pingId: string) =>
+  api(`/pings/${pingId}/decline`, { method: "POST" });
+
+export const listConnectionRequests = () =>
+  api<{ incoming: any[]; outgoing: any[] }>("/connect/requests");
+
 // ---- ping cooldown rules (mirrors backend logic for local checks) ----
 const shown: Record<string, number> = {};
 const COOLDOWN_MS = 2 * 60 * 1000;

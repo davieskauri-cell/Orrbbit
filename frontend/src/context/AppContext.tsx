@@ -55,8 +55,10 @@ export type Ping = {
   id: string;
   status: string;
   vibe: string;
+  kind?: string;
+  about?: string | null;
   title: string;
-  distance: number;
+  distance: number | null;
   created_at: string;
   user: { id: string; name: string; age: number; photo_url: string | null; vibe: string; bio: string };
 };

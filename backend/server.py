@@ -964,11 +964,20 @@ async def nearby(
 # ----------------------------- Pings -----------------------------
 def ping_payload(p: dict, u_info: dict) -> dict:
     vibe_def = next((v for v in VIBES if v["key"] == p["vibe"]), None)
+    title = (vibe_def or {}).get("ping_title") or "Someone nearby wants to connect 👋"
+    if p.get("kind") == "request":
+        title = (
+            f"{u_info.get('name')} wants to discuss your Opportunity ✨"
+            if p.get("about") == "opportunity"
+            else f"{u_info.get('name')} wants to connect 🤝"
+        )
     return {
         "id": p["id"],
         "status": p["status"],
         "vibe": p["vibe"],
-        "title": (vibe_def or {}).get("ping_title") or "Someone nearby wants to connect 👋",
+        "kind": p.get("kind", "ping"),
+        "about": p.get("about"),
+        "title": title,
         "distance": p.get("distance_meters"),
         "created_at": p["created_at"],
         "reason": u_info.get("mutual_reason"),
@@ -1050,12 +1059,26 @@ async def dismiss_ping(ping_id: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@api_router.post("/pings/{ping_id}/decline")
+async def decline_ping(ping_id: str, user: dict = Depends(get_current_user)):
+    """Recipient explicitly declines a connection request. No connection is created."""
+    ping = await db.pings.find_one({"id": ping_id, "to_user_id": user["id"]})
+    if not ping:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await db.pings.update_one({"id": ping_id}, {"$set": {"status": "declined"}})
+    return {"ok": True}
+
+
 @api_router.post("/pings/{ping_id}/accept")
 async def accept_ping(ping_id: str, user: dict = Depends(get_current_user)):
     ping = await db.pings.find_one({"id": ping_id, "to_user_id": user["id"]})
     if not ping:
         raise HTTPException(status_code=404, detail="Ping not found")
-    await db.pings.update_one({"id": ping_id}, {"$set": {"status": "recent"}})
+    blocked = await get_blocked_ids(user["id"])
+    if ping["from_user_id"] in blocked:
+        raise HTTPException(status_code=403, detail="You can't connect with this user")
+    new_status = "accepted" if ping.get("kind") == "request" else "recent"
+    await db.pings.update_one({"id": ping_id}, {"$set": {"status": new_status}})
     match = await create_match_docs(user["id"], ping["from_user_id"])
     return {"match": match}
 
@@ -1078,15 +1101,85 @@ async def create_match_docs(a: str, b: str) -> dict:
 
 
 @api_router.post("/matches")
-async def create_match(body: MatchIn, user: dict = Depends(get_current_user)):
-    other = await db.users.find_one({"id": body.user_id})
-    if not other:
+async def create_match_endpoint(body: MatchIn, user: dict = Depends(get_current_user)):
+    """DEPRECATED instant-match path — now consent-based. Behaves exactly like /connect/request."""
+    return await request_connection(body, user)
+
+
+async def _validate_connect_target(me: dict, target_id: str) -> dict:
+    if target_id == me["id"]:
+        raise HTTPException(status_code=400, detail="You can't connect with yourself")
+    target = await db.users.find_one({"id": target_id})
+    if not target:
         raise HTTPException(status_code=404, detail="User not found")
-    match = await create_match_docs(user["id"], body.user_id)
-    return {
-        "match": match,
-        "user": {"id": other["id"], "name": other.get("name"), "age": other.get("age"), "photo_url": other.get("photo_url"), "vibe": other.get("vibe")},
+    if target.get("admin_status") in ("hidden_pending_review", "banned"):
+        raise HTTPException(status_code=403, detail="This user is not available")
+    if not target.get("visible", True) or target.get("ghost_mode") or target.get("paused"):
+        raise HTTPException(status_code=403, detail="This user is not available right now")
+    blocked = await get_blocked_ids(me["id"])
+    if target_id in blocked:
+        raise HTTPException(status_code=403, detail="You can't connect with this user")
+    return target
+
+
+@api_router.post("/connect/request")
+async def request_connection(body: MatchIn, user: dict = Depends(get_current_user)):
+    """Consent flow step 1: create a PENDING connection request. The other user
+    must explicitly accept before any connection (or Opportunity private details) unlocks."""
+    target = await _validate_connect_target(user, body.user_id)
+    existing_match = await db.matches.find_one({
+        "active": True,
+        "$or": [{"user_a": user["id"], "user_b": body.user_id}, {"user_a": body.user_id, "user_b": user["id"]}],
+    })
+    if existing_match:
+        existing_match.pop("_id", None)
+        return {"status": "connected", "match": existing_match}
+    # the other user already asked ME — sending a request back counts as explicit mutual consent
+    reverse = await db.pings.find_one({"kind": "request", "from_user_id": body.user_id, "to_user_id": user["id"], "status": "new"})
+    if reverse:
+        await db.pings.update_one({"id": reverse["id"]}, {"$set": {"status": "accepted"}})
+        match = await create_match_docs(user["id"], body.user_id)
+        return {"status": "connected", "match": match}
+    # no duplicate pending requests
+    mine = await db.pings.find_one({"kind": "request", "from_user_id": user["id"], "to_user_id": body.user_id, "status": "new"})
+    if mine:
+        return {"status": "pending", "request_id": mine["id"]}
+    ping = {
+        "id": str(uuid.uuid4()),
+        "kind": "request",
+        "about": "opportunity" if target.get("vibe") == "opportunity" else "connect",
+        "from_user_id": user["id"],
+        "to_user_id": body.user_id,
+        "vibe": user.get("vibe") or "open_to_chat",
+        "status": "new",
+        "distance_meters": target.get("demo_dist"),
+        "created_at": now_iso(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
     }
+    await db.pings.insert_one(dict(ping))
+    return {"status": "pending", "request_id": ping["id"]}
+
+
+@api_router.get("/connect/requests")
+async def list_connection_requests(user: dict = Depends(get_current_user)):
+    """Incoming pending requests (to accept/decline) + my outgoing requests with their
+    status — the in-app notification surface for accepted/declined requests."""
+    blocked = await get_blocked_ids(user["id"])
+    incoming_raw = await db.pings.find({"kind": "request", "to_user_id": user["id"], "status": "new"}).to_list(100)
+    outgoing_raw = await db.pings.find({"kind": "request", "from_user_id": user["id"]}).to_list(100)
+    ids = list({p["from_user_id"] for p in incoming_raw} | {p["to_user_id"] for p in outgoing_raw})
+    users_by_id = {u["id"]: u async for u in db.users.find({"id": {"$in": ids}}, {"hashed_password": 0, "_id": 0})}
+
+    def info(uid: str) -> dict:
+        u = users_by_id.get(uid) or {}
+        return {"id": uid, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"), "vibe": u.get("vibe")}
+
+    def row(p: dict, uid: str) -> dict:
+        return {"id": p["id"], "status": p["status"], "about": p.get("about", "connect"), "created_at": p["created_at"], "user": info(uid)}
+
+    incoming = [row(p, p["from_user_id"]) for p in sorted(incoming_raw, key=lambda x: x["created_at"], reverse=True) if p["from_user_id"] not in blocked]
+    outgoing = [row(p, p["to_user_id"]) for p in sorted(outgoing_raw, key=lambda x: x["created_at"], reverse=True) if p["to_user_id"] not in blocked]
+    return {"incoming": incoming, "outgoing": outgoing}
 
 
 @api_router.get("/opportunity/{user_id}")
@@ -1101,6 +1194,15 @@ async def get_opportunity(user_id: str, user: dict = Depends(get_current_user)):
         "$or": [{"user_a": user["id"], "user_b": user_id}, {"user_a": user_id, "user_b": user["id"]}],
     })
     connected = bool(match)
+    request_status = "connected" if connected else "none"
+    if not connected:
+        mine = await db.pings.find({"kind": "request", "from_user_id": user["id"], "to_user_id": user_id}).to_list(20)
+        if mine:
+            latest = sorted(mine, key=lambda p: p["created_at"], reverse=True)[0]
+            if latest["status"] == "new":
+                request_status = "pending"
+            elif latest["status"] == "declined":
+                request_status = "declined"
     return {
         "user": {
             "id": other["id"], "name": other.get("name"), "age": other.get("age"),
@@ -1115,6 +1217,7 @@ async def get_opportunity(user_id: str, user: dict = Depends(get_current_user)):
             "payment": vd.get("payment"),
         },
         "connected": connected,
+        "request_status": request_status,
         "private_details": (vd.get("private_details") or None) if connected else None,
     }
 

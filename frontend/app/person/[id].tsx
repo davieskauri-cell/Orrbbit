@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { createMatch } from "@/src/services/matchingService";
+import { requestConnection } from "@/src/services/matchingService";
 import { blockUser } from "@/src/services/safetyService";
 import { trackProfileView, trackMatchCreated } from "@/src/services/analyticsService";
 import { api } from "@/src/lib/api";
@@ -28,6 +28,7 @@ export default function PersonPreview() {
   const { user: me } = useAuth();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [showDismiss, setShowDismiss] = useState(false);
   const user = findUser(id!);
 
@@ -88,20 +89,26 @@ export default function PersonPreview() {
   const connect = async () => {
     setBusy(true);
     try {
-      await createMatch(user.id);
-      trackMatchCreated();
-      router.replace({
-        pathname: "/match",
-        params: {
-          userId: user.id,
-          name: user.name,
-          photo: user.photo_url || "",
-          vibe: user.vibe || "",
-        },
-      });
-    } catch {
-      setBusy(false);
+      const res = await requestConnection(user.id);
+      if (res.status === "connected") {
+        trackMatchCreated();
+        router.replace({
+          pathname: "/match",
+          params: {
+            userId: user.id,
+            name: user.name,
+            photo: user.photo_url || "",
+            vibe: user.vibe || "",
+          },
+        });
+        return;
+      }
+      setRequested(true);
+      showAlert("Request sent", `${user.name} will be asked to accept before you're connected.`);
+    } catch (e: any) {
+      showAlert("Couldn't send request", e.message || "Please try again.");
     }
+    setBusy(false);
   };
 
   const doBlock = () => {
@@ -220,7 +227,13 @@ export default function PersonPreview() {
           </View>
         ) : (
           <>
-            <PrimaryButton testID="person-connect" title={action} onPress={connect} loading={busy} />
+            <PrimaryButton
+              testID="person-connect"
+              title={requested ? "Request Sent ✓" : action}
+              onPress={connect}
+              loading={busy}
+              disabled={requested}
+            />
             <View style={styles.secondaryRow}>
               <Pressable testID="person-not-now" style={styles.smallBtn} onPress={() => setShowDismiss(true)}>
                 <Text style={styles.smallBtnText}>Not Now</Text>

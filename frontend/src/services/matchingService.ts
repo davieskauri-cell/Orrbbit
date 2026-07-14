@@ -15,5 +15,8 @@ export const calculateCompatibility = (u: NearbyUser) => u.compatible;
 export const getCompatibleUsers = (users: NearbyUser[]) =>
   users.filter((u) => u.compatible);
 
-export const createMatch = (userId: string) =>
-  api("/matches", { method: "POST", body: { user_id: userId } });
+export const requestConnection = (userId: string) =>
+  api<{ status: "pending" | "connected"; request_id?: string; match?: any }>("/connect/request", {
+    method: "POST",
+    body: { user_id: userId },
+  });

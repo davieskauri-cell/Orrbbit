@@ -5,7 +5,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
 import { useApp } from "@/src/context/AppContext";
-import { createMatch } from "@/src/services/matchingService";
+import { requestConnection } from "@/src/services/matchingService";
+import { showAlert } from "@/src/lib/alert";
 import { trackMatchCreated } from "@/src/services/analyticsService";
 import { distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
@@ -32,6 +33,7 @@ type OpportunityData = {
     payment: string | null;
   };
   connected: boolean;
+  request_status: "connected" | "pending" | "declined" | "none";
   private_details: string | null;
 };
 
@@ -69,10 +71,17 @@ export default function OpportunityScreen() {
     }
     setBusy(true);
     try {
-      await createMatch(data.user.id);
-      trackMatchCreated();
-      await load();
-    } catch {}
+      const res = await requestConnection(data.user.id);
+      if (res.status === "connected") {
+        trackMatchCreated();
+        await load();
+      } else {
+        setData({ ...data, request_status: "pending" });
+        showAlert("Request sent", `${data.user.name} will be asked to accept. Private details unlock once they do.`);
+      }
+    } catch (e: any) {
+      showAlert("Couldn't send request", e.message || "Please try again.");
+    }
     setBusy(false);
   };
 
@@ -130,11 +139,21 @@ export default function OpportunityScreen() {
         ) : (
           <View style={styles.privateCard} testID="private-locked">
             <View style={styles.privateHead}>
-              <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
-              <Text style={styles.privateHeadText}>Locked</Text>
+              <Ionicons
+                name={data.request_status === "pending" ? "time-outline" : "lock-closed"}
+                size={14}
+                color={colors.textTertiary}
+              />
+              <Text style={styles.privateHeadText}>
+                {data.request_status === "pending" ? "Request sent" : "Locked"}
+              </Text>
             </View>
             <Text style={styles.privateLockedText}>
-              Private details unlock after you both connect.
+              {data.request_status === "pending"
+                ? `Waiting for ${data.user.name} to accept. Private details unlock once they do.`
+                : data.request_status === "declined"
+                ? "This request is no longer active. Private details stay locked."
+                : "Private details unlock after you both connect."}
             </Text>
           </View>
         )}
@@ -179,10 +198,19 @@ export default function OpportunityScreen() {
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <PrimaryButton
           testID="discuss-opportunity"
-          title="Discuss Opportunity"
+          title={
+            data.connected
+              ? "Discuss Opportunity"
+              : data.request_status === "pending"
+              ? "Request Sent ✓"
+              : data.request_status === "declined"
+              ? "No Longer Active"
+              : "Discuss Opportunity"
+          }
           color={AMBER}
           onPress={discuss}
           loading={busy}
+          disabled={!data.connected && (data.request_status === "pending" || data.request_status === "declined")}
         />
         <View style={styles.footerRow}>
           <SecondaryButton

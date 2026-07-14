@@ -214,3 +214,11 @@ PART 1 — Opportunity (connection/introduction only, NO marketplace/payments):
 PART 2 — HD zoom: base retina tile layer (zoom+1 @2x) ALWAYS mounted + high-detail layer (zoom+2 @2x) stacks on top when scale>=1.5; boost now switches DURING pinch (boostSV threshold in worklet), zoom clamped to CARTO max 20; overlays (avatars/clusters/rings/labels) remain 1x crisp. Privacy unchanged (fuzzed positions, no exact pins).
 Fixes: PingModal backdrop now dismisses on tap (was blocking radar); nearby.tsx requests location on direct entry (empty list bug).
 Tested: iteration_12 (backend 8/8) + iteration_13 (all frontend flows pass).
+
+## Consent-Based Connection Flow (July 2026) — COMPLETE
+Problem fixed: POST /matches instantly marked both users accepted (one-tap "mutual" match; Opportunity private details unlocked without owner consent).
+New flow: A sends request (POST /api/connect/request → pending, stored in db.pings kind='request') → B explicitly Accepts (POST /api/pings/{id}/accept → creates match, unlocks messaging + Opportunity private details) or Declines (POST /api/pings/{id}/decline → nothing created, details stay locked). A is notified via Pings tab "Sent Requests" section (Pending/Accepted 🎉/No longer active) and request_status on GET /api/opportunity/{id}.
+Guards: blocked both directions/invisible/paused/ghost/banned → 403; deleted/unknown → 404; self → 400; duplicate pending idempotent; reverse-pending = explicit mutual consent → single match (no duplicates, race-safe); legacy POST /matches redirected to consent flow; accept re-checks blocks.
+UI: person Connect + Discuss Opportunity → "Request Sent ✓" disabled state; opportunity locked card shows Waiting/No-longer-active states; Pings tab incoming requests have Accept/Decline.
+Files: backend/server.py; frontend: pings.tsx, opportunity/[id].tsx, person/[id].tsx, pingService.ts, matchingService.ts, AppContext.tsx.
+Tested: backend curl matrix (accept/decline/block/invisible/404/self/duplicate/simultaneous/legacy) + two-account browser E2E (12 steps) — all pass. Note: testing_agent timed out once; validation done by main agent scripts.
