@@ -120,7 +120,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   heroBadgeText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    justifyContent: "center",
+  },
   miniChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
   miniChipText: { fontSize: font.sm, fontWeight: "700" },
   chipsCaption: {
