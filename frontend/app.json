@@ -14,7 +14,7 @@
         "NSLocationWhenInUseUsageDescription": "See people open to connect near you",
         "NSPhotoLibraryUsageDescription": "Add profile photos from your gallery"
       },
-      "bundleIdentifier": "com.emergent.nearbyconnect.n08ian"
+      "bundleIdentifier": "com.introapp.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +28,7 @@
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE"
       ],
-      "package": "com.emergent.nearbyconnect.n08ian"
+      "package": "com.introapp.mobile"
     },
     "web": {
       "bundler": "metro",
