@@ -12,19 +12,22 @@ const HERO =
   "https://images.unsplash.com/photo-1543269865-cbf427effbad?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
 
 const STEPS = [
-  { icon: "sparkles", text: "Set your intention" },
-  { icon: "resize", text: "Adjust your visibility" },
-  { icon: "people", text: "See who's nearby" },
-  { icon: "notifications", text: "Get a ping when there's a match" },
-  { icon: "shield-checkmark", text: "Stay safe and in control" },
+  { emoji: "✨", text: "Choose your intention" },
+  { emoji: "📍", text: "Become visible nearby" },
+  { emoji: "👀", text: "Discover people around you" },
+  { emoji: "🤝", text: "Connect only when both people agree" },
 ];
 
 const MINI_VIBES = [
+  { label: "Open to Chat", color: colors.teal },
   { label: "Networking", color: colors.teal },
   { label: "Coffee / Drinks", color: colors.orange },
-  { label: "Need Advice", color: colors.purple },
   { label: "Relationship", color: colors.pink },
   { label: "Gym Buddy", color: colors.success },
+  { label: "Need Advice", color: colors.purple },
+  { label: "Opportunity", color: "#F59E0B" },
+  { label: "Events", color: colors.orange },
+  { label: "Campus", color: colors.purple },
 ];
 
 export default function Welcome() {
@@ -43,8 +46,10 @@ export default function Welcome() {
         <Text style={styles.tagline}>Real people. Real moments.</Text>
       </View>
 
-      <Text style={styles.headline}>See who nearby is open to being approached.</Text>
-      <Text style={styles.sub}>Your consent-based icebreaker for real-life conversations nearby.</Text>
+      <Text style={styles.headline}>See who&apos;s nearby and open to connect.</Text>
+      <Text style={styles.sub}>
+        Chat, network, find advice, meet new people and discover local opportunities — all with mutual consent.
+      </Text>
 
       <View style={styles.heroCard}>
         <Image source={{ uri: HERO }} style={styles.heroImg} contentFit="cover" transition={200} />
@@ -61,13 +66,16 @@ export default function Welcome() {
           </View>
         ))}
       </View>
+      <Text style={styles.chipsCaption}>
+        One app. Real people. Real conversations. Real opportunities nearby.
+      </Text>
 
       <View style={styles.howCard}>
         <Text style={styles.howTitle}>How Intro works</Text>
         {STEPS.map((s) => (
           <View key={s.text} style={styles.stepRow}>
             <View style={styles.stepIcon}>
-              <Ionicons name={s.icon as any} size={16} color={colors.teal} />
+              <Text style={styles.stepEmoji}>{s.emoji}</Text>
             </View>
             <Text style={styles.stepText}>{s.text}</Text>
           </View>
@@ -115,6 +123,13 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
   miniChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
   miniChipText: { fontSize: font.sm, fontWeight: "700" },
+  chipsCaption: {
+    color: colors.textSecondary,
+    fontSize: font.sm,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
+  stepEmoji: { fontSize: 14 },
   howCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
