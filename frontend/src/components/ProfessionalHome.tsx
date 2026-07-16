@@ -370,7 +370,7 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingBottom: 120, gap: spacing.md },
+  body: { paddingHorizontal: spacing.xl, paddingBottom: 120, gap: spacing.md },
   h1: { color: colors.text, fontSize: font.xxl, fontWeight: "800", marginTop: spacing.md },
   h2: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.base, marginBottom: spacing.md },
@@ -403,14 +403,16 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, flexWrap: "wrap" },
   smallBtn: {
     backgroundColor: colors.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
     borderRadius: 999,
-    minHeight: 34,
+    minHeight: 40,
     justifyContent: "center",
   },
   smallBtnText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
-  sectionTitle: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "800", letterSpacing: 1, marginTop: spacing.md },
+  sectionTitle: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "800", letterSpacing: 1.2, marginTop: spacing.lg },
   proRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   proName: { color: colors.text, fontSize: font.base, fontWeight: "800" },
   badge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
