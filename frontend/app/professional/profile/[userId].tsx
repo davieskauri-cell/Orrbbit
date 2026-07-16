@@ -81,6 +81,34 @@ export default function ProProfileScreen() {
 
         {!!p.about && <Text style={styles.about}>{p.about}</Text>}
 
+        {p.professionally_verified && (
+          <View style={[styles.card, shadow.card]} testID="pp-verified-card">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="shield-checkmark" size={16} color={colors.teal} />
+              <Text style={styles.verTitle}>Professionally Verified</Text>
+            </View>
+            <Text style={styles.verProfession}>{p.verified_profession}</Text>
+            {!!p.verified_categories?.length && (
+              <View style={{ gap: 4 }}>
+                <Text style={styles.infoLabel}>VERIFIED CATEGORIES</Text>
+                {p.verified_categories.map((c: string) => (
+                  <View key={c} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="checkmark-circle" size={13} color={colors.success} />
+                    <Text style={styles.verCat}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            {!!p.verified_since && <Text style={styles.verMeta}>Verified since {new Date(p.verified_since).toLocaleDateString("en-AU", { month: "long", year: "numeric" })}</Text>}
+            {!!p.valid_until && (
+              <Text style={[styles.verMeta, p.credential_status === "Expiring Soon" && { color: colors.warning, fontWeight: "700" }]}>
+                Valid until {new Date(p.valid_until).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
+              </Text>
+            )}
+            <Text style={styles.verBy}>Verified by Intro</Text>
+          </View>
+        )}
+
         <View style={[styles.card, shadow.card]}>
           {row("Experience", p.years_experience ? `${p.years_experience} years` : null)}
           {row("Qualifications", p.qualifications)}
@@ -123,6 +151,11 @@ const styles = StyleSheet.create({
   meta: { color: colors.textSecondary, fontSize: font.sm },
   about: { color: colors.textSecondary, fontSize: font.base, lineHeight: 21, marginTop: spacing.lg, textAlign: "center" },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.lg, gap: spacing.md },
+  verTitle: { color: colors.teal, fontSize: font.base, fontWeight: "800" },
+  verProfession: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  verCat: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
+  verMeta: { color: colors.textSecondary, fontSize: font.sm },
+  verBy: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "700" },
   infoRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   infoLabel: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "700" },
   infoValue: { color: colors.text, fontSize: font.sm, fontWeight: "600", flex: 1, textAlign: "right" },

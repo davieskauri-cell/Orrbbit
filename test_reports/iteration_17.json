@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 17 — Professional Verification System V2 backend + focused frontend E2E. Backend: 20/20 pytest cases pass on /app/backend/tests/test_iter17_verification_v2.py (config professions map, V2 submit schema validation incl. category-filtering / doc-count / file-type / supersede / notification / file storage in verification_documents collection, GET /verification/status v2 fields incl. valid_until + credential_status + docs-without-file-content, expiry automation w/ 45-day 'Expiring Soon' + reminder dedupe + past-date auto-flip to Expired + delisting + verification_required + 403 on offer-help, admin dashboard fields + admin-only document reveal (403 for fresh non-demo user) + audit history chain [submitted→approve→suspend→renew] + renew clears reminders_sent + per-decision notifications, category restrictions [sana can offer HR / 403 on Technology / jade unverified always 403 / pro-profile primary=Legal → 400 / primary=HR ok is_draft=false / jade → is_draft=true], public profile professionally_verified/verified_categories/verified_since/valid_until='2028-07-12', /api/professionals lists only actively-verified pros [sana yes, jade no]). Frontend (390x844 mobile viewport): /professional/verification wizard as jade → picked Fitness → Personal Training → filled doc_name+issuer+expiry_date 2027-01-15 → ver-add-doc → ver-name+Passport → ver-submit → ver-status shows 'Pending Review · Fitness · Personal Training · Valid until 15 January 2027' + ver-notifications strip visible. /admin-verifications as kauri → jade's card shows 'Jade · Fitness', category 'Personal Training', 'Valid until 15 Jan 2027', doc row 'PT Certification · Fitness Australia · Expires 15 Jan 2027', history + Approve/Reject/More Info buttons; av-approve-<id> tap removed jade's card from Pending Review queue. /professional/profile/{sana_id} as priya → pp-verified-card renders 'Professionally Verified · HR · VERIFIED CATEGORIES: Employee Relations / Recruitment / Performance · Verified since July 2026 · Valid until 12 July 2028 · Verified by Intro'. All 7 spec bullets pass. Cleanup performed: jade restored to unverified (deleted subs+docs+notifications, professional_profile is_draft=true), 52 TEST_ users removed, TEST_ help_requests removed, sana verification restored to Approved (had been auto-flipped Pending Review during pro-profile edit tests — see RCA).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/professional/profile (upsert_pro_profile)", "issue": "The 're-review on credential edits' guard treats the free-text 'profession' field (a job title like 'HR Consultant') as a credential field — editing it flips an Approved submission to Pending Review even though the *verified profession* (v2) is stored separately on the submission and is unchanged. Suggest excluding 'profession' from cred_fields (line 2207) since it's now a display-only tagline once verification is category-locked; verified_profession is the source of truth."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.* (unchanged from iter 15-16)", "issue": "Cosmetic 'shadow*' style props deprecation warning still fires on Expo Web. Not a regression, pre-known."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter17_verification_v2.py",
+    "/app/test_reports/pytest/pytest_iter17.xml",
+    "/tmp/ver1.png",
+    "/tmp/ver2.png",
+    "/tmp/av1.png",
+    "/tmp/av_after.png",
+    "/tmp/pp_sana.png"
+  ],
+  "action_items": [
+    "Consider removing 'profession' from cred_fields in upsert_pro_profile (server.py:2207) — free-text job title should not trigger re-review; verified_profession on the submission is the credential-locked field. Currently editing your profile 'profession' string demotes your Approved verification to Pending Review, which is likely unintended.",
+    "Verification V2 backend + frontend are production-ready — all spec bullets and E2E flows verified."
+  ],
+  "critical_code_review_comments": [
+    "server.py:1804-1832 — PROFESSIONS + PROFESSION_BROAD maps are clean, complete (17 professions), consistent w/ frontend expectations.",
+    "server.py:1847-1883 _apply_expiry — correct 90/60/30 reminder tiering with dedupe via reminders_sent list, auto-flip on past date with history append + notification. Idempotent on repeat status GETs.",
+    "server.py:2317-2373 submit_verification — proper validation order (profession → categories filter → identity → doc count 1-10 → per-doc name + file_type), supersede logic deletes both old submissions and their files. File bytes correctly stored in db.verification_documents (NOT in submission doc) — verified via mongo query.",
+    "server.py:1130-1141 request_connection — hard category gate via _active_pro(user['id']) then help_requests category ∈ verified broad category. Correct 403 responses.",
+    "server.py:2192-2221 upsert_pro_profile — cred_fields includes 'profession' which is a display-only string post-V2 (see minor issue). primary_category gate at 2200 correctly compares against broad category set.",
+    "verification.tsx — 4-step wizard testIDs (ver-prof-<name>, ver-cat-<name>, ver-doc-<field>, ver-add-doc, ver-name, ver-id-<type>, ver-submit, ver-status, ver-notifications) all working, addDoc validation + max-10 client-side matches backend.",
+    "admin-verifications.tsx — av-approve-<sub_id> testID pattern works, submission cards clearly show profession/categories/docs+expiry/history/valid-until.",
+    "professional/profile/[userId].tsx pp-verified-card — renders professionally_verified + verified_profession + verified_categories checklist + verified_since (formatted 'July 2026') + valid_until (formatted '12 July 2028') + 'Verified by Intro' badge — exactly per spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter17_verification_v2.py (new)"
+  ],
+  "success_rate": {"backend": "20/20 (100%)", "frontend": "3/3 target E2E flows verified (100%)"},
+  "seed_data_creation": "Ephemeral: multiple TEST_ registered users (prefix testv2, exp*, adminfile, audit, sup, submit, techneed, nonadmin) + one TEST_tech help_request. All cleaned up post-test. Jade reset to unverified, sana Approved restored.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Verification V2 backend + wizard + admin dashboard + public profile card are all verified end-to-end. Regression suite lives at /app/backend/tests/test_iter17_verification_v2.py — run with EXPO_PUBLIC_BACKEND_URL + MONGO_URL + DB_NAME env vars. Fixture auto-restores sana's Approved status and resets jade to unverified at session start+end. WATCH-OUT: the old iter14 verification test in test_iter14_professional.py uses the legacy {category, evidence} submit schema and will 422 — main agent explicitly said do not fix that. Sana's Approved verification is fragile — any POST /professional/profile that changes her 'profession' string demotes her to Pending Review (see minor backend issue). If a subsequent test needs a fresh sana, run _restore_sana(db, uids) manually or re-run iter17 fixtures.",
+  "rca_of_issue": "MINOR: POST /professional/profile treats the 'profession' free-text field (a display tagline like 'HR Consultant') as a credential field. When any pro-profile edit changes 'profession' from the seeded value, the credential-edit re-review guard (server.py:2206-2214) demotes the Approved submission to 'Pending Review'. Reproduction: sana initially Approved → POST /professional/profile with profession='HR' (differs from seeded 'HR Consultant') → next GET /verification/status returns status='Pending Review' + history append 're-review (credentials edited)'. Fix: drop 'profession' from cred_fields tuple (line 2207). The v2 credential system stores verified_profession on the submission itself and does not depend on the professional_profiles.profession tagline."
+}

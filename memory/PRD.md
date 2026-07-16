@@ -222,3 +222,14 @@ Guards: blocked both directions/invisible/paused/ghost/banned → 403; deleted/u
 UI: person Connect + Discuss Opportunity → "Request Sent ✓" disabled state; opportunity locked card shows Waiting/No-longer-active states; Pings tab incoming requests have Accept/Decline.
 Files: backend/server.py; frontend: pings.tsx, opportunity/[id].tsx, person/[id].tsx, pingService.ts, matchingService.ts, AppContext.tsx.
 Tested: backend curl matrix (accept/decline/block/invisible/404/self/duplicate/simultaneous/legacy) + two-account browser E2E (12 steps) — all pass. Note: testing_agent timed out once; validation done by main agent scripts.
+
+
+## Professional Verification System V2 (June 2026) — DONE
+- Profession-specific verification: 17 professions with sub-categories; 4-step wizard (profession → categories → upload docs w/ details+expiry → identity)
+- Credential docs (PDF/JPG/PNG, max 10, admin-only visibility, stored in verification_documents)
+- Automatic expiry management: reminders 90/60/30 days, auto-expire, statuses Verified/Expiring Soon/Expired
+- Hard gate: unverified/expired pros hidden from listings, cannot see requests or offer help (existing conversations remain)
+- Category restrictions: verified broad category only (profession_broad map)
+- Admin dashboard: profession/categories/docs+expiry, image preview, approve/reject/more_info/suspend/renew/mark_expired, audit history
+- Public profile: Professionally Verified card (profession, ✓ categories, verified since, valid until, Verified by Intro)
+- In-app notifications (db.notifications) for all verification events — push still MOCKED

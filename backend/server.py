@@ -1132,6 +1132,13 @@ async def request_connection(body: MatchIn, user: dict = Depends(get_current_use
     """Consent flow step 1: create a PENDING connection request. The other user
     must explicitly accept before any connection (or Opportunity private details) unlocks."""
     target = await _validate_connect_target(user, body.user_id)
+    if body.help_request_id:
+        ok, vcats = await _active_pro(user["id"])
+        if not ok:
+            raise HTTPException(status_code=403, detail="Professional verification is required before offering services")
+        hr = await db.help_requests.find_one({"id": body.help_request_id})
+        if hr and hr.get("category") not in vcats:
+            raise HTTPException(status_code=403, detail="You can only offer help inside your verified categories")
     existing_match = await db.matches.find_one({
         "active": True,
         "$or": [{"user_a": user["id"], "user_b": body.user_id}, {"user_a": body.user_id, "user_b": user["id"]}],
@@ -1794,6 +1801,117 @@ PRO_EXPIRY_HOURS = {"1 hour": 1, "4 hours": 4, "Today": 12, "24 hours": 24}
 REGULATED_CATEGORIES = {"Legal", "Accounting", "Finance", "Health and Wellbeing", "Electrical", "Plumbing", "Trades"}
 VERIFICATION_STATUSES = ["Not Submitted", "Pending Review", "Approved", "Rejected", "More Information Required", "Expired"]
 
+# --- Verification V2: profession-specific credentials ---
+PROFESSIONS: dict[str, list[str]] = {
+    "HR": ["Recruitment", "Performance", "Employee Relations", "Fair Work", "Policies", "Investigations", "Training"],
+    "Accounting": ["Bookkeeping", "Tax", "BAS", "Payroll", "Auditing", "Advisory"],
+    "Law": ["Employment Law", "Family Law", "Commercial Law", "Property Law", "Wills and Estates", "Litigation"],
+    "Marketing": ["Digital Marketing", "SEO", "Social Media", "Branding", "Content", "Advertising"],
+    "Finance": ["Financial Planning", "Lending", "Insurance", "Superannuation", "Budgeting"],
+    "IT": ["Web Development", "Mobile Apps", "IT Support", "Cyber Security", "Cloud", "Data"],
+    "Fitness": ["Personal Training", "Group Fitness", "Strength", "Running", "Nutrition Coaching"],
+    "Electrician": ["Residential Electrical", "Commercial Electrical", "Solar", "Appliance Repair", "Safety Inspections"],
+    "Plumber": ["General Plumbing", "Gas Fitting", "Drainage", "Hot Water", "Roofing and Gutters"],
+    "Builder": ["Renovations", "New Builds", "Carpentry", "Decks and Pergolas", "Project Management"],
+    "Mechanic": ["Servicing", "Diagnostics", "Brakes", "Transmission", "Auto Electrical"],
+    "Photographer": ["Portraits", "Events", "Weddings", "Product", "Real Estate Photography"],
+    "Graphic Designer": ["Logos", "Branding", "Print", "UI Design", "Illustration"],
+    "Business Consultant": ["Strategy", "Operations", "Small Business", "Startups", "Process Improvement"],
+    "Real Estate": ["Sales", "Property Management", "Leasing", "Appraisals"],
+    "Mortgage Broker": ["Home Loans", "Refinancing", "Investment Loans", "First Home Buyers"],
+    "Other": ["General"],
+}
+# Broad help-request category each profession may serve (category restriction gate)
+PROFESSION_BROAD: dict[str, str] = {
+    "HR": "HR", "Accounting": "Accounting", "Law": "Legal", "Marketing": "Marketing",
+    "Finance": "Finance", "IT": "Technology", "Fitness": "Fitness", "Electrician": "Electrical",
+    "Plumber": "Plumbing", "Builder": "Trades", "Mechanic": "Automotive", "Photographer": "Photography",
+    "Graphic Designer": "Other", "Business Consultant": "Business Consulting", "Real Estate": "Property",
+    "Mortgage Broker": "Finance", "Other": "Other",
+}
+DOC_TYPES_ALLOWED = {"application/pdf", "image/jpeg", "image/jpg", "image/png"}
+
+
+async def notify(user_id: str, ntype: str, title: str, body_text: str):
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id, "type": ntype,
+        "title": title, "body": body_text, "read": False, "created_at": now_iso(),
+    })
+
+
+def _min_expiry(sub: dict) -> Optional[str]:
+    dates = [d.get("expiry_date") for d in sub.get("documents", []) if d.get("expiry_date")]
+    return min(dates) if dates else None
+
+
+async def _apply_expiry(sub: dict) -> dict:
+    """Automatic expiry management: reminders at 90/60/30 days, auto-expire on the date."""
+    if sub.get("status") != "Approved":
+        return sub
+    exp = _min_expiry(sub)
+    if not exp:
+        sub["credential_status"] = "Verified"
+        return sub
+    try:
+        exp_d = datetime.fromisoformat(exp).date()
+    except ValueError:
+        sub["credential_status"] = "Verified"
+        return sub
+    days = (exp_d - datetime.now(timezone.utc).date()).days
+    sub["valid_until"] = exp
+    if days < 0:
+        await db.verification_submissions.update_one(
+            {"id": sub["id"]},
+            {"$set": {"status": "Expired"},
+             "$push": {"history": {"action": "auto-expired", "by": "system", "at": now_iso()}}},
+        )
+        await notify(sub["user_id"], "verification_expired", "Verification expired",
+                     "A credential has expired. Upload updated credentials to keep offering services. Existing conversations stay active.")
+        sub["status"] = "Expired"
+        sub["credential_status"] = "Expired"
+        return sub
+    sent = list(sub.get("reminders_sent", []))
+    for t, prefix in ((90, ""), (60, "Reminder: "), (30, "Urgent: ")):
+        if days <= t and t not in sent:
+            await notify(sub["user_id"], f"verification_expiring_{t}", f"{prefix}Credentials expiring soon",
+                         f"A credential expires on {exp}. Renew before then to stay verified.")
+            sent.append(t)
+    if sent != sub.get("reminders_sent", []):
+        await db.verification_submissions.update_one({"id": sub["id"]}, {"$set": {"reminders_sent": sent}})
+        sub["reminders_sent"] = sent
+    sub["credential_status"] = "Expiring Soon" if days <= 90 else "Verified"
+    return sub
+
+
+async def _active_pro(user_id: str) -> tuple[bool, list[str]]:
+    """Hard gate: only actively verified (Approved, not expired) professionals may offer services,
+    and only inside the broad category of their verified profession."""
+    ver = await _verification_status(user_id)
+    if ver.get("status") != "Approved":
+        return False, []
+    broad = PROFESSION_BROAD.get(ver.get("profession") or "", "Other")
+    return True, [broad]
+
+
+class VerificationDocIn(BaseModel):
+    doc_name: str
+    issuer: Optional[str] = ""
+    issue_date: Optional[str] = ""
+    expiry_date: Optional[str] = None
+    doc_number: Optional[str] = ""
+    notes: Optional[str] = ""
+    file_b64: Optional[str] = None
+    file_type: Optional[str] = ""
+    file_name: Optional[str] = ""
+
+
+class VerificationV2In(BaseModel):
+    profession: str
+    categories: list[str]
+    full_name: str
+    id_type: str
+    documents: list[VerificationDocIn]
+
 
 class ModeIn(BaseModel):
     app_mode: Optional[str] = None            # "people" | "professional"
@@ -1836,15 +1954,8 @@ class ProProfileIn(BaseModel):
     rate_type: Optional[str] = ""
 
 
-class VerificationIn(BaseModel):
-    full_name: str
-    id_type: str                              # e.g. Passport, Driver licence
-    category: str
-    evidence: list[dict] = []                 # [{type, description}]
-
-
 class VerificationDecisionIn(BaseModel):
-    action: str                               # approve | reject | more_info | suspend | revoke
+    action: str                               # approve | reject | more_info | suspend | renew | mark_expired | revoke
     note: Optional[str] = ""
 
 
@@ -1883,7 +1994,7 @@ async def _active_request(r: dict) -> bool:
 
 @api_router.get("/config")
 async def get_config():
-    return {"professional_mode_enabled": PROFESSIONAL_MODE_ENABLED, "pro_categories": PRO_CATEGORIES, "pro_payments": PRO_PAYMENTS, "pro_expiry_options": list(PRO_EXPIRY_HOURS.keys())}
+    return {"professional_mode_enabled": PROFESSIONAL_MODE_ENABLED, "pro_categories": PRO_CATEGORIES, "pro_payments": PRO_PAYMENTS, "pro_expiry_options": list(PRO_EXPIRY_HOURS.keys()), "professions": PROFESSIONS, "profession_broad": PROFESSION_BROAD}
 
 
 @api_router.put("/users/me/mode")
@@ -2029,7 +2140,22 @@ async def _verification_status(user_id: str) -> dict:
     sub = await db.verification_submissions.find_one({"user_id": user_id}, sort=[("submitted_at", -1)])
     if not sub:
         return {"status": "Not Submitted"}
-    return {"status": sub["status"], "reviewed_at": sub.get("reviewed_at"), "note": sub.get("public_note", ""), "submitted_at": sub.get("submitted_at")}
+    sub = await _apply_expiry(sub)
+    return {
+        "status": sub["status"],
+        "profession": sub.get("profession") or sub.get("category"),
+        "categories": sub.get("categories", []),
+        "reviewed_at": sub.get("reviewed_at"),
+        "verified_since": sub.get("reviewed_at") if sub["status"] == "Approved" else None,
+        "valid_until": _min_expiry(sub),
+        "credential_status": sub.get("credential_status", "Verified" if sub["status"] == "Approved" else None),
+        "note": sub.get("public_note", ""),
+        "submitted_at": sub.get("submitted_at"),
+        "documents": [
+            {k: d.get(k) for k in ("doc_name", "issuer", "issue_date", "expiry_date", "doc_number", "notes", "file_name")}
+            for d in sub.get("documents", [])
+        ],
+    }
 
 
 async def _pro_public(user_id: str, viewer: dict) -> dict | None:
@@ -2051,6 +2177,12 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
         "availability": prof.get("availability", ""), "response_time": prof.get("response_time", ""),
         "rate": prof.get("rate", ""), "rate_type": prof.get("rate_type", ""),
         "verified_by_intro": verified,
+        "professionally_verified": verified,
+        "verified_profession": ver.get("profession") if verified else None,
+        "verified_categories": ver.get("categories", []) if verified else [],
+        "verified_since": ver.get("verified_since"),
+        "valid_until": ver.get("valid_until") if verified else None,
+        "credential_status": ver.get("credential_status") if verified else None,
         "verification": {"status": ver["status"], "verified_at": ver.get("reviewed_at")} if verified else {"status": ver["status"]},
         "distance": u.get("demo_dist"),
         "regulated": prof.get("primary_category") in REGULATED_CATEGORIES,
@@ -2062,12 +2194,17 @@ async def upsert_pro_profile(body: ProProfileIn, user: dict = Depends(get_curren
     if body.primary_category not in PRO_CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
     _check_banned(body.about or "", body.profession, body.qualifications or "")
+    ok, vcats = await _active_pro(user["id"])
+    if ok:
+        chosen = {body.primary_category, *body.additional_categories}
+        if not chosen <= set(vcats):
+            raise HTTPException(status_code=400, detail="You can only offer services inside your verified categories")
     existing = await db.professional_profiles.find_one({"user_id": user["id"]})
     doc = body.model_dump()
-    doc.update({"user_id": user["id"], "is_draft": False, "updated_at": now_iso()})
+    doc.update({"user_id": user["id"], "is_draft": not ok, "updated_at": now_iso()})
     ver = await _verification_status(user["id"])
     if existing and ver["status"] == "Approved":
-        cred_fields = ("qualifications", "memberships", "licences", "certifications", "profession", "primary_category")
+        cred_fields = ("qualifications", "memberships", "licences", "certifications", "primary_category")
         if any((existing.get(f) or "") != (doc.get(f) or "") for f in cred_fields):
             # credential edits after approval trigger re-review
             await db.verification_submissions.update_one(
@@ -2109,10 +2246,12 @@ async def matching_requests(
     user: dict = Depends(get_current_user),
 ):
     """Nearby active help requests matching the professional's categories only."""
-    prof = await db.professional_profiles.find_one({"user_id": user["id"]})
-    my_cats = set(([prof.get("primary_category")] + list(prof.get("additional_categories", []))) if prof else [])
+    ok, vcats = await _active_pro(user["id"])
+    if not ok:
+        return {"requests": [], "verification_required": True}
+    my_cats = set(vcats)
     if category:
-        my_cats = {category} & my_cats if my_cats else {category}
+        my_cats &= {category}
     if not my_cats:
         return {"requests": []}
     blocked = await get_blocked_ids(user["id"])
@@ -2164,7 +2303,8 @@ async def nearby_professionals(
         pub = await _pro_public(p["user_id"], user)
         if not pub:
             continue
-        if verified_only and not pub["verified_by_intro"]:
+        # V2: professionals must be actively verified to be publicly listed
+        if not pub["verified_by_intro"]:
             continue
         if available_now and not pub["active_now"]:
             continue
@@ -2173,32 +2313,75 @@ async def nearby_professionals(
     return {"professionals": out[:50]}
 
 
-# --------------------- Verification ---------------------
+# --------------------- Verification (V2: credential system) ---------------------
 @api_router.post("/verification/submit")
-async def submit_verification(body: VerificationIn, user: dict = Depends(get_current_user)):
-    if body.category not in PRO_CATEGORIES:
-        raise HTTPException(status_code=400, detail="Invalid category")
+async def submit_verification(body: VerificationV2In, user: dict = Depends(get_current_user)):
+    if body.profession not in PROFESSIONS:
+        raise HTTPException(status_code=400, detail="Invalid profession")
+    valid_cats = set(PROFESSIONS[body.profession])
+    cats = [c for c in body.categories if c in valid_cats]
+    if not cats:
+        raise HTTPException(status_code=400, detail="Pick at least one category for your profession")
     if not body.full_name.strip() or not body.id_type.strip():
         raise HTTPException(status_code=400, detail="Identity details are required")
-    if not body.evidence:
-        raise HTTPException(status_code=400, detail="At least one piece of professional evidence is required")
+    if not body.documents:
+        raise HTTPException(status_code=400, detail="Upload at least one credential document")
+    if len(body.documents) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 documents")
+    sub_id = str(uuid.uuid4())
+    docs_meta = []
+    doc_files = []
+    for d in body.documents:
+        if not d.doc_name.strip():
+            raise HTTPException(status_code=400, detail="Each document needs a name")
+        if d.file_b64 and d.file_type and d.file_type not in DOC_TYPES_ALLOWED:
+            raise HTTPException(status_code=400, detail="Only PDF, JPG and PNG files are accepted")
+        doc_id = str(uuid.uuid4())
+        docs_meta.append({
+            "id": doc_id, "doc_name": d.doc_name.strip()[:80], "issuer": (d.issuer or "")[:80],
+            "issue_date": d.issue_date or "", "expiry_date": d.expiry_date or None,
+            "doc_number": (d.doc_number or "")[:60], "notes": (d.notes or "")[:200],
+            "file_name": (d.file_name or "")[:120], "file_type": d.file_type or "",
+            "has_file": bool(d.file_b64),
+        })
+        if d.file_b64:
+            doc_files.append({
+                "id": doc_id, "submission_id": sub_id, "user_id": user["id"],
+                "file_b64": d.file_b64, "file_type": d.file_type or "", "file_name": d.file_name or "",
+                "created_at": now_iso(),
+            })
     doc = {
-        "id": str(uuid.uuid4()), "user_id": user["id"], "category": body.category,
+        "id": sub_id, "user_id": user["id"],
+        "profession": body.profession, "categories": cats,
+        "category": PROFESSION_BROAD.get(body.profession, "Other"),  # broad category (legacy field)
         "identity": {"full_name": body.full_name.strip(), "id_type": body.id_type.strip()},
-        "evidence": [{"type": e.get("type", "Other"), "description": (e.get("description") or "")[:300]} for e in body.evidence][:10],
+        "documents": docs_meta,
         "status": "Pending Review", "submitted_at": now_iso(), "reviewed_at": None, "reviewer": None,
-        "notes": [], "public_note": "",
+        "notes": [], "public_note": "", "reminders_sent": [],
         "history": [{"action": "submitted", "by": user["id"], "at": now_iso()}],
     }
     # one live submission at a time — supersede previous non-approved
-    await db.verification_submissions.delete_many({"user_id": user["id"], "status": {"$in": ["Pending Review", "More Information Required", "Rejected"]}})
+    old = await db.verification_submissions.find({"user_id": user["id"], "status": {"$in": ["Pending Review", "More Information Required", "Rejected", "Expired", "Suspended"]}}).to_list(20)
+    if old:
+        await db.verification_documents.delete_many({"submission_id": {"$in": [o["id"] for o in old]}})
+        await db.verification_submissions.delete_many({"id": {"$in": [o["id"] for o in old]}})
     await db.verification_submissions.insert_one(dict(doc))
-    return {"ok": True, "status": "Pending Review"}
+    if doc_files:
+        await db.verification_documents.insert_many([dict(f) for f in doc_files])
+    await notify(user["id"], "verification_submitted", "Verification submitted",
+                 f"Your {body.profession} verification is with the review team.")
+    return {"ok": True, "status": "Pending Review", "submission_id": sub_id}
 
 
 @api_router.get("/verification/status")
 async def verification_status(user: dict = Depends(get_current_user)):
     return await _verification_status(user["id"])
+
+
+@api_router.get("/notifications")
+async def my_notifications(user: dict = Depends(get_current_user)):
+    rows = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return rows
 
 
 def _require_admin(user: dict):
@@ -2217,11 +2400,34 @@ async def admin_verifications(status_filter: Optional[str] = None, user: dict = 
     users_by_id = {u["id"]: u async for u in db.users.find({"id": {"$in": ids}}, {"id": 1, "name": 1, "email": 1, "photo_url": 1})}
     out = []
     for s in sorted(subs, key=lambda x: x["submitted_at"], reverse=True):
+        s = await _apply_expiry(s)
         s.pop("_id", None)
         u = users_by_id.get(s["user_id"], {})
         s["user"] = {"id": s["user_id"], "name": u.get("name"), "email": u.get("email"), "photo_url": u.get("photo_url")}
+        s["valid_until"] = _min_expiry(s)
         out.append(s)
     return out
+
+
+@api_router.get("/admin/verifications/{sub_id}/documents/{doc_id}")
+async def admin_document(sub_id: str, doc_id: str, user: dict = Depends(get_current_user)):
+    """Credential files are NEVER public — admin preview only."""
+    _require_admin(user)
+    f = await db.verification_documents.find_one({"submission_id": sub_id, "id": doc_id}, {"_id": 0})
+    if not f:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return f
+
+
+_DECISION_MAP = {
+    "approve": ("Approved", "Verification approved", "You're now Professionally Verified. Your badge and verified categories are live."),
+    "reject": ("Rejected", "Verification rejected", "Your verification was not approved. See the reviewer note and resubmit."),
+    "more_info": ("More Information Required", "More information requested", "The review team needs more information. Check the note and resubmit."),
+    "suspend": ("Suspended", "Verification suspended", "Your verification is suspended. Contact support or resubmit updated credentials."),
+    "renew": ("Approved", "Verification renewed", "Your verification has been renewed. Your badge stays live."),
+    "mark_expired": ("Expired", "Verification expired", "Your verification was marked expired. Upload updated credentials to continue."),
+    "revoke": ("Rejected", "Verification removed", "Your verification badge was removed by the review team."),
+}
 
 
 @api_router.post("/admin/verifications/{sub_id}/decision")
@@ -2230,18 +2436,20 @@ async def admin_verification_decision(sub_id: str, body: VerificationDecisionIn,
     sub = await db.verification_submissions.find_one({"id": sub_id})
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
-    status_map = {"approve": "Approved", "reject": "Rejected", "more_info": "More Information Required", "suspend": "Expired", "revoke": "Rejected"}
-    new_status = status_map.get(body.action)
-    if not new_status:
+    if body.action not in _DECISION_MAP:
         raise HTTPException(status_code=400, detail="Invalid action")
+    new_status, n_title, n_body = _DECISION_MAP[body.action]
     upd = {
         "status": new_status, "reviewed_at": now_iso(), "reviewer": user["id"],
-        "public_note": (body.note or "") if body.action in ("reject", "more_info") else "",
+        "public_note": (body.note or "") if body.action in ("reject", "more_info", "suspend") else "",
     }
+    if body.action == "renew":
+        upd["reminders_sent"] = []
     await db.verification_submissions.update_one(
         {"id": sub_id},
         {"$set": upd, "$push": {"history": {"action": body.action, "by": user["id"], "note": body.note or "", "at": now_iso()}}},
     )
+    await notify(sub["user_id"], f"verification_{body.action}", n_title, (body.note or n_body))
     return {"ok": True, "status": new_status}
 
 
@@ -2302,9 +2510,10 @@ async def seed_professional_demo():
             "availability": "Available today", "status": "active", "demo": True,
             "created_at": now_iso(), "updated_at": now_iso(),
         })
+    await db.verification_submissions.delete_many({"demo": True, "profession": {"$exists": False}})
     pro_seed = [
-        (sana, "HR Consultant", "HR", ["Business Consulting"], "12+ years in HR advisory for small businesses.", 12, "MBA (HR), CIPD Level 7", "AHRI member", ["Performance management", "Workplace disputes"], "Approved"),
-        (dev, "Software Engineer", "Technology", [], "Full-stack developer helping local businesses with web and apps.", 8, "BSc Computer Science", "", ["Web apps", "Mobile apps"], "Approved"),
+        (sana, "HR Consultant", "HR", [], "12+ years in HR advisory for small businesses.", 12, "MBA (HR), CIPD Level 7", "AHRI member", ["Performance management", "Workplace disputes"], ("HR", ["Employee Relations", "Recruitment", "Performance"])),
+        (dev, "Software Engineer", "Technology", [], "Full-stack developer helping local businesses with web and apps.", 8, "BSc Computer Science", "", ["Web apps", "Mobile apps"], ("IT", ["Web Development", "Mobile Apps"])),
         (jade, "Personal Trainer", "Fitness", [], "Run-club organiser and PT.", 4, "Cert IV Fitness", "", ["Running", "Strength"], None),
     ]
     for uid_, profession, cat, extra, about, yrs, quals, mems, specs, ver in pro_seed:
@@ -2316,15 +2525,21 @@ async def seed_professional_demo():
                 "about": about, "years_experience": yrs, "qualifications": quals, "memberships": mems,
                 "licences": "", "certifications": "", "specialties": specs, "availability": "Available now",
                 "response_time": "Usually replies within 1 hour", "rate": "", "rate_type": "",
-                "is_draft": False, "demo": True, "created_at": now_iso(), "updated_at": now_iso(),
+                "is_draft": ver is None, "demo": True, "created_at": now_iso(), "updated_at": now_iso(),
             })
-        if ver == "Approved" and not await db.verification_submissions.find_one({"user_id": uid_, "status": "Approved"}):
+        if ver and not await db.verification_submissions.find_one({"user_id": uid_, "status": "Approved"}):
+            v_prof, v_cats = ver
             await db.verification_submissions.insert_one({
-                "id": str(uuid.uuid4()), "user_id": uid_, "category": cat,
+                "id": str(uuid.uuid4()), "user_id": uid_,
+                "profession": v_prof, "categories": v_cats, "category": PROFESSION_BROAD[v_prof],
                 "identity": {"full_name": profession, "id_type": "Driver licence"},
-                "evidence": [{"type": "Professional membership", "description": quals}],
+                "documents": [{
+                    "id": str(uuid.uuid4()), "doc_name": quals.split(",")[0].strip(), "issuer": "Issuing body",
+                    "issue_date": "2019-03-01", "expiry_date": "2028-07-12", "doc_number": "DEMO-1234",
+                    "notes": "", "file_name": "credential.pdf", "file_type": "application/pdf", "has_file": False,
+                }],
                 "status": "Approved", "submitted_at": now_iso(), "reviewed_at": now_iso(),
-                "reviewer": "intro-admin", "notes": [], "public_note": "",
+                "reviewer": "intro-admin", "notes": [], "public_note": "", "reminders_sent": [],
                 "history": [{"action": "submitted", "by": uid_, "at": now_iso()}, {"action": "approve", "by": "intro-admin", "at": now_iso()}],
                 "demo": True,
             })

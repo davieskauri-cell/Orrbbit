@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,7 +9,12 @@ import Avatar from "@/src/components/Avatar";
 import { timeAgo } from "@/src/lib/format";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
-const FILTERS = ["Pending Review", "More Information Required", "Approved", "Rejected"];
+const FILTERS = ["Pending Review", "More Information Required", "Approved", "Suspended", "Expired", "Rejected"];
+
+function fmtD(d?: string | null) {
+  if (!d) return null;
+  try { return new Date(d).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; }
+}
 
 export default function AdminVerificationsScreen() {
   const router = useRouter();
@@ -17,6 +22,18 @@ export default function AdminVerificationsScreen() {
   const [subs, setSubs] = useState<any[]>([]);
   const [filter, setFilter] = useState("Pending Review");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<any>(null);
+
+  const openDoc = async (subId: string, doc: any) => {
+    if (!doc.has_file) { showAlert("No file attached", "This document has details only — no uploaded file."); return; }
+    try {
+      const f = await api<any>(`/admin/verifications/${subId}/documents/${doc.id}`);
+      if (f.file_type?.startsWith("image/")) setPreview(f);
+      else showAlert("PDF document", `${f.file_name || doc.doc_name} — PDF preview isn't supported in-app yet. File is stored securely.`);
+    } catch (e: any) {
+      showAlert("Couldn't load document", e.message || "Try again.");
+    }
+  };
 
   const load = useCallback(() => {
     api<any[]>(`/admin/verifications?status_filter=${encodeURIComponent(filter)}`).then(setSubs).catch(() => setSubs([]));
@@ -54,12 +71,28 @@ export default function AdminVerificationsScreen() {
           <View style={styles.row}>
             <Avatar uri={s.user?.photo_url} name={s.user?.name} size={40} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{s.user?.name} · {s.category}</Text>
+              <Text style={styles.name}>{s.user?.name} · {s.profession || s.category}</Text>
               <Text style={styles.meta}>{s.user?.email} · submitted {timeAgo(s.submitted_at)}</Text>
             </View>
             <Text style={styles.status}>{s.status}</Text>
           </View>
+          {!!s.categories?.length && <Text style={styles.meta}>Categories: {s.categories.join(", ")}</Text>}
+          {!!s.valid_until && (
+            <Text style={[styles.meta, s.credential_status === "Expiring Soon" && { color: colors.warning, fontWeight: "700" }, s.credential_status === "Expired" && { color: colors.pink, fontWeight: "700" }]}>
+              Valid until {fmtD(s.valid_until)}{s.credential_status && s.credential_status !== "Verified" ? ` · ${s.credential_status}` : ""}
+            </Text>
+          )}
           <Text style={styles.meta}>Identity: {s.identity?.full_name} ({s.identity?.id_type})</Text>
+          {s.documents?.map((d: any, i: number) => (
+            <Pressable key={i} testID={`av-doc-${s.id}-${i}`} style={styles.docRow} onPress={() => openDoc(s.id, d)}>
+              <Ionicons name={d.has_file ? "document-attach" : "document-text"} size={14} color={colors.teal} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.evidence}>{d.doc_name}{d.doc_number ? ` (#${d.doc_number})` : ""}</Text>
+                <Text style={styles.docMeta}>{[d.issuer, d.issue_date ? `Issued ${fmtD(d.issue_date)}` : null, d.expiry_date ? `Expires ${fmtD(d.expiry_date)}` : "No expiry"].filter(Boolean).join(" · ")}</Text>
+              </View>
+              {d.has_file && <Text style={styles.previewLink}>Preview</Text>}
+            </Pressable>
+          ))}
           {s.evidence?.map((e: any, i: number) => (
             <Text key={i} style={styles.evidence}>📄 {e.type}: {e.description}</Text>
           ))}
@@ -89,13 +122,34 @@ export default function AdminVerificationsScreen() {
               <Text style={styles.btnText}>More Info</Text>
             </Pressable>
             {s.status === "Approved" && (
-              <Pressable testID={`av-revoke-${s.id}`} style={[styles.btn, { backgroundColor: colors.textTertiary }]} onPress={() => decide(s.id, "revoke")}>
-                <Text style={styles.btnText}>Remove Badge</Text>
+              <>
+                <Pressable testID={`av-suspend-${s.id}`} style={[styles.btn, { backgroundColor: colors.warning }]} onPress={() => decide(s.id, "suspend")}>
+                  <Text style={styles.btnText}>Suspend</Text>
+                </Pressable>
+                <Pressable testID={`av-expire-${s.id}`} style={[styles.btn, { backgroundColor: colors.textTertiary }]} onPress={() => decide(s.id, "mark_expired")}>
+                  <Text style={styles.btnText}>Mark Expired</Text>
+                </Pressable>
+              </>
+            )}
+            {["Suspended", "Expired"].includes(s.status) && (
+              <Pressable testID={`av-renew-${s.id}`} style={[styles.btn, { backgroundColor: colors.teal }]} onPress={() => decide(s.id, "renew")}>
+                <Text style={styles.btnText}>Renew</Text>
               </Pressable>
             )}
           </View>
         </View>
       ))}
+      {preview && (
+        <Modal transparent animationType="fade" visible onRequestClose={() => setPreview(null)}>
+          <Pressable style={styles.previewOverlay} onPress={() => setPreview(null)}>
+            <View style={styles.previewBox}>
+              <Text style={styles.previewTitle}>{preview.file_name}</Text>
+              <Image source={{ uri: `data:${preview.file_type};base64,${preview.file_b64}` }} style={styles.previewImg} resizeMode="contain" />
+              <Text style={styles.previewClose}>Tap anywhere to close</Text>
+            </View>
+          </Pressable>
+        </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -115,6 +169,14 @@ const styles = StyleSheet.create({
   meta: { color: colors.textSecondary, fontSize: font.sm },
   status: { color: colors.orange, fontSize: font.sm, fontWeight: "800" },
   evidence: { color: colors.text, fontSize: font.sm },
+  docRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.tealSoft, borderRadius: radius.md, padding: spacing.md },
+  docMeta: { color: colors.textSecondary, fontSize: 11 },
+  previewLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
+  previewOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.7)", justifyContent: "center", padding: spacing.xl },
+  previewBox: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm },
+  previewTitle: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  previewImg: { width: "100%", height: 380, borderRadius: radius.md, backgroundColor: colors.card },
+  previewClose: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center" },
   noteInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 8, fontSize: font.sm, color: colors.text, backgroundColor: colors.card, minHeight: 40 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xs },
   btn: { borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 8, minHeight: 34, justifyContent: "center" },

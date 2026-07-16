@@ -14,6 +14,7 @@ export default function CanHelpScreen() {
   const insets = useSafeAreaInsets();
   const [f, setF] = useState<any>({ profession: "", primary_category: null, additional_categories: [], about: "", years_experience: "", qualifications: "", memberships: "", licences: "", certifications: "", specialties: "", availability: "", response_time: "", rate: "", rate_type: "" });
   const [verification, setVerification] = useState<any>({ status: "Not Submitted" });
+  const [broadMap, setBroadMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -25,7 +26,12 @@ export default function CanHelpScreen() {
         setF({ ...p, years_experience: String(p.years_experience || ""), specialties: (p.specialties || []).join(", ") });
       }
     }).catch(() => {});
+    api<any>("/config").then((c) => setBroadMap(c.profession_broad || {})).catch(() => {});
   }, []);
+
+  const isVerified = verification.status === "Approved";
+  const verifiedBroad = isVerified && verification.profession ? [broadMap[verification.profession] || "Other"] : null;
+  const allowedCats = verifiedBroad || CATEGORIES;
 
   const set = (k: string, v: any) => setF((prev: any) => ({ ...prev, [k]: v }));
 
@@ -86,29 +92,41 @@ export default function CanHelpScreen() {
             <Text style={styles.verLink}>{verification.status === "Approved" ? "View" : "Get Verified"}</Text>
           </Pressable>
         </View>
-        {verification.status === "Approved" && (
+        {verification.status === "Approved" ? (
           <Text style={styles.reReviewNote}>Editing credentials (profession, category, qualifications, licences) will trigger re-review.</Text>
+        ) : (
+          <View style={styles.draftBanner} testID="ch-draft-banner">
+            <Ionicons name="lock-closed" size={13} color={colors.orange} />
+            <Text style={styles.draftText}>{"Your profile stays private until you're Professionally Verified. Only verified categories can be offered."}</Text>
+          </View>
         )}
 
         {input("profession", "Profession", "e.g. HR Consultant")}
 
-        <Text style={styles.label}>Primary Category</Text>
+        <Text style={styles.label}>Primary Category{isVerified ? " (verified only)" : ""}</Text>
         <View style={styles.pills}>
-          {CATEGORIES.map((c) => (
+          {allowedCats.map((c) => (
             <Pressable key={c} testID={`ch-cat-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} style={[styles.pill, f.primary_category === c && styles.pillActive]} onPress={() => set("primary_category", c)}>
               <Text style={[styles.pillText, f.primary_category === c && styles.pillTextActive]}>{c}</Text>
             </Pressable>
           ))}
         </View>
+        {isVerified && (
+          <Text style={styles.reReviewNote}>{`You're verified for ${verification.profession}. Other categories require separate verification.`}</Text>
+        )}
 
-        <Text style={styles.label}>Additional Categories (up to 4)</Text>
-        <View style={styles.pills}>
-          {CATEGORIES.filter((c) => c !== f.primary_category).map((c) => (
-            <Pressable key={c} testID={`ch-extra-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} style={[styles.pill, f.additional_categories.includes(c) && styles.pillActiveTeal]} onPress={() => toggleExtra(c)}>
-              <Text style={[styles.pillText, f.additional_categories.includes(c) && styles.pillTextActive]}>{c}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {allowedCats.length > 1 && (
+          <>
+            <Text style={styles.label}>Additional Categories (up to 4)</Text>
+            <View style={styles.pills}>
+              {allowedCats.filter((c) => c !== f.primary_category).map((c) => (
+                <Pressable key={c} testID={`ch-extra-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} style={[styles.pill, f.additional_categories.includes(c) && styles.pillActiveTeal]} onPress={() => toggleExtra(c)}>
+                  <Text style={[styles.pillText, f.additional_categories.includes(c) && styles.pillTextActive]}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         {input("about", "About", "What you help with and how", true)}
         {input("years_experience", "Years of Experience", "e.g. 8")}
@@ -138,6 +156,8 @@ const styles = StyleSheet.create({
   verText: { color: colors.text, fontSize: font.sm, fontWeight: "700", flex: 1 },
   verLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   reReviewNote: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.sm },
+  draftBanner: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: colors.orangeSoft, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
+  draftText: { color: colors.text, fontSize: font.sm, flex: 1, lineHeight: 18 },
   label: { color: colors.text, fontSize: font.sm, fontWeight: "800", marginTop: spacing.xl, marginBottom: spacing.sm },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   pill: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: 999, minHeight: 36, justifyContent: "center" },

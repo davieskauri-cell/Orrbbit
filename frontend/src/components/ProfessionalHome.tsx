@@ -227,9 +227,13 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.proName}>{p.name}</Text>
               {p.verified_by_intro && (
-                <StatusBadge icon="shield-checkmark" label="Verified by INTRO" />
+                <StatusBadge icon="shield-checkmark" label={`Professionally Verified · ${p.verified_profession || ""}`} />
               )}
               <Text style={styles.cardMeta}>{p.profession} · {p.primary_category}{p.distance != null ? ` · ${distLabel(p.distance)}` : ""}</Text>
+              {!!p.verified_categories?.length && (
+                <Text style={styles.verCats} numberOfLines={1}>✓ {p.verified_categories.join(" · ")}</Text>
+              )}
+              {!!p.response_time && <Text style={styles.cardMeta}>{p.response_time}{p.years_experience ? ` · ${p.years_experience} yrs experience` : ""}</Text>}
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </View>
@@ -251,6 +255,7 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
   const [payment, setPayment] = useState<string | null>(null);
   const [freshOnly, setFreshOnly] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [verRequired, setVerRequired] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -263,6 +268,7 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
         if (freshOnly) q += "&max_age_hours=4";
         const res = await api<any>(q);
         setRequests(res.requests);
+        setVerRequired(!!res.verification_required);
       }
     } catch {}
   }, [coords, payment, freshOnly]);
@@ -330,7 +336,18 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
         </Pressable>
       )}
 
-      {profile && (
+      {profile && verRequired && (
+        <Pressable testID="verification-required-card" style={[styles.card, shadow.card, { alignItems: "center" }]} onPress={() => router.push("/professional/verification")}>
+          <Ionicons name="shield-half" size={28} color={colors.orange} />
+          <Text style={styles.cardTitle}>Verification required</Text>
+          <Text style={[styles.cardMeta, { textAlign: "center" }]}>
+            You need to be Professionally Verified before you can see and respond to requests. Existing conversations stay active.
+          </Text>
+          <Text style={{ color: colors.teal, fontWeight: "800", fontSize: font.sm }}>Start verification →</Text>
+        </Pressable>
+      )}
+
+      {profile && !verRequired && (
         <>
           <SectionHeader title="Matching requests nearby" />
           <View style={styles.filtersRow}>
@@ -406,6 +423,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   cardBadge: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
+  verCats: { color: colors.success, fontSize: 11, fontWeight: "600" },
   cardTitle: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   cardMeta: { color: colors.textSecondary, fontSize: font.sm },
   statusChip: { fontSize: font.sm, fontWeight: "700" },
