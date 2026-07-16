@@ -57,7 +57,7 @@ export default function ModeSelector() {
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: spacing.xl, gap: spacing.sm, paddingBottom: spacing.md },
+  row: { paddingHorizontal: spacing.xl, gap: spacing.sm, paddingBottom: spacing.sm },
   chip: {
     flexDirection: "row",
     alignItems: "center",

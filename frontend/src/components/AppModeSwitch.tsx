@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 999,
     padding: 3,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
   seg: { flex: 1, paddingVertical: 8, borderRadius: 999, alignItems: "center", minHeight: 36, justifyContent: "center" },

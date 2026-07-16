@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   headerRight: { flexDirection: "row", gap: spacing.sm },
   iconBtn: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   visChip: {
     flexDirection: "row",
@@ -687,8 +687,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.lg,
-    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
   },
   statBox: { alignItems: "center", flex: 1 },
   statNum: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
