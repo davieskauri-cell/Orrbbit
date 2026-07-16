@@ -13,7 +13,7 @@ type Props = {
 export default function VibePicker({ vibes, value, onChange }: Props) {
   return (
     <View style={styles.list}>
-      {vibes.map((v) => {
+      {vibes.filter((v) => !(v as any).hidden).map((v) => {
         const active = value === v.key;
         return (
           <Pressable

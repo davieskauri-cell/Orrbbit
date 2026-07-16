@@ -17,6 +17,8 @@ import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
 import ModeSelector from "@/src/components/ModeSelector";
 import ModeCards from "@/src/components/ModeCards";
+import AppModeSwitch from "@/src/components/AppModeSwitch";
+import ProfessionalHome from "@/src/components/ProfessionalHome";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const ALL_RADII = [10, 25, 50, 100, 250, 500];
@@ -25,7 +27,7 @@ export default function RadarScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, setUser } = useAuth();
-  const { coords, permission, nearby, vibeMap, requestLocation, refresh, visibilityEnded } = useApp();
+  const { coords, permission, nearby, vibeMap, requestLocation, refresh, visibilityEnded, appMode } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [showRadius, setShowRadius] = useState(false);
   const [preview, setPreview] = useState<NearbyUser | null>(null);
@@ -96,6 +98,23 @@ export default function RadarScreen() {
   const bestVibe = best?.vibe ? vibeMap[best.vibe] : undefined;
   const hidden = !user?.visible || user?.ghost_mode || user?.paused;
 
+  if (appMode === "professional") {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.header}>
+          <Logo size={26} />
+          <View style={styles.headerRight}>
+            <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
+              <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        </View>
+        <AppModeSwitch />
+        <ProfessionalHome />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.header}>
@@ -106,6 +125,8 @@ export default function RadarScreen() {
           </Pressable>
         </View>
       </View>
+
+      <AppModeSwitch />
 
       <View style={styles.topRow}>
         <Pressable testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeSelector}>

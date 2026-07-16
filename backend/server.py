@@ -117,6 +117,7 @@ class AnalyticsIn(BaseModel):
 
 class MatchIn(BaseModel):
     user_id: str
+    help_request_id: Optional[str] = None
 
 
 class MeetupIn(BaseModel):
@@ -278,7 +279,7 @@ VIBES = [
     {"key": "need_advice", "label": "Need Advice", "description": "Get or offer advice", "color": "#8B5CF6", "icon": "help-circle", "ping_title": "Someone nearby needs advice 💬", "action": "Offer Advice"},
     {"key": "gym_buddy", "label": "Gym Buddy", "description": "Train together", "color": "#22C55E", "icon": "barbell", "ping_title": "Someone nearby wants to train 🏋️", "action": "Let's Train"},
     {"key": "exploring", "label": "Exploring", "description": "Discover nearby", "color": "#F59E0B", "icon": "walk", "ping_title": "Someone nearby wants to explore 🧭", "action": "Explore Together"},
-    {"key": "opportunity", "label": "Opportunity", "description": "Ask for help, offer a service, or share a local opportunity", "color": "#F59E0B", "icon": "sparkles", "ping_title": "Opportunity nearby ✨", "action": "Connect to Discuss"},
+    {"key": "opportunity", "label": "Opportunity", "description": "Legacy — moved to Professional Mode", "color": "#F59E0B", "icon": "sparkles", "ping_title": "Opportunity nearby ✨", "action": "Connect to Discuss", "hidden": True},
     {"key": "busy", "label": "Busy", "description": "Not available", "color": "#9CA3AF", "icon": "notifications-off", "ping_title": None, "action": None},
 ]
 VIBE_KEYS = {v["key"] for v in VIBES}
@@ -345,8 +346,8 @@ def _build_radar_demo():
               ("Lachlan", "men/91"), ("Matilda", "women/28"), ("Patrick", "men/6")]
     for i, (n, p) in enumerate(advice):
         users.append((n, 24 + i % 9, "need_advice", 210 + i * 17, 282 + i * 3, p, "Could use a second opinion on a few things."))
-    # opportunity pocket: hero at ~80m + small amber cluster (sector ~210-230)
-    users.append(("Priya", 34, "opportunity", 80, 220, "women/33", "Small business owner in the CBD."))
+    # legacy opportunity pocket — now seeded as Professional Mode demo data (see seed_professional_demo)
+    users.append(("Priya", 34, "networking", 80, 220, "women/33", "Small business owner in the CBD."))
     details["priya@radar.intro.demo"] = {
         "opportunity_type": "Need help", "category": "Business",
         "public_summary": "Need help with a staff issue",
@@ -362,7 +363,7 @@ def _build_radar_demo():
         ("Marco", 38, "men/85", "Selling something", "Car", "Selling roof racks, near new", "Not sure", 320, 215),
     ]
     for oname, oage, op, otype, ocat, osummary, opay, od, ob in opportunity:
-        users.append((oname, oage, "opportunity", od, ob, op, "Sharing an opportunity nearby."))
+        users.append((oname, oage, "open_to_chat", od, ob, op, "Melbourne local."))
         details[f"{oname.lower()}@radar.intro.demo"] = {
             "opportunity_type": otype, "category": ocat, "public_summary": osummary,
             "private_details": "Happy to share the full details once we connect.", "payment": opay,
@@ -967,7 +968,9 @@ def ping_payload(p: dict, u_info: dict) -> dict:
     title = (vibe_def or {}).get("ping_title") or "Someone nearby wants to connect 👋"
     if p.get("kind") == "request":
         title = (
-            f"{u_info.get('name')} wants to discuss your Opportunity ✨"
+            f"{u_info.get('name')} would like to help 🤝"
+            if p.get("about") == "help_offer"
+            else f"{u_info.get('name')} wants to discuss your Opportunity ✨"
             if p.get("about") == "opportunity"
             else f"{u_info.get('name')} wants to connect 🤝"
         )
@@ -1147,7 +1150,8 @@ async def request_connection(body: MatchIn, user: dict = Depends(get_current_use
     ping = {
         "id": str(uuid.uuid4()),
         "kind": "request",
-        "about": "opportunity" if target.get("vibe") == "opportunity" else "connect",
+        "about": "help_offer" if body.help_request_id else ("opportunity" if target.get("vibe") == "opportunity" else "connect"),
+        "help_request_id": body.help_request_id,
         "from_user_id": user["id"],
         "to_user_id": body.user_id,
         "vibe": user.get("vibe") or "open_to_chat",
@@ -1774,6 +1778,561 @@ async def north_star(user: dict = Depends(get_current_user)):
     return {"today": today, "this_week": week, "this_city": len(feedback), "this_event": min(len(feedback), DEMO_EVENT["conversations_confirmed"]), "total": len(feedback)}
 
 
+
+# ============================ PROFESSIONAL MODE ============================
+PROFESSIONAL_MODE_ENABLED = os.environ.get("PROFESSIONAL_MODE_ENABLED", "true").lower() == "true"
+
+PRO_CATEGORIES = [
+    "HR", "Legal", "Accounting", "Finance", "Marketing", "Technology", "Business Consulting",
+    "Engineering", "Trades", "Plumbing", "Electrical", "Automotive", "Property", "Education",
+    "Photography", "Fitness", "Health and Wellbeing", "Other",
+]
+PRO_PAYMENTS = ["Open to paying", "Free advice", "Fixed fee", "Hourly", "Discuss after connecting", "Not sure"]
+PRO_EXPIRY_HOURS = {"1 hour": 1, "4 hours": 4, "Today": 12, "24 hours": 24}
+REGULATED_CATEGORIES = {"Legal", "Accounting", "Finance", "Health and Wellbeing", "Electrical", "Plumbing", "Trades"}
+VERIFICATION_STATUSES = ["Not Submitted", "Pending Review", "Approved", "Rejected", "More Information Required", "Expired"]
+
+
+class ModeIn(BaseModel):
+    app_mode: Optional[str] = None            # "people" | "professional"
+    professional_role: Optional[str] = None   # "need_help" | "can_help"
+
+
+class HelpRequestIn(BaseModel):
+    category: str
+    public_summary: str
+    private_details: Optional[str] = ""
+    payment: str = "Not sure"
+    expiry: str = "24 hours"
+    availability: Optional[str] = ""
+
+
+class HelpRequestUpdate(BaseModel):
+    category: Optional[str] = None
+    public_summary: Optional[str] = None
+    private_details: Optional[str] = None
+    payment: Optional[str] = None
+    expiry: Optional[str] = None
+    availability: Optional[str] = None
+    status: Optional[str] = None  # active | paused
+
+
+class ProProfileIn(BaseModel):
+    profession: str
+    primary_category: str
+    additional_categories: list[str] = []
+    about: Optional[str] = ""
+    years_experience: Optional[int] = 0
+    qualifications: Optional[str] = ""
+    memberships: Optional[str] = ""
+    licences: Optional[str] = ""
+    certifications: Optional[str] = ""
+    specialties: list[str] = []
+    availability: Optional[str] = ""
+    response_time: Optional[str] = ""
+    rate: Optional[str] = ""
+    rate_type: Optional[str] = ""
+
+
+class VerificationIn(BaseModel):
+    full_name: str
+    id_type: str                              # e.g. Passport, Driver licence
+    category: str
+    evidence: list[dict] = []                 # [{type, description}]
+
+
+class VerificationDecisionIn(BaseModel):
+    action: str                               # approve | reject | more_info | suspend | revoke
+    note: Optional[str] = ""
+
+
+def _check_banned(*texts: str):
+    joined = " ".join(t or "" for t in texts).lower()
+    if any(t in joined for t in BANNED_OPPORTUNITY_TERMS):
+        raise HTTPException(status_code=400, detail="This content isn't allowed on Intro. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.")
+
+
+def _hr_expires_at(expiry: str) -> str:
+    hours = PRO_EXPIRY_HOURS.get(expiry, 24)
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
+
+
+def _hr_public(r: dict, dist: float | None = None, brg: float | None = None) -> dict:
+    out = {
+        "id": r["id"], "user_id": r["user_id"], "category": r["category"],
+        "public_summary": r["public_summary"], "payment": r["payment"],
+        "expiry": r["expiry"], "expires_at": r["expires_at"], "availability": r.get("availability", ""),
+        "status": r["status"], "created_at": r["created_at"],
+    }
+    if dist is not None:
+        out["distance"] = round(dist)
+        out["bearing"] = round(brg or 0)
+    return out
+
+
+async def _active_request(r: dict) -> bool:
+    if r["status"] != "active":
+        return False
+    if r["expires_at"] < now_iso():
+        await db.help_requests.update_one({"id": r["id"]}, {"$set": {"status": "expired"}})
+        return False
+    return True
+
+
+@api_router.get("/config")
+async def get_config():
+    return {"professional_mode_enabled": PROFESSIONAL_MODE_ENABLED, "pro_categories": PRO_CATEGORIES, "pro_payments": PRO_PAYMENTS, "pro_expiry_options": list(PRO_EXPIRY_HOURS.keys())}
+
+
+@api_router.put("/users/me/mode")
+async def set_mode(body: ModeIn, user: dict = Depends(get_current_user)):
+    upd = {}
+    if body.app_mode in ("people", "professional"):
+        upd["app_mode"] = body.app_mode
+    if body.professional_role in ("need_help", "can_help"):
+        upd["professional_role"] = body.professional_role
+    if upd:
+        await db.users.update_one({"id": user["id"]}, {"$set": upd})
+    return {"ok": True, **upd}
+
+
+# --------------------- Help Requests (I Need Help) ---------------------
+@api_router.post("/help-requests")
+async def create_help_request(body: HelpRequestIn, user: dict = Depends(get_current_user)):
+    if body.category not in PRO_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    if not body.public_summary.strip():
+        raise HTTPException(status_code=400, detail="Public summary is required")
+    _check_banned(body.public_summary, body.private_details or "")
+    existing = await db.help_requests.find_one({"user_id": user["id"], "status": {"$in": ["active", "paused"]}})
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have an open request. Edit, pause or delete it first.")
+    doc = {
+        "id": str(uuid.uuid4()), "user_id": user["id"], "category": body.category,
+        "public_summary": body.public_summary.strip()[:80],
+        "private_details": (body.private_details or "").strip()[:300],
+        "payment": body.payment if body.payment in PRO_PAYMENTS else "Not sure",
+        "expiry": body.expiry, "expires_at": _hr_expires_at(body.expiry),
+        "availability": (body.availability or "")[:80],
+        "status": "active", "created_at": now_iso(), "updated_at": now_iso(),
+    }
+    await db.help_requests.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/help-requests/mine")
+async def my_help_requests(user: dict = Depends(get_current_user)):
+    rows = await db.help_requests.find({"user_id": user["id"], "status": {"$ne": "deleted"}}).to_list(20)
+    for r in rows:
+        await _active_request(r)  # lazily expire
+        r.pop("_id", None)
+        if r["status"] == "active" and r["expires_at"] < now_iso():
+            r["status"] = "expired"
+    rows.sort(key=lambda r: r["created_at"], reverse=True)
+    return rows
+
+
+@api_router.get("/help-requests/{req_id}")
+async def get_help_request(req_id: str, user: dict = Depends(get_current_user)):
+    r = await db.help_requests.find_one({"id": req_id})
+    if not r or r["status"] == "deleted":
+        raise HTTPException(status_code=404, detail="Request not found")
+    owner = await db.users.find_one({"id": r["user_id"]}, {"hashed_password": 0, "_id": 0})
+    is_owner = r["user_id"] == user["id"]
+    match = None if is_owner else await db.matches.find_one({
+        "active": True,
+        "$or": [{"user_a": user["id"], "user_b": r["user_id"]}, {"user_a": r["user_id"], "user_b": user["id"]}],
+    })
+    connected = bool(match)
+    mine = None
+    if not is_owner:
+        mine = await db.pings.find_one({"kind": "request", "from_user_id": user["id"], "to_user_id": r["user_id"]}, sort=[("created_at", -1)])
+    request_status = "connected" if connected else ("pending" if mine and mine["status"] == "new" else "declined" if mine and mine["status"] == "declined" else "none")
+    out = _hr_public(r)
+    dist = owner.get("demo_dist") if owner else None
+    if dist is not None:
+        out["distance"] = round(dist)
+    out.update({
+        "is_owner": is_owner,
+        "connected": connected,
+        "request_status": request_status,
+        "private_details": r.get("private_details") if (is_owner or connected) else None,
+        "user": {"id": owner["id"], "name": owner.get("name"), "photo_url": owner.get("photo_url"), "verified": owner.get("verified", False), "active_now": owner.get("active_now", True)} if owner else None,
+    })
+    return out
+
+
+@api_router.put("/help-requests/{req_id}")
+async def update_help_request(req_id: str, body: HelpRequestUpdate, user: dict = Depends(get_current_user)):
+    r = await db.help_requests.find_one({"id": req_id, "user_id": user["id"]})
+    if not r:
+        raise HTTPException(status_code=404, detail="Request not found")
+    upd: dict = {"updated_at": now_iso()}
+    if body.category is not None:
+        if body.category not in PRO_CATEGORIES:
+            raise HTTPException(status_code=400, detail="Invalid category")
+        upd["category"] = body.category
+    if body.public_summary is not None:
+        _check_banned(body.public_summary)
+        upd["public_summary"] = body.public_summary.strip()[:80]
+    if body.private_details is not None:
+        _check_banned(body.private_details)
+        upd["private_details"] = body.private_details.strip()[:300]
+    if body.payment is not None:
+        upd["payment"] = body.payment
+    if body.availability is not None:
+        upd["availability"] = body.availability[:80]
+    if body.expiry is not None:
+        upd["expiry"] = body.expiry
+        upd["expires_at"] = _hr_expires_at(body.expiry)
+    if body.status in ("active", "paused"):
+        upd["status"] = body.status
+        if body.status == "active" and r["expires_at"] < now_iso():
+            upd["expires_at"] = _hr_expires_at(r.get("expiry", "24 hours"))  # reactivate resets expiry
+    await db.help_requests.update_one({"id": req_id}, {"$set": upd})
+    r.update(upd)
+    r.pop("_id", None)
+    return r
+
+
+@api_router.delete("/help-requests/{req_id}")
+async def delete_help_request(req_id: str, user: dict = Depends(get_current_user)):
+    res = await db.help_requests.update_one({"id": req_id, "user_id": user["id"]}, {"$set": {"status": "deleted", "updated_at": now_iso()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return {"ok": True}
+
+
+@api_router.get("/help-requests/{req_id}/offers")
+async def request_offers(req_id: str, user: dict = Depends(get_current_user)):
+    r = await db.help_requests.find_one({"id": req_id, "user_id": user["id"]})
+    if not r:
+        raise HTTPException(status_code=404, detail="Request not found")
+    blocked = await get_blocked_ids(user["id"])
+    pings = await db.pings.find({"kind": "request", "about": "help_offer", "help_request_id": req_id}).to_list(100)
+    out = []
+    for p in sorted(pings, key=lambda x: x["created_at"], reverse=True):
+        if p["from_user_id"] in blocked:
+            continue
+        prof = await _pro_public(p["from_user_id"], user)
+        if not prof:
+            continue
+        out.append({"id": p["id"], "status": p["status"], "created_at": p["created_at"], "professional": prof})
+    return out
+
+
+# --------------------- Professional Profiles (I Can Help) ---------------------
+async def _verification_status(user_id: str) -> dict:
+    sub = await db.verification_submissions.find_one({"user_id": user_id}, sort=[("submitted_at", -1)])
+    if not sub:
+        return {"status": "Not Submitted"}
+    return {"status": sub["status"], "reviewed_at": sub.get("reviewed_at"), "note": sub.get("public_note", ""), "submitted_at": sub.get("submitted_at")}
+
+
+async def _pro_public(user_id: str, viewer: dict) -> dict | None:
+    u = await db.users.find_one({"id": user_id}, {"hashed_password": 0, "_id": 0})
+    prof = await db.professional_profiles.find_one({"user_id": user_id})
+    if not u or not prof:
+        return None
+    ver = await _verification_status(user_id)
+    verified = ver["status"] == "Approved"
+    return {
+        "user_id": user_id, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"),
+        "active_now": u.get("active_now", True),
+        "profession": prof.get("profession"), "primary_category": prof.get("primary_category"),
+        "additional_categories": prof.get("additional_categories", []),
+        "about": prof.get("about", ""), "years_experience": prof.get("years_experience", 0),
+        "qualifications": prof.get("qualifications", "") if verified else (prof.get("qualifications", "") and "Under review"),
+        "memberships": prof.get("memberships", "") if verified else "",
+        "specialties": prof.get("specialties", []),
+        "availability": prof.get("availability", ""), "response_time": prof.get("response_time", ""),
+        "rate": prof.get("rate", ""), "rate_type": prof.get("rate_type", ""),
+        "verified_by_intro": verified,
+        "verification": {"status": ver["status"], "verified_at": ver.get("reviewed_at")} if verified else {"status": ver["status"]},
+        "distance": u.get("demo_dist"),
+        "regulated": prof.get("primary_category") in REGULATED_CATEGORIES,
+    }
+
+
+@api_router.post("/professional/profile")
+async def upsert_pro_profile(body: ProProfileIn, user: dict = Depends(get_current_user)):
+    if body.primary_category not in PRO_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    _check_banned(body.about or "", body.profession, body.qualifications or "")
+    existing = await db.professional_profiles.find_one({"user_id": user["id"]})
+    doc = body.model_dump()
+    doc.update({"user_id": user["id"], "is_draft": False, "updated_at": now_iso()})
+    ver = await _verification_status(user["id"])
+    if existing and ver["status"] == "Approved":
+        cred_fields = ("qualifications", "memberships", "licences", "certifications", "profession", "primary_category")
+        if any((existing.get(f) or "") != (doc.get(f) or "") for f in cred_fields):
+            # credential edits after approval trigger re-review
+            await db.verification_submissions.update_one(
+                {"user_id": user["id"], "status": "Approved"},
+                {"$set": {"status": "Pending Review", "reviewed_at": None},
+                 "$push": {"history": {"action": "re-review (credentials edited)", "by": user["id"], "at": now_iso()}}},
+            )
+    if existing:
+        await db.professional_profiles.update_one({"user_id": user["id"]}, {"$set": doc})
+    else:
+        doc["created_at"] = now_iso()
+        await db.professional_profiles.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.get("/professional/profile/me")
+async def my_pro_profile(user: dict = Depends(get_current_user)):
+    prof = await db.professional_profiles.find_one({"user_id": user["id"]})
+    ver = await _verification_status(user["id"])
+    if prof:
+        prof.pop("_id", None)
+    return {"profile": prof, "verification": ver}
+
+
+@api_router.get("/professional/profile/{user_id}")
+async def pro_profile(user_id: str, user: dict = Depends(get_current_user)):
+    out = await _pro_public(user_id, user)
+    if not out:
+        raise HTTPException(status_code=404, detail="Professional profile not found")
+    return out
+
+
+@api_router.get("/professional/requests")
+async def matching_requests(
+    lat: float = Query(...), lng: float = Query(...),
+    category: Optional[str] = None, payment: Optional[str] = None,
+    max_age_hours: Optional[int] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Nearby active help requests matching the professional's categories only."""
+    prof = await db.professional_profiles.find_one({"user_id": user["id"]})
+    my_cats = set(([prof.get("primary_category")] + list(prof.get("additional_categories", []))) if prof else [])
+    if category:
+        my_cats = {category} & my_cats if my_cats else {category}
+    if not my_cats:
+        return {"requests": []}
+    blocked = await get_blocked_ids(user["id"])
+    radius = float(user.get("radius", 50))
+    rows = await db.help_requests.find({"status": "active", "category": {"$in": list(my_cats)}}).to_list(200)
+    out = []
+    for r in rows:
+        if r["user_id"] == user["id"] or r["user_id"] in blocked:
+            continue
+        if not await _active_request(r):
+            continue
+        if payment and r["payment"] != payment:
+            continue
+        if max_age_hours:
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+            if r["created_at"] < cutoff:
+                continue
+        owner = await db.users.find_one({"id": r["user_id"]})
+        if not owner or owner.get("admin_status") in ("hidden_pending_review", "banned"):
+            continue
+        if owner.get("demo_dist") is not None:
+            dist, brg = owner["demo_dist"], owner.get("demo_bearing", 0)
+        elif owner.get("lat") is not None:
+            dist = haversine(lat, lng, owner["lat"], owner["lng"])
+            brg = bearing_between(lat, lng, owner["lat"], owner["lng"])
+        else:
+            continue
+        if dist > radius:
+            continue
+        out.append(_hr_public(r, dist, brg))
+    out.sort(key=lambda x: x["distance"])
+    return {"requests": out[:50]}
+
+
+@api_router.get("/professionals")
+async def nearby_professionals(
+    lat: float = Query(...), lng: float = Query(...),
+    category: Optional[str] = None, verified_only: bool = False, available_now: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    blocked = await get_blocked_ids(user["id"])
+    profs = await db.professional_profiles.find({"is_draft": {"$ne": True}}).to_list(200)
+    out = []
+    for p in profs:
+        if p["user_id"] == user["id"] or p["user_id"] in blocked:
+            continue
+        if category and category != p.get("primary_category") and category not in p.get("additional_categories", []):
+            continue
+        pub = await _pro_public(p["user_id"], user)
+        if not pub:
+            continue
+        if verified_only and not pub["verified_by_intro"]:
+            continue
+        if available_now and not pub["active_now"]:
+            continue
+        out.append(pub)
+    out.sort(key=lambda x: (not x["verified_by_intro"], x.get("distance") if x.get("distance") is not None else 9999))
+    return {"professionals": out[:50]}
+
+
+# --------------------- Verification ---------------------
+@api_router.post("/verification/submit")
+async def submit_verification(body: VerificationIn, user: dict = Depends(get_current_user)):
+    if body.category not in PRO_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid category")
+    if not body.full_name.strip() or not body.id_type.strip():
+        raise HTTPException(status_code=400, detail="Identity details are required")
+    if not body.evidence:
+        raise HTTPException(status_code=400, detail="At least one piece of professional evidence is required")
+    doc = {
+        "id": str(uuid.uuid4()), "user_id": user["id"], "category": body.category,
+        "identity": {"full_name": body.full_name.strip(), "id_type": body.id_type.strip()},
+        "evidence": [{"type": e.get("type", "Other"), "description": (e.get("description") or "")[:300]} for e in body.evidence][:10],
+        "status": "Pending Review", "submitted_at": now_iso(), "reviewed_at": None, "reviewer": None,
+        "notes": [], "public_note": "",
+        "history": [{"action": "submitted", "by": user["id"], "at": now_iso()}],
+    }
+    # one live submission at a time — supersede previous non-approved
+    await db.verification_submissions.delete_many({"user_id": user["id"], "status": {"$in": ["Pending Review", "More Information Required", "Rejected"]}})
+    await db.verification_submissions.insert_one(dict(doc))
+    return {"ok": True, "status": "Pending Review"}
+
+
+@api_router.get("/verification/status")
+async def verification_status(user: dict = Depends(get_current_user)):
+    return await _verification_status(user["id"])
+
+
+def _require_admin(user: dict):
+    if not user.get("is_demo"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@api_router.get("/admin/verifications")
+async def admin_verifications(status_filter: Optional[str] = None, user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    q: dict = {}
+    if status_filter:
+        q["status"] = status_filter
+    subs = await db.verification_submissions.find(q).to_list(200)
+    ids = list({s["user_id"] for s in subs})
+    users_by_id = {u["id"]: u async for u in db.users.find({"id": {"$in": ids}}, {"id": 1, "name": 1, "email": 1, "photo_url": 1})}
+    out = []
+    for s in sorted(subs, key=lambda x: x["submitted_at"], reverse=True):
+        s.pop("_id", None)
+        u = users_by_id.get(s["user_id"], {})
+        s["user"] = {"id": s["user_id"], "name": u.get("name"), "email": u.get("email"), "photo_url": u.get("photo_url")}
+        out.append(s)
+    return out
+
+
+@api_router.post("/admin/verifications/{sub_id}/decision")
+async def admin_verification_decision(sub_id: str, body: VerificationDecisionIn, user: dict = Depends(get_current_user)):
+    _require_admin(user)
+    sub = await db.verification_submissions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    status_map = {"approve": "Approved", "reject": "Rejected", "more_info": "More Information Required", "suspend": "Expired", "revoke": "Rejected"}
+    new_status = status_map.get(body.action)
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Invalid action")
+    upd = {
+        "status": new_status, "reviewed_at": now_iso(), "reviewer": user["id"],
+        "public_note": (body.note or "") if body.action in ("reject", "more_info") else "",
+    }
+    await db.verification_submissions.update_one(
+        {"id": sub_id},
+        {"$set": upd, "$push": {"history": {"action": body.action, "by": user["id"], "note": body.note or "", "at": now_iso()}}},
+    )
+    return {"ok": True, "status": new_status}
+
+
+# --------------------- Migration + Professional demo seed ---------------------
+_LEGACY_CAT_MAP = {"Business": "Business Consulting", "HR": "HR", "Tech": "Technology", "Home": "Trades", "Car": "Automotive", "Fitness": "Fitness", "Other": "Other"}
+
+
+async def migrate_opportunity_records():
+    """One-time, reversible migration of legacy Opportunity vibes → Professional Mode.
+    Original vibe_details are preserved untouched (plus migration markers)."""
+    if await db.config.find_one({"key": "opportunity_migrated"}):
+        return
+    users = await db.users.find({"vibe": "opportunity"}).to_list(500)
+    for u in users:
+        vd = u.get("vibe_details") or {}
+        otype = vd.get("opportunity_type")
+        cat = _LEGACY_CAT_MAP.get(vd.get("category", "Other"), "Other")
+        if otype in ("Need help", "Paid task"):
+            if not await db.help_requests.find_one({"user_id": u["id"], "migrated_from": "opportunity"}):
+                await db.help_requests.insert_one({
+                    "id": str(uuid.uuid4()), "user_id": u["id"], "category": cat,
+                    "public_summary": (vd.get("public_summary") or "")[:80],
+                    "private_details": (vd.get("private_details") or "")[:300],
+                    "payment": vd.get("payment") if vd.get("payment") in PRO_PAYMENTS else "Not sure",
+                    "expiry": "24 hours", "expires_at": _hr_expires_at("24 hours"),
+                    "availability": "", "status": "active", "migrated_from": "opportunity",
+                    "created_at": now_iso(), "updated_at": now_iso(),
+                })
+        elif otype == "Can help":
+            if not await db.professional_profiles.find_one({"user_id": u["id"]}):
+                await db.professional_profiles.insert_one({
+                    "user_id": u["id"], "profession": vd.get("public_summary", "")[:60] or cat,
+                    "primary_category": cat, "additional_categories": [],
+                    "about": vd.get("private_details", ""), "years_experience": 0,
+                    "qualifications": "", "memberships": "", "licences": "", "certifications": "",
+                    "specialties": [], "availability": "", "response_time": "", "rate": "", "rate_type": "",
+                    "is_draft": True, "migrated_from": "opportunity", "created_at": now_iso(), "updated_at": now_iso(),
+                })
+        else:  # Selling something / Collaboration → archive, unsupported
+            await db.users.update_one({"id": u["id"]}, {"$set": {"vibe_details.archived_unsupported": True}})
+        await db.users.update_one({"id": u["id"]}, {"$set": {"vibe": "open_to_chat", "vibe_details.migrated_to_professional": True}})
+    await db.config.insert_one({"key": "opportunity_migrated", "at": now_iso(), "migrated_users": len(users)})
+    logger.info("Migrated %d legacy opportunity users to Professional Mode", len(users))
+
+
+async def seed_professional_demo():
+    """Idempotent Professional Mode demo data (test accounts)."""
+    async def uid(email):
+        u = await db.users.find_one({"email": email})
+        return u["id"] if u else None
+    priya, sana, dev, jade = [await uid(e) for e in ("priya@radar.intro.demo", "sana@radar.intro.demo", "dev@radar.intro.demo", "jade@radar.intro.demo")]
+    if priya and not await db.help_requests.find_one({"user_id": priya, "status": {"$in": ["active", "paused"]}}):
+        await db.help_requests.insert_one({
+            "id": str(uuid.uuid4()), "user_id": priya, "category": "HR",
+            "public_summary": "Need help with a staff performance issue",
+            "private_details": "I run a small business and need practical HR help with a staff matter. Happy to discuss and pay for the right support.",
+            "payment": "Open to paying", "expiry": "24 hours", "expires_at": _hr_expires_at("24 hours"),
+            "availability": "Available today", "status": "active", "demo": True,
+            "created_at": now_iso(), "updated_at": now_iso(),
+        })
+    pro_seed = [
+        (sana, "HR Consultant", "HR", ["Business Consulting"], "12+ years in HR advisory for small businesses.", 12, "MBA (HR), CIPD Level 7", "AHRI member", ["Performance management", "Workplace disputes"], "Approved"),
+        (dev, "Software Engineer", "Technology", [], "Full-stack developer helping local businesses with web and apps.", 8, "BSc Computer Science", "", ["Web apps", "Mobile apps"], "Approved"),
+        (jade, "Personal Trainer", "Fitness", [], "Run-club organiser and PT.", 4, "Cert IV Fitness", "", ["Running", "Strength"], None),
+    ]
+    for uid_, profession, cat, extra, about, yrs, quals, mems, specs, ver in pro_seed:
+        if not uid_:
+            continue
+        if not await db.professional_profiles.find_one({"user_id": uid_}):
+            await db.professional_profiles.insert_one({
+                "user_id": uid_, "profession": profession, "primary_category": cat, "additional_categories": extra,
+                "about": about, "years_experience": yrs, "qualifications": quals, "memberships": mems,
+                "licences": "", "certifications": "", "specialties": specs, "availability": "Available now",
+                "response_time": "Usually replies within 1 hour", "rate": "", "rate_type": "",
+                "is_draft": False, "demo": True, "created_at": now_iso(), "updated_at": now_iso(),
+            })
+        if ver == "Approved" and not await db.verification_submissions.find_one({"user_id": uid_, "status": "Approved"}):
+            await db.verification_submissions.insert_one({
+                "id": str(uuid.uuid4()), "user_id": uid_, "category": cat,
+                "identity": {"full_name": profession, "id_type": "Driver licence"},
+                "evidence": [{"type": "Professional membership", "description": quals}],
+                "status": "Approved", "submitted_at": now_iso(), "reviewed_at": now_iso(),
+                "reviewer": "intro-admin", "notes": [], "public_note": "",
+                "history": [{"action": "submitted", "by": uid_, "at": now_iso()}, {"action": "approve", "by": "intro-admin", "at": now_iso()}],
+                "demo": True,
+            })
+    await db.users.update_one({"email": "priya@radar.intro.demo"}, {"$set": {"app_mode": "professional", "professional_role": "need_help"}})
+    for e in ("sana@radar.intro.demo", "dev@radar.intro.demo", "jade@radar.intro.demo"):
+        await db.users.update_one({"email": e}, {"$set": {"app_mode": "professional", "professional_role": "can_help"}})
+    logger.info("Seeded professional demo data")
+# ========================== END PROFESSIONAL MODE ==========================
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -1876,6 +2435,8 @@ async def seed_demo_accounts():
     # mark Kauri as Melbourne ambassador
     await db.users.update_one({"email": "kauri@intro.demo"}, {"$set": {"ambassador": True}})
     logger.info("Seeded %d global demo users", len(GLOBAL_DEMO_USERS))
+    await migrate_opportunity_records()
+    await seed_professional_demo()
 
 
 @app.on_event("shutdown")

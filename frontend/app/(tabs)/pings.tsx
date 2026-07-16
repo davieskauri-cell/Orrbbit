@@ -121,7 +121,9 @@ export default function PingsScreen() {
                           <Text style={styles.headline}>
                             <Text style={{ fontWeight: "800" }}>{p.user.name}</Text>{" "}
                             {isRequest
-                              ? p.about === "opportunity"
+                              ? p.about === "help_offer"
+                                ? "would like to help with your request"
+                                : p.about === "opportunity"
                                 ? "wants to discuss your Opportunity"
                                 : "wants to connect with you"
                               : PHRASE[p.vibe] || "wants to connect"}
@@ -146,6 +148,14 @@ export default function PingsScreen() {
                               <Pressable testID={`request-decline-${p.id}`} onPress={() => decline(p)}>
                                 <Text style={styles.dismissText}>Decline</Text>
                               </Pressable>
+                              {p.about === "help_offer" && (
+                                <Pressable
+                                  testID={`offer-profile-${p.id}`}
+                                  onPress={() => router.push(`/professional/profile/${p.user.id}`)}
+                                >
+                                  <Text style={styles.dismissText}>Profile</Text>
+                                </Pressable>
+                              )}
                             </>
                           ) : (
                             <>

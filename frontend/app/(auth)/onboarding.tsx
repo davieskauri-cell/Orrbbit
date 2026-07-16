@@ -12,22 +12,26 @@ const HERO =
   "https://images.unsplash.com/photo-1543269865-cbf427effbad?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
 
 const STEPS = [
-  { emoji: "✨", text: "Choose your intention" },
-  { emoji: "📍", text: "Become visible nearby" },
-  { emoji: "👀", text: "Discover people around you" },
+  { emoji: "1️⃣", text: "Choose People or Professional" },
+  { emoji: "🎯", text: "Set what you are looking for" },
+  { emoji: "👀", text: "Discover relevant people nearby" },
   { emoji: "🤝", text: "Connect only when both people agree" },
 ];
 
-const MINI_VIBES = [
+const PEOPLE_VIBES = [
   { label: "Open to Chat", color: colors.teal },
   { label: "Networking", color: colors.teal },
   { label: "Coffee / Drinks", color: colors.orange },
   { label: "Relationship", color: colors.pink },
   { label: "Gym Buddy", color: colors.success },
-  { label: "Need Advice", color: colors.purple },
-  { label: "Opportunity", color: "#F59E0B" },
   { label: "Events", color: colors.orange },
   { label: "Campus", color: colors.purple },
+];
+
+const PRO_VIBES = [
+  { label: "Need Help", color: "#F59E0B" },
+  { label: "Can Help", color: "#F59E0B" },
+  { label: "Verified Professionals", color: colors.teal },
 ];
 
 export default function Welcome() {
@@ -46,9 +50,9 @@ export default function Welcome() {
         <Text style={styles.tagline}>Real people. Real moments.</Text>
       </View>
 
-      <Text style={styles.headline}>See who&apos;s nearby and open to connect.</Text>
+      <Text style={styles.headline}>Connect with the right people nearby.</Text>
       <Text style={styles.sub}>
-        Chat, network, find advice, meet new people and discover local opportunities — all with mutual consent.
+        Meet people, build relationships or find trusted professional help nearby — on your terms.
       </Text>
 
       <View style={styles.heroCard}>
@@ -59,8 +63,17 @@ export default function Welcome() {
         </View>
       </View>
 
+      <Text style={styles.chipsSectionLabel}>People</Text>
       <View style={styles.chipsRow}>
-        {MINI_VIBES.map((v) => (
+        {PEOPLE_VIBES.map((v) => (
+          <View key={v.label} style={[styles.miniChip, { backgroundColor: v.color + "15" }]}>
+            <Text style={[styles.miniChipText, { color: v.color }]}>{v.label}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.chipsSectionLabel}>Professional</Text>
+      <View style={styles.chipsRow}>
+        {PRO_VIBES.map((v) => (
           <View key={v.label} style={[styles.miniChip, { backgroundColor: v.color + "15" }]}>
             <Text style={[styles.miniChipText, { color: v.color }]}>{v.label}</Text>
           </View>
@@ -136,6 +149,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   stepEmoji: { fontSize: 14 },
+  chipsSectionLabel: {
+    color: colors.textTertiary,
+    fontSize: font.sm,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textAlign: "center",
+    marginTop: spacing.lg,
+    textTransform: "uppercase",
+  },
   howCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

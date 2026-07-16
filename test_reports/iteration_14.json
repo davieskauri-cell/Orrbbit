@@ -1,0 +1,59 @@
+{
+  "summary": "Iter 14 — Professional Mode E2E backend + frontend smoke. 21 pytest cases (20 PASS, 1 SKIPPED due to real bug — see below). All three-account flows work end-to-end: Priya CRUD + pause/reactivate/delete lifecycle; Sana verified-pro category-scoped /professional/requests + offer via POST /api/connect/request (help_request_id) is IDEMPOTENT + Priya accept → match created → private_details unlocks in GET /help-requests/{id}; Jade unverified profile correctly masks qualifications=\"Under review\"/memberships=\"\" while viewer is another user, Jade CAN still submit /verification, admin (kauri, is_demo) can approve/reject/more_info via /admin/verifications/{sub_id}/decision; approval flips verified_by_intro=true. Professionals listing sorts verified first, verified_only + category filters work. GPS never leaks in professional/requests responses. Block flow (Priya blocks Sana → Sana no longer sees Priya's request). Decline flow correctly keeps private_details locked. People-mode regression (login kauri, register+delete fresh account, demo delete 403, /api/nearby with lat+lng) all pass. FRONTEND SMOKE (Priya token, mobile viewport 390x844): Professional Home renders correctly with 'I Need Help' + 'I Can Help' cards after mode switch; AppModeSwitch shows People/Professional segments; /professional/need-help edit form renders categories/summary/private/payment/expiry/save (existing TEST_iter14 block test request pre-filled); /professional/verification renders full 3-step submission form; /admin-verifications renders Verification Queue with 4 status tabs. No red screens, no JS errors. Two known cosmetic RN warnings persist (shadow* deprecation + PingModal pointerEvents) — carry-over from iter 12/13. BUGS FOUND: (1) [MED] public_user() at server.py:184-225 does NOT include app_mode or professional_role → after mode switch persisted via PUT /users/me/mode, /auth/me does not surface app_mode, so cross-device / cold-load sync of the persisted mode is broken (local AsyncStorage masks this). (2) [LOW] POST /api/blocks has no unblock / delete endpoint (server.py:1331 is upsert-only). Frontend cannot un-block a user through the API; only a fresh test can reset via DB. (3) [MED-TEST] Missing testIDs on /professional/need-help form fields (hr-summary, hr-save, hr-pause, hr-delete, hr-category-*, hr-payment-*) — makes automation brittle; had to fall back to visible-text selectors. (4) [DOC] `GET /api/vibes` still returns opportunity with hidden:True. Frontend VibePicker filters `!hidden` so users never see it — behaves correctly, but review requested opportunity be 'GONE'; consider removing entry entirely.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/auth/me", "issue": "public_user() at server.py:184-225 omits app_mode and professional_role. Mode switch persists via PUT /users/me/mode but /auth/me can't confirm it. Add these fields to public_user()."},
+      {"endpoint": "POST /api/blocks", "issue": "server.py:1331 upsert-only; no DELETE /api/blocks/{user_id} or toggle. Frontend has no way to unblock via API."},
+      {"endpoint": "GET /api/vibes", "issue": "Legacy 'opportunity' entry still returned (with hidden:true). Frontend filters it, but review asked it be removed entirely from response."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "app/professional/need-help.tsx", "issue": "Interactive form fields lack testIDs (hr-summary, hr-save, hr-pause, hr-delete, hr-category-<cat>, hr-payment-<pay>). Only need-help-screen has one. Testing has to fall back to visible text.", "testID": "missing", "priority": "MEDIUM"},
+      {"component": "app/professional/verification.tsx / admin-verifications.tsx", "issue": "Screens render correctly with no red screens, but no per-row / per-button testIDs observed on the admin queue (approve/reject/more_info controls); add for reliable automation.", "testID": "missing", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts (shadow.*)", "issue": "Deprecated 'shadow*' style props warning on Expo Web. Cosmetic, carry-over from iter 5-13. Reference: /app/frontend/src/theme.ts"},
+      {"component": "src/components/PingModal.tsx", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' warning on Modal. Cosmetic. Reference: /app/frontend/src/components/PingModal.tsx:39-40"}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter14_professional.py",
+    "/app/test_reports/pytest/pytest_iter14.xml",
+    "/app/test_reports/iteration_14.json"
+  ],
+  "action_items": [
+    "MED — Add app_mode + professional_role to public_user() (server.py:184-225) so /auth/me + PUT /users/me both surface the persisted mode. Frontend currently relies solely on AsyncStorage cache.",
+    "MED — Add testIDs to /professional/need-help form: hr-summary, hr-private, hr-save, hr-pause, hr-delete, hr-category-<cat>, hr-payment-<pay>, hr-expiry-<val>. Also verification submit form (v-fullname, v-idtype-*, v-category-*, v-evidence-type-*, v-submit) and admin-verifications row buttons (v-approve-<id>, v-reject-<id>, v-more-info-<id>). This will unblock deterministic Playwright.",
+    "LOW — Add DELETE /api/blocks/{user_id} (or make POST /api/blocks a toggle). Currently there's no user-facing unblock path.",
+    "LOW — Remove 'opportunity' from the /api/vibes response (or keep hidden:true but confirm no client references it). Frontend already filters via VibePicker.tsx:16.",
+    "LOW — Migrate deprecated shadow* → boxShadow and props.pointerEvents → style.pointerEvents in theme.ts + PingModal.tsx (silences Expo Web warnings)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:1128-1164 /api/connect/request: idempotent-on-duplicate + reverse-request mutual-consent instant-connect logic is clean. help_offer discriminator via body.help_request_id correctly wires the ping to the request. Verified.",
+    "server.py:1936-1963 GET /help-requests/{id}: private_details gated by is_owner OR (active match) — verified locked pre-match, unlocked post-accept, re-locks on decline. request_status computed as connected|pending|declined|none — matches frontend expectations.",
+    "server.py:2102-2145 /professional/requests: category matching uses primary + additional categories of the caller's pro profile; distance filtered by user.radius; blocked users excluded; expired requests filtered via _active_request. Solid.",
+    "server.py:1907-1909 POST /help-requests correctly rejects a second concurrent request (400).",
+    "server.py:2058-2082 upsert_pro_profile — credential edit re-review trigger (qualifications/memberships/licences/certifications/profession/primary_category) is correct and idempotent.",
+    "server.py:184-225 public_user() — MISSING app_mode + professional_role. Definitely add.",
+    "server.py:1331 POST /blocks is upsert-only with no inverse endpoint — needs unblock.",
+    "frontend AppContext appMode source-of-truth is AsyncStorage; PUT /users/me/mode is fire-and-forget. Once backend surfaces app_mode via /auth/me, hydrate from server on next login to keep multi-device consistent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter14_professional.py (new — 21 tests, 20 pass, 1 skipped documenting the public_user gap)",
+    "/app/test_reports/pytest/pytest_iter14.xml",
+    "/app/test_reports/iteration_14.json"
+  ],
+  "success_rate": {
+    "backend": "20/21 pytest (95%) — 1 skipped documents the public_user bug; 0 hard failures",
+    "frontend": "5/5 smoke screens rendered without red screen (100%) — Professional Home, Need-Help edit form, Verification submit form, Admin Verifications queue, mode switch toggle. Full interaction testing limited by missing testIDs."
+  },
+  "seed_data_creation": "Test uses direct MongoDB cleanup (matches/pings/blocks/hides/reports involving priya/sana/jade + TEST_iter14 help_requests) at session start; if Priya's demo HR request is missing, the fixture re-inserts an equivalent one. Kauri (admin) is left untouched. A revoke step at the end of admin-decision test flips Jade back to Rejected so seed 'Not Submitted → Fitness' behaviour approximates (Jade's approved verification is toggled to Rejected — main agent may want to run `sudo supervisorctl restart backend` to re-seed Jade cleanly, or delete jade's verification_submissions manually).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend suite is idempotent via mongo cleanup in the tokens fixture (test_iter14_professional.py). Run with EXPO_PUBLIC_BACKEND_URL=<url> MONGO_URL=mongodb://localhost:27017 DB_NAME=test_database pytest backend/tests/test_iter14_professional.py -v. Auth token is POST /api/auth/demo-login returns access_token (NOT token). Playwright fast-login: set localStorage.auth_token = JSON.stringify(access_token) + intro_test_mode='1' via addInitScript BEFORE goto('/'). Set intro_app_mode='professional' to land on ProfessionalHome. Mode switch is Async-Storage-first (see /app/frontend/src/context/AppContext.tsx:133-144). Note: the Priya request is auto re-seeded by the tokens fixture; do NOT rely on backend restart. Missing testIDs will force text-based selectors on need-help / verification / admin-verifications until main agent adds them.",
+  "rca_of_issue": "public_user gap: PUT /api/users/me/mode $sets app_mode+professional_role directly on the user doc but public_user() (server.py:184-225) hand-lists returned fields and omits both. Effect: after a page refresh the frontend AppContext restores appMode ONLY from AsyncStorage (AppContext.tsx:136-138) — on a fresh device / new browser the persisted server value is invisible. Fix is a 2-line addition to public_user. Blocks endpoint: POST /api/blocks (server.py:1331) upserts and never deletes; the only clearing path today is DELETE /api/users/me which is unrelated. Report + hide side effects (server.py:1387-1389) mean a Sana→Priya /reports call auto-hides Priya from Sana; three medium-risk 'Scam' reports also flip Priya.admin_status='hidden_pending_review' making her invisible to all pros — this was the root cause of the initial 'This user is not available' 403 in the offer test between runs, and is documented (not a bug per se, but review of report-thresholding may be warranted since 'Scam' is a legitimate reason)."
+}

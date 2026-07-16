@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
@@ -77,6 +78,8 @@ type AppValue = {
   dismissActivePing: (alsoDismissOnServer?: boolean) => void;
   findUser: (id: string) => NearbyUser | undefined;
   visibilityEnded: boolean;
+  appMode: "people" | "professional";
+  setAppMode: (m: "people" | "professional") => void;
 };
 
 const AppContext = createContext<AppValue | undefined>(undefined);
@@ -125,6 +128,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     api<Vibe[]>("/vibes", { token: null }).then(setVibes).catch(() => {});
+  }, []);
+
+  const [appMode, setAppModeState] = useState<"people" | "professional">("people");
+
+  useEffect(() => {
+    AsyncStorage.getItem("intro_app_mode").then((v) => {
+      if (v === "professional") setAppModeState("professional");
+    });
+  }, []);
+
+  const setAppMode = useCallback((m: "people" | "professional") => {
+    setAppModeState(m);
+    AsyncStorage.setItem("intro_app_mode", m).catch(() => {});
+    api("/users/me/mode", { method: "PUT", body: { app_mode: m } }).catch(() => {});
   }, []);
 
   const requestLocation = useCallback(async () => {
@@ -244,6 +261,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         dismissActivePing,
         findUser,
         visibilityEnded,
+        appMode,
+        setAppMode,
       }}
     >
       {children}

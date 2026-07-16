@@ -18,7 +18,6 @@ const FILTERS = [
   { key: "need_advice", label: "Need Advice" },
   { key: "gym_buddy", label: "Gym Buddy" },
   { key: "exploring", label: "Exploring" },
-  { key: "opportunity", label: "Opportunity" },
 ];
 
 export default function NearbyScreen() {

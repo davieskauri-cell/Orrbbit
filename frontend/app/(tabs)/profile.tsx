@@ -37,6 +37,7 @@ const GLOBAL_MENU = [
 ] as const;
 
 const DEMO_MENU = [
+  { icon: "shield-checkmark-outline", label: "Verification Queue", route: "/admin-verifications", testID: "menu-admin-verifications" },
   { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
   { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
   { icon: "shield-half-outline", label: "Admin Dashboard", route: "/admin", testID: "menu-admin" },
