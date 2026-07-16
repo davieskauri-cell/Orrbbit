@@ -222,6 +222,8 @@ def public_user(u: dict) -> dict:
         "country": u.get("country", "Australia"),
         "ambassador": u.get("ambassador", False),
         "is_demo": u.get("is_demo", False),
+        "app_mode": u.get("app_mode", "people"),
+        "professional_role": u.get("professional_role"),
     }
 
 
@@ -578,7 +580,7 @@ async def demo_accounts():
 
 @api_router.get("/vibes")
 async def get_vibes():
-    return VIBES
+    return [v for v in VIBES if not v.get("hidden")]
 
 
 # ----------------------------- Profile & state -----------------------------
