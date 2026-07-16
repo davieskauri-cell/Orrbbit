@@ -1,7 +1,8 @@
 import { Redirect } from "expo-router";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { LogoMark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
-import { colors } from "@/src/theme";
+import { colors, spacing } from "@/src/theme";
 
 export default function Index() {
   const { token, user, loading } = useAuth();
@@ -9,7 +10,8 @@ export default function Index() {
   if (loading) {
     return (
       <View style={styles.center} testID="app-loading">
-        <ActivityIndicator color={colors.teal} size="large" />
+        <LogoMark size={64} />
+        <ActivityIndicator color={colors.teal} size="small" style={{ marginTop: spacing.xl }} />
       </View>
     );
   }

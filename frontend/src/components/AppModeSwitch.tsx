@@ -35,8 +35,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
-  seg: { flex: 1, paddingVertical: 8, borderRadius: 999, alignItems: "center", minHeight: 36, justifyContent: "center" },
-  segActive: { backgroundColor: colors.surface, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
-  segText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
+  seg: { flex: 1, borderRadius: 999, alignItems: "center", minHeight: 40, justifyContent: "center" },
+  segActive: { backgroundColor: colors.surface, shadowColor: "#0F172A", shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  segText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "700" },
   segTextActive: { color: colors.text, fontWeight: "800" },
 });

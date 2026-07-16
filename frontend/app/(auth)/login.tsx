@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     color: colors.text,
     fontSize: font.lg,
-    minHeight: 50,
+    minHeight: 52,
   },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.lg },
   linkRow: { flexDirection: "row", justifyContent: "center", marginTop: spacing.xl, paddingVertical: spacing.md },

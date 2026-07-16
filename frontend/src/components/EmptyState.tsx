@@ -39,12 +39,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: spacing.lg,
   },
-  title: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
+  title: { color: colors.text, fontSize: font.xl, fontWeight: "700", lineHeight: 26, textAlign: "center" },
   text: {
     color: colors.textSecondary,
     fontSize: font.base,
     textAlign: "center",
     marginTop: spacing.sm,
-    lineHeight: 21,
+    lineHeight: 22,
+    maxWidth: 300,
   },
 });

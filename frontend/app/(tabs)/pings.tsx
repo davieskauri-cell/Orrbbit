@@ -66,7 +66,7 @@ export default function PingsScreen() {
     try {
       await acceptPing(p.id);
       setPings((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: "accepted" } : x)));
-      showAlert("You're connected 🎉", `You and ${p.user.name} can now discuss and meet safely.`, [
+      showAlert("You're connected", `You and ${p.user.name} can now discuss and meet safely.`, [
         { text: "Later", style: "cancel" },
         { text: "View Profile", onPress: () => router.push(`/person/${p.user.id}`) },
       ]);
@@ -186,7 +186,7 @@ export default function PingsScreen() {
             <Text style={styles.sectionTitle}>Sent Requests</Text>
             {outgoing.map((r) => {
               const statusLabel =
-                r.status === "new" ? "Pending" : r.status === "accepted" ? "Accepted 🎉" : r.status === "declined" ? "No longer active" : r.status;
+                r.status === "new" ? "Pending" : r.status === "accepted" ? "Accepted" : r.status === "declined" ? "No longer active" : r.status;
               const statusColor =
                 r.status === "accepted" ? colors.success : r.status === "new" ? colors.orange : colors.textTertiary;
               return (
@@ -245,7 +245,9 @@ const styles = StyleSheet.create({
   viewBtn: {
     backgroundColor: colors.orange,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 7,
+    paddingVertical: 8,
+    minHeight: 34,
+    justifyContent: "center",
     borderRadius: radius.pill,
   },
   viewText: { color: "#FFF", fontSize: font.sm, fontWeight: "700" },

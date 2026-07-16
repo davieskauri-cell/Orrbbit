@@ -211,7 +211,9 @@ const styles = StyleSheet.create({
   filterTextActive: { color: "#FFF" },
   detailChip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    minHeight: 32,
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,

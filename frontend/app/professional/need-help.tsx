@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: colors.orange, borderColor: colors.orange },
   pillText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
   pillTextActive: { color: "#FFF", fontWeight: "700" },
-  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, fontSize: font.base, color: colors.text, minHeight: 48, backgroundColor: colors.card },
+  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, fontSize: font.base, color: colors.text, minHeight: 52, backgroundColor: colors.card },
   helperRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
   helper: { color: colors.textTertiary, fontSize: font.sm },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.lg },

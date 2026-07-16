@@ -44,6 +44,17 @@ export const font = {
   display: 34,
 };
 
+// Global typography hierarchy — use for all new/updated text styles
+export const type = {
+  largeTitle: { fontSize: 32, lineHeight: 38, fontWeight: "800" as const, letterSpacing: -0.5, color: colors.text },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: "800" as const, letterSpacing: -0.3, color: colors.text },
+  heading: { fontSize: 17, lineHeight: 22, fontWeight: "700" as const, color: colors.text },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const, color: colors.textSecondary },
+  caption: { fontSize: 12, lineHeight: 16, fontWeight: "600" as const, color: colors.textSecondary },
+  helper: { fontSize: 12, lineHeight: 16, fontWeight: "500" as const, color: colors.textTertiary },
+  button: { fontSize: 16, lineHeight: 20, fontWeight: "700" as const },
+};
+
 export const shadow = {
   card: {
     shadowColor: "#0F172A",
@@ -51,5 +62,19 @@ export const shadow = {
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  soft: {
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  button: {
+    shadowColor: "#FF5A1F",
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 };

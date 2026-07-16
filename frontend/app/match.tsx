@@ -40,7 +40,7 @@ export default function MatchScreen() {
         <>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.lg }} testID="match-content">
             <View style={{ alignItems: "center" }}>
-              <Text style={styles.title}>{"You both accepted 🎉"}</Text>
+              <Text style={styles.title}>{"You both accepted"}</Text>
               <Text style={styles.sub}>You both want to connect.</Text>
 
               <View style={styles.avatars}>

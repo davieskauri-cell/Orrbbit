@@ -319,7 +319,7 @@ export default function RadarScreen() {
                 <Text style={[styles.statNum, { color: colors.orange }]}>{user?.radius || 50}m</Text>
                 <Text style={styles.statLabel}>Radius</Text>
                 <Text style={styles.statSub}>
-                  {user?.plan === "pro" ? "Pro Plan 👑" : user?.plan === "plus" ? "Plus Plan" : "Free Plan"}
+                  {user?.plan === "pro" ? "Pro Plan" : user?.plan === "plus" ? "Plus Plan" : "Free Plan"}
                 </Text>
               </View>
             </View>
@@ -550,7 +550,8 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: colors.tealSoft,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    minHeight: 32,
     borderRadius: 999,
   },
   visChipOff: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },

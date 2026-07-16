@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   pillActive: { backgroundColor: colors.teal, borderColor: colors.teal },
   pillText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
   pillTextActive: { color: "#FFF", fontWeight: "700" },
-  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, fontSize: font.base, color: colors.text, minHeight: 48, backgroundColor: colors.card },
+  input: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, fontSize: font.base, color: colors.text, minHeight: 52, backgroundColor: colors.card },
   evRow: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.tealSoft, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
   evText: { color: colors.text, fontSize: font.sm, flex: 1 },
   helper: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 19, marginTop: spacing.md },

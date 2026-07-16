@@ -116,7 +116,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
     try {
       if (accept) {
         await acceptPing(offer.id);
-        showAlert("You're connected 🎉", `${offer.professional.name} can now see your private details and discuss.`);
+        showAlert("You're connected", `${offer.professional.name} can now see your private details and discuss.`);
       } else {
         await declinePing(offer.id);
       }
@@ -197,7 +197,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
                 </View>
               ) : (
                 <Text style={[styles.statusChip, { marginTop: spacing.sm, color: o.status === "accepted" ? colors.success : colors.textTertiary }]}>
-                  {o.status === "accepted" ? "Connected 🎉" : "Declined"}
+                  {o.status === "accepted" ? "Connected" : "Declined"}
                 </Text>
               )}
             </View>
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    gap: 6,
+    gap: spacing.sm,
   },
   cardBadge: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   cardTitle: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
@@ -423,7 +423,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 999,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    minHeight: 36,
   },
   filterChipOn: { backgroundColor: colors.teal },
   filterChipText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },

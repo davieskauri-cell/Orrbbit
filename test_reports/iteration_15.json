@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 15 — Frontend regression sweep after production UI/UX polish (theme.type, shadow, PrimaryButton rewrite, RadarView floating-control repositioning, onboarding emoji→Ionicons, AppModeSwitch height bump). Backend NOT retested per request. Full mobile-viewport (390x844) Playwright sweep covering onboarding, login, radar (people), professional (need-help + can-help), Nearby, Pings, Profile, /professional/need-help form, /professional/verification form. RESULTS: 0 page errors, 0 JS runtime errors, only the two pre-known cosmetic warnings (shadow* deprecation + Modal props.pointerEvents deprecation — carry-over from iter 12/13, previously acknowledged). Every polished element renders as specified: onboarding-get-started = 56x342px, onboarding-login = 52x342px, mode-people/mode-professional segments = 40px tall, AppModeSwitch outer 46px (3px pad + 40px seg), radar-radius-chip 36px (top-left 12px inset), radar-filters 36px (top-right 12px inset), radar-zoom-in/out/recentre all 40x40 (right side, right_off=12). 'Pro Plan' label present in radar stats card and DOES NOT contain the crown emoji (👑 not found in body). 'How Intro works' card uses Ionicons only — all 4 STEPS render with icon rows (no emoji found on onboarding). Onboarding + login CTAs are tappable and navigate correctly. Fast-login via localStorage auth_token + intro_test_mode=1 successfully lands in tabs. Boot loading state (LogoMark + small teal spinner) was captured on the initial goto before hydration — spec item 12 satisfied. Mode switch People→Professional lands NeedHelp/CanHelp cards (Kauri has no active help_request so the 'Post a help request' create-request card renders instead of Edit/Pause/Delete — expected). Switch back to People restores radar-map. Nearby list + filter chips visible. Pings shows incoming ping rows (View/Dismiss) with NO emoji anywhere in the block; note: sent-requests block was not present because Kauri has no outgoing consent-requests (not a regression). /professional/need-help form renders full field set (category chips, public summary, private details, payment preference, expiry, save button); /professional/verification renders the 3-step submission form. No red screens, no overlapping controls, no broken navigation. PrimaryButton onPress fires correctly across screens tested (onboarding CTA navigation confirmed).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ProfessionalHome — need-help + can-help small-action buttons", "issues": ["review spec asks for 40px height; StyleSheet smallBtn.minHeight is 34 (paddingVertical 8 + text ≈ 32-36px in practice). Review requested 40px. Only cosmetic — buttons are still tappable, but consider raising minHeight to 40 for touch-target consistency with the new 40px chip family. Ref: /app/frontend/src/components/ProfessionalHome.tsx:407-411"]},
+      {"screen": "ProfessionalHome — verified-only-toggle & filter chips", "issues": ["filterChip minHeight is 36; review implied 40px consistency for the new chip family. Ref: /app/frontend/src/components/ProfessionalHome.tsx:419-428"]}
+    ],
+    "react_native_issues": [
+      {"component": "src/theme.ts + PrimaryButton.tsx + RadarView.tsx + AppModeSwitch.tsx (shadow* usage)", "issue": "Deprecated 'shadow*' style props warning still fires on Expo Web. Carry-over from iter 5-14; not a regression. Review agent explicitly asked not to flag, but recording once for tracking. Ref: /app/frontend/src/theme.ts:58-80"},
+      {"component": "src/components/PingModal.tsx", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' still logged on Modal. Cosmetic carry-over. Review agent explicitly asked not to flag."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_15.json",
+    "/tmp/onboarding.png",
+    "/tmp/radar_people.png",
+    "/tmp/pro_need.png",
+    "/tmp/pro_can.png",
+    "/tmp/tab_nearby.png",
+    "/tmp/tab_pings.png",
+    "/tmp/tab_profile.png",
+    "/tmp/need_help.png",
+    "/tmp/verification.png"
+  ],
+  "action_items": [
+    "OPTIONAL (design polish, not a regression) — bump ProfessionalHome smallBtn.minHeight 34→40 and filterChip.minHeight 36→40 to align with the new 40px chip family adopted in AppModeSwitch/RadarView. Buttons are tappable at current heights.",
+    "No functional regressions observed. Iteration 15 polish pass is SAFE to ship."
+  ],
+  "critical_code_review_comments": [
+    "PrimaryButton.tsx: minHeight 56 (primary) / 52 (secondary), pressed scale 0.98 + opacity 0.9 — clean; disabled/loading correctly disables Pressable. Verified onPress fires in Playwright (onboarding→login navigation).",
+    "AppModeSwitch.tsx: segment minHeight 40, wrap padding 3, borderRadius 999 — measured 40x192 for each seg on 390-wide viewport. Correct.",
+    "RadarView.tsx floating controls: radiusChip/filtersBtn/ctrlBtn all use 12px insets with proper elevation + shadow. Zoom controls stacked with gap:10 at right:12 — verified visually and via bounding boxes.",
+    "onboarding.tsx: STEPS array uses Ionicons name+tint+bg — no emojis in string. Verified in body innerText scan. Get Started/Log In wired to router.push with testIDs onboarding-get-started / onboarding-login.",
+    "ProfessionalHome.tsx: smallBtn is 34px minHeight — mismatch with review's '40px' expectation. filterChip is 36px. Buttons work; cosmetic only.",
+    "theme.ts new `type` typography variants (largeTitle/title/heading/body/caption/helper/button) are cleanly composed via spread — onboarding + other screens read them correctly.",
+    "No red screen, no console errors, only pre-known shadow*/pointerEvents deprecation warnings (already tracked). No new deprecated packages introduced."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "10/10 target flows verified with 0 JS errors (100%)"},
+  "seed_data_creation": "none (used Kauri demo-login via /api/auth/demo-login)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Fast-login pattern still works: curl -X POST /api/auth/demo-login {} → access_token; page.add_init_script(\"localStorage.setItem('auth_token', JSON.stringify('<TOK>')); localStorage.setItem('intro_test_mode','1'); localStorage.setItem('intro_app_mode','<people|professional>')\"). Boot loading state at / (LogoMark + spinner) now flashes briefly before onboarding/tabs render — expect a ~5s wait before first testable frame. Radar 'Pro Plan' text now standalone (no crown emoji). Pings emoji regression: sent-requests block only exists for users with outgoing consent requests; Kauri has none, so testID sent-requests is absent by design (test for it only on an account with pending outbound requests, or POST /api/connect/request first). Playwright wrapper appears to have a hard cap around ~80 script lines — split large sweeps into multiple browser_automation invocations.",
+  "rca_of_issue": "N/A — no regressions. Two minor design nits (ProfessionalHome smallBtn=34px, filterChip=36px) predate this polish pass; they were not touched by iter 15."
+}

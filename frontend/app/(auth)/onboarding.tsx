@@ -6,16 +6,16 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LogoMark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
-import { colors, spacing, radius, font, shadow } from "@/src/theme";
+import { colors, spacing, radius, font, shadow, type } from "@/src/theme";
 
 const HERO =
   "https://images.unsplash.com/photo-1543269865-cbf427effbad?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
 
-const STEPS = [
-  { emoji: "1️⃣", text: "Choose People or Professional" },
-  { emoji: "🎯", text: "Set what you are looking for" },
-  { emoji: "👀", text: "Discover relevant people nearby" },
-  { emoji: "🤝", text: "Connect only when both people agree" },
+const STEPS: { icon: string; tint: string; bg: string; text: string }[] = [
+  { icon: "swap-horizontal", tint: colors.teal, bg: colors.tealSoft, text: "Choose People or Professional" },
+  { icon: "options", tint: colors.orange, bg: colors.orangeSoft, text: "Set what you are looking for" },
+  { icon: "radio", tint: colors.teal, bg: colors.tealSoft, text: "Discover relevant people nearby" },
+  { icon: "checkmark-done", tint: colors.orange, bg: colors.orangeSoft, text: "Connect only when both people agree" },
 ];
 
 const PEOPLE_VIBES = [
@@ -40,7 +40,7 @@ export default function Welcome() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: spacing.xxl }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xxl }}
       showsVerticalScrollIndicator={false}
       testID="onboarding-screen"
     >
@@ -87,15 +87,15 @@ export default function Welcome() {
         <Text style={styles.howTitle}>How Intro works</Text>
         {STEPS.map((s) => (
           <View key={s.text} style={styles.stepRow}>
-            <View style={styles.stepIcon}>
-              <Text style={styles.stepEmoji}>{s.emoji}</Text>
+            <View style={[styles.stepIcon, { backgroundColor: s.bg }]}>
+              <Ionicons name={s.icon as any} size={17} color={s.tint} />
             </View>
             <Text style={styles.stepText}>{s.text}</Text>
           </View>
         ))}
       </View>
 
-      <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
+      <View style={{ gap: spacing.md, marginTop: spacing.xxl }}>
         <PrimaryButton
           testID="onboarding-get-started"
           title="Get Started"
@@ -113,49 +113,63 @@ export default function Welcome() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
-  center: { alignItems: "center", marginBottom: spacing.xl },
+  center: { alignItems: "center", marginBottom: spacing.xxl },
   brand: { color: colors.text, fontSize: 34, fontWeight: "800", letterSpacing: 4, marginTop: spacing.md },
-  tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: 4 },
-  headline: { color: colors.text, fontSize: font.xxl, fontWeight: "800", lineHeight: 33 },
-  sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.sm },
-  heroCard: { marginTop: spacing.lg, borderRadius: radius.lg, overflow: "hidden", ...shadow.card },
-  heroImg: { width: "100%", height: 170 },
+  tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: spacing.xs },
+  headline: { ...type.title, maxWidth: 320 },
+  sub: { ...type.body, marginTop: spacing.md, maxWidth: 340 },
+  heroCard: {
+    marginTop: spacing.xl,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    backgroundColor: colors.card,
+    ...shadow.card,
+  },
+  heroImg: { width: "100%", aspectRatio: 16 / 9 },
   heroBadge: {
     position: "absolute",
-    bottom: 10,
-    left: 10,
+    bottom: spacing.md,
+    left: spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "#FFFFFFEE",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 6,
+    backgroundColor: "#FFFFFFF2",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 999,
+    ...shadow.soft,
   },
   heroBadgeText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     justifyContent: "center",
   },
-  miniChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
+  miniChip: {
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   miniChipText: { fontSize: font.sm, fontWeight: "700" },
   chipsCaption: {
-    color: colors.textSecondary,
-    fontSize: font.sm,
+    ...type.helper,
+    lineHeight: 18,
     textAlign: "center",
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
+    maxWidth: 300,
+    alignSelf: "center",
   },
-  stepEmoji: { fontSize: 14 },
   chipsSectionLabel: {
     color: colors.textTertiary,
     fontSize: font.sm,
     fontWeight: "800",
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textAlign: "center",
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
     textTransform: "uppercase",
   },
   howCard: {
@@ -164,18 +178,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.xl,
-    marginTop: spacing.xl,
-    gap: spacing.md,
+    marginTop: spacing.xxl,
+    gap: spacing.lg,
   },
-  howTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginBottom: spacing.xs },
+  howTitle: { ...type.heading, marginBottom: spacing.xs },
   stepRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   stepIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.tealSoft,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  stepText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "500", flex: 1 },
+  stepText: { color: colors.textSecondary, fontSize: font.base, lineHeight: 20, fontWeight: "500", flex: 1 },
 });
