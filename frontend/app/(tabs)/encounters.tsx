@@ -8,6 +8,7 @@ import { api } from "@/src/lib/api";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
+import SegmentedControl from "@/src/components/SegmentedControl";
 import { colors, spacing, font } from "@/src/theme";
 
 type Encounter = {
@@ -44,23 +45,14 @@ export default function EncountersScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <Text style={styles.title}>Encounters</Text>
-      <View style={styles.tabs}>
-        {(
-          [
-            { key: "crossed", label: "Crossed Paths" },
-            { key: "mutual", label: "Mutual Vibes" },
-          ] as const
-        ).map((t) => (
-          <Pressable
-            key={t.key}
-            testID={`encounters-tab-${t.key}`}
-            onPress={() => setTab(t.key)}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl
+        options={[
+          { value: "crossed", label: "Crossed Paths", testID: "encounters-tab-crossed" },
+          { value: "mutual", label: "Mutual Vibes", testID: "encounters-tab-mutual" },
+        ]}
+        value={tab}
+        onChange={(v) => setTab(v as "crossed" | "mutual")}
+      />
 
       <FlatList
         data={data}
@@ -113,19 +105,6 @@ export default function EncountersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl },
-  tabs: {
-    flexDirection: "row",
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.card,
-    borderRadius: 999,
-    padding: 4,
-  },
-  tab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: 999 },
-  tabActive: { backgroundColor: colors.surface, shadowColor: "#0F172A", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
-  tabText: { color: colors.textSecondary, fontSize: font.base, fontWeight: "600" },
-  tabTextActive: { color: colors.text, fontWeight: "700" },
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, flexGrow: 1 },
   divider: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },

@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 16 — Frontend regression after SegmentedControl consolidation + shared design-tokens/components migration (SegmentedControl, OutlineButton, DangerButton, AppCard, SectionHeader, PillChip, StatusBadge, FormField, ScreenContainer, AppModeSwitch, ProfessionalHome, Encounters, Login). Backend NOT retested per request. Full mobile-viewport (390x844) Playwright sweep across 5 target flows. RESULTS: 0 JS runtime errors, 0 red screens, 0 pageerrors on: /, /nearby, /pings, /encounters, /profile. Only pre-known cosmetic warnings (shadow* deprecation + Modal props.pointerEvents deprecation) — carry-over from iter 12-15, explicitly acknowledged in review request. GEOMETRY: AppModeSwitch outer box x=24 y=64 w=342 h=44 (EXACT match to spec x24/w342/h44). Inner mode-people / mode-professional segments = 167x36 each (36 inner + 8 padding = 44 total touch target ✓). Encounters segmented control tabs (encounters-tab-crossed / encounters-tab-mutual) = 167x36 each. All PillChip filter chips measured 36px height (spec: >=36). SELECTED-STATE VISUAL: active segment = rgb(255,255,255) white bg + shadow.segment; inactive = rgba(0,0,0,0) transparent — verified programmatically. Active PillChip fill = rgb(32,178,170) teal + white text; inactive = rgb(248,250,252) card gray + secondary text — matches intentional visual change called out in review.\n\nFLOWS VERIFIED:\n1) LOGIN FormField migration: /login renders FormField-backed login-email + login-password, login-submit; invalid creds (bogus@nope.com / WrongPass!) → login-error text 'Invalid email or password' shown; valid creds (kauri@intro.demo / Intro123!) → navigates to /(tabs) successfully.\n2) ENCOUNTERS tab: title 'Encounters' renders; SegmentedControl toggles list — crossed=22 rows, mutual=13 rows (filters to compatible only), back to crossed=22.\n3) MODE SWITCH on Radar (Kauri, testMode): tap mode-professional → CanHelpHome renders (Kauri had can_help role persisted); tap mode-people → returns; visual selected state confirmed via getComputedStyle.\n4) ProfessionalHome (sana@radar.intro.demo, verified can_help): pro-profile-card renders; 'Verified by INTRO' StatusBadge rendered; SectionHeader 'MATCHING REQUESTS NEARBY' rendered uppercase (via textTransform on type.sectionTitle in theme.ts:78); filter-pay-Open-to-paying + filter-pay-Free-advice + filter-fresh all present; toggling filter-pay-Open-to-paying: gray→teal→gray (bg transitions confirmed rgb(248,250,252) ↔ rgb(32,178,170)); filter-fresh toggle works; edit-pro-profile → /professional/can-help navigation confirmed; go-verification button present.\n5) NeedHelpHome (priya@radar.intro.demo, need_help): my-request-card renders seeded HR request 'TEST_iter14 block test' (Active · expires 21h); req-edit / req-pause / req-delete all present + tappable; SectionHeader 'PROFESSIONALS NEARBY' visible uppercase; verified-only-toggle PillChip on right — toggling list count: 1 (Verified only) → 2 (all) → 1 (re-toggle), teal↔gray fill confirmed.\n\nAll 7 spec bullets pass. No new deprecated packages introduced (no expo-av / expo-barcode-scanner / expo-background-fetch usage detected in shared components).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.* + PrimaryButton/RadarView/AppModeSwitch", "issue": "Cosmetic 'shadow*' style props deprecation warning fires on Expo Web only. Explicitly requested NOT to be flagged in this iteration; recorded once for tracking. Not a regression. Ref: /app/frontend/src/theme.ts:58-80"},
+      {"component": "src/components/PingModal.tsx", "issue": "Cosmetic 'props.pointerEvents is deprecated. Use style.pointerEvents' Modal warning. Explicitly requested NOT to be flagged. Not a regression."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_16.json",
+    "/tmp/encounters.png",
+    "/tmp/pro_switch.png",
+    "/tmp/sana_home.png",
+    "/tmp/priya_home.png"
+  ],
+  "action_items": [
+    "Consolidation is SAFE to ship — no functional regressions observed across login, encounters, mode-switch, ProfessionalHome (both roles), or tab navigation.",
+    "Optional polish (from prior iter 15 action item, still open): ProfessionalHome smallBtn is now minHeight:40 (raised from 34 in this consolidation — VERIFIED at line 421 — resolves prior touch-target nit). filterChip stays at 36px which is >= the review's stated minimum, so no action needed."
+  ],
+  "critical_code_review_comments": [
+    "SegmentedControl.tsx (35 lines): clean shared component with proper accessibilityRole='tab' + accessibilityState.selected, hitSlop implicit via minHeight 36 + padding 4 outer → 44px total touch target. Correct.",
+    "AppModeSwitch.tsx (18 lines): now a 12-line wrapper around SegmentedControl. Correct testID pattern (app-mode-switch outer + mode-people / mode-professional inner).",
+    "encounters.tsx: uses shared SegmentedControl identically to AppModeSwitch — geometry verified identical (167x36 inner segments, both).",
+    "login.tsx: two FormField calls with inputTestID (login-email, login-password) — testIDs preserved. login-submit + login-error retained. login-back / login-demo untouched.",
+    "ProfessionalHome.tsx: StatusBadge used at both need-help offer rows (line 182) and can-help pro-profile-card (line 306) + pro-row (line 230) — all show 'Verified by INTRO' consistently. SectionHeader used at line 172 (offers), 211 (pros nearby), 335 (matching requests). PillChip used at line 214 (verified-only-toggle) + 338/346 (filter-pay-* / filter-fresh). smallBtn minHeight bumped to 40 (line 421) — resolves prior iter 15 nit. filterChip removed in favor of PillChip shared component.",
+    "PillChip.tsx: active state uses activeColor (default colors.teal) as both backgroundColor AND borderColor, white text. Intentional visual change from prior checkbox-icon-only pattern — called out in review; visual behavior confirmed correct.",
+    "StatusBadge.tsx / SectionHeader.tsx / FormField.tsx: small, focused shared components (<70 lines each). All use StyleSheet.create, all text wrapped in Text, no HTML elements. Clean.",
+    "theme.ts: type.sectionTitle contains textTransform: 'uppercase' — verified rendering 'MATCHING REQUESTS NEARBY' / 'PROFESSIONALS NEARBY' visually uppercase in Playwright screenshots.",
+    "No red screens, no unhandled promise rejections, no undefined-is-not-a-function traces across boot/nearby/pings/encounters/profile."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "7/7 spec bullets verified, 5/5 target flows pass with 0 JS errors (100%)"},
+  "seed_data_creation": "none — used existing demo accounts kauri@intro.demo, sana@radar.intro.demo, priya@radar.intro.demo (priya has seeded HR help request 'TEST_iter14 block test' from iter 14).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Consolidation pass is regression-clean. Fast-login recipe still: curl -X POST /api/auth/demo-login -d '{\"email\":\"<user>@...\"}' → access_token; page.add_init_script(\"localStorage.setItem('auth_token', JSON.stringify('<TOK>')); localStorage.setItem('intro_test_mode','1'); localStorage.setItem('intro_app_mode','people|professional')\"). IMPORTANT: urllib inside the playwright container is 403-blocked — fetch tokens via bash+curl BEFORE the playwright call and inline them as string constants in the script. Kauri may retain professional_role=can_help from previous test sessions (backend persists via PUT /api/users/me/mode) — if you need the fresh landing screen, POST /api/users/me/mode with body {professional_role: null} first, or use a clean demo user. AppModeSwitch geometry (x24/w342/h44) is spec-locked and stable. All shared components (SegmentedControl, PillChip, FormField, StatusBadge, SectionHeader) render correctly with proper testIDs preserved.",
+  "rca_of_issue": "N/A — no regressions observed."
+}

@@ -46,6 +46,45 @@ export function SecondaryButton({ title, onPress, color, testID, style }: Props)
   );
 }
 
+/** Bordered button in a brand colour (default teal) with transparent fill. */
+export function OutlineButton({ title, onPress, color, disabled, testID, style }: Props) {
+  const c = color || colors.teal;
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.secondary,
+        { borderColor: c, opacity: disabled ? 0.5 : 1 },
+        pressed && styles.pressed,
+        style,
+      ]}
+    >
+      <Text style={[styles.secondaryText, { color: c, fontWeight: "700" }]}>{title}</Text>
+    </Pressable>
+  );
+}
+
+/** Destructive action button. */
+export function DangerButton({ title, onPress, disabled, loading, testID, style }: Props) {
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={({ pressed }) => [
+        styles.primary,
+        { backgroundColor: colors.pink, opacity: disabled ? 0.5 : 1 },
+        pressed && styles.pressed,
+        style,
+      ]}
+    >
+      {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>{title}</Text>}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   primary: {
     borderRadius: radius.pill,

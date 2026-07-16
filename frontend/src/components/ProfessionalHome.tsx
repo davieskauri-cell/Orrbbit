@@ -10,6 +10,9 @@ import { acceptPing, declinePing } from "@/src/services/pingService";
 import { timeAgo, distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
 import RadarView from "@/src/components/RadarView";
+import StatusBadge from "@/src/components/StatusBadge";
+import SectionHeader from "@/src/components/SectionHeader";
+import PillChip from "@/src/components/PillChip";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const AMBER = "#F59E0B";
@@ -166,7 +169,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
 
       {offers.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>OFFERS TO HELP</Text>
+          <SectionHeader title="Offers to help" />
           {offers.map((o) => (
             <View key={o.id} style={[styles.card, shadow.card]} testID={`offer-${o.id}`}>
               <View style={styles.proRow}>
@@ -176,7 +179,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
                     <Text style={styles.proName}>{o.professional.name} would like to help</Text>
                   </View>
                   {o.professional.verified_by_intro && (
-                    <View style={styles.badge}><Ionicons name="shield-checkmark" size={11} color={colors.teal} /><Text style={styles.badgeText}>Verified by INTRO</Text></View>
+                    <StatusBadge icon="shield-checkmark" label="Verified by INTRO" />
                   )}
                   <Text style={styles.cardMeta}>
                     {o.professional.profession} · {o.professional.years_experience} yrs{o.professional.distance != null ? ` · ${distLabel(o.professional.distance)}` : ""}
@@ -205,13 +208,18 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
         </>
       )}
 
-      <View style={styles.rowBetween}>
-        <Text style={styles.sectionTitle}>PROFESSIONALS NEARBY</Text>
-        <Pressable testID="verified-only-toggle" onPress={() => setVerifiedOnly(!verifiedOnly)} style={styles.filterChip}>
-          <Ionicons name={verifiedOnly ? "checkbox" : "square-outline"} size={13} color={colors.teal} />
-          <Text style={styles.filterChipText}>Verified only</Text>
-        </Pressable>
-      </View>
+      <SectionHeader
+        title="Professionals nearby"
+        right={
+          <PillChip
+            testID="verified-only-toggle"
+            label="Verified only"
+            icon={verifiedOnly ? "checkbox" : "square-outline"}
+            active={verifiedOnly}
+            onPress={() => setVerifiedOnly(!verifiedOnly)}
+          />
+        }
+      />
       {pros.map((p) => (
         <Pressable key={p.user_id} testID={`pro-row-${p.user_id}`} style={[styles.card, shadow.card]} onPress={() => router.push(`/professional/profile/${p.user_id}`)}>
           <View style={styles.proRow}>
@@ -219,7 +227,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.proName}>{p.name}</Text>
               {p.verified_by_intro && (
-                <View style={styles.badge}><Ionicons name="shield-checkmark" size={11} color={colors.teal} /><Text style={styles.badgeText}>Verified by INTRO</Text></View>
+                <StatusBadge icon="shield-checkmark" label="Verified by INTRO" />
               )}
               <Text style={styles.cardMeta}>{p.profession} · {p.primary_category}{p.distance != null ? ` · ${distLabel(p.distance)}` : ""}</Text>
             </View>
@@ -295,7 +303,7 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
               <Text style={styles.proName}>{profile.profession}</Text>
               <Text style={styles.cardMeta}>{profile.primary_category}{profile.additional_categories?.length ? ` +${profile.additional_categories.length}` : ""}</Text>
               {verification.status === "Approved" ? (
-                <View style={styles.badge}><Ionicons name="shield-checkmark" size={11} color={colors.teal} /><Text style={styles.badgeText}>Verified by INTRO</Text></View>
+                <StatusBadge icon="shield-checkmark" label="Verified by INTRO" />
               ) : (
                 <Text style={[styles.statusChip, { color: verification.status === "Pending Review" ? colors.orange : colors.textTertiary }]}>
                   Verification: {verification.status}
@@ -324,16 +332,18 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
 
       {profile && (
         <>
-          <Text style={styles.sectionTitle}>MATCHING REQUESTS NEARBY</Text>
+          <SectionHeader title="Matching requests nearby" />
           <View style={styles.filtersRow}>
             {["Open to paying", "Free advice"].map((p) => (
-              <Pressable key={p} testID={`filter-pay-${p.replace(/\s+/g, "-")}`} style={[styles.filterChip, payment === p && styles.filterChipOn]} onPress={() => setPayment(payment === p ? null : p)}>
-                <Text style={[styles.filterChipText, payment === p && { color: "#FFF" }]}>{p}</Text>
-              </Pressable>
+              <PillChip
+                key={p}
+                testID={`filter-pay-${p.replace(/\s+/g, "-")}`}
+                label={p}
+                active={payment === p}
+                onPress={() => setPayment(payment === p ? null : p)}
+              />
             ))}
-            <Pressable testID="filter-fresh" style={[styles.filterChip, freshOnly && styles.filterChipOn]} onPress={() => setFreshOnly(!freshOnly)}>
-              <Text style={[styles.filterChipText, freshOnly && { color: "#FFF" }]}>Last 4h</Text>
-            </Pressable>
+            <PillChip testID="filter-fresh" label="Last 4h" active={freshOnly} onPress={() => setFreshOnly(!freshOnly)} />
           </View>
           {reqUsers.length > 0 && (
             <View style={{ marginTop: spacing.md }}>
@@ -412,24 +422,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   smallBtnText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
-  sectionTitle: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "800", letterSpacing: 1.2, marginTop: spacing.lg },
   proRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   proName: { color: colors.text, fontSize: font.base, fontWeight: "800" },
-  badge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { color: colors.teal, fontSize: 10, fontWeight: "800" },
   filtersRow: { flexDirection: "row", gap: spacing.xs, flexWrap: "wrap", marginTop: spacing.sm },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.card,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    minHeight: 36,
-  },
-  filterChipOn: { backgroundColor: colors.teal },
-  filterChipText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
   privacyNote: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.tealSoft, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
   privacyText: { color: colors.text, fontSize: font.sm, flex: 1 },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,8 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTestMode } from "@/src/lib/testMode";
 import { LogoMark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
-import { colors, spacing, radius, font } from "@/src/theme";
+import FormField from "@/src/components/FormField";
+import { colors, spacing, font } from "@/src/theme";
 
 export default function Login() {
   const router = useRouter();
@@ -73,26 +73,22 @@ export default function Login() {
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.sub}>{"Log in to see who's nearby."}</Text>
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          testID="login-email"
+        <FormField
+          label="Email"
+          inputTestID="login-email"
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
-          placeholderTextColor={colors.textTertiary}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={styles.input}
         />
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          testID="login-password"
+        <FormField
+          label="Password"
+          inputTestID="login-password"
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
-          placeholderTextColor={colors.textTertiary}
           secureTextEntry
-          style={styles.input}
         />
 
         {error && (
@@ -133,18 +129,6 @@ const styles = StyleSheet.create({
   back: { marginBottom: spacing.md, marginLeft: -6 },
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", textAlign: "center" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs, marginBottom: spacing.xl, textAlign: "center" },
-  label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600", marginBottom: spacing.sm, marginTop: spacing.lg },
-  input: {
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    color: colors.text,
-    fontSize: font.lg,
-    minHeight: 52,
-  },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.lg },
   linkRow: { flexDirection: "row", justifyContent: "center", marginTop: spacing.xl, paddingVertical: spacing.md },
   linkText: { color: colors.textSecondary, fontSize: font.base },
