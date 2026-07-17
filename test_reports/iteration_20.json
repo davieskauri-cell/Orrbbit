@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 20 — Professional Radar UI map-first redesign E2E verified. Backend spot-check: 9/9 pytest pass on /app/backend/tests/test_iter20_radar_ui.py — GET /api/professionals now returns 'bearing' field on every entry (None or numeric 0..360 from u.demo_bearing), still filters by category & available_now, still lists only verified pros. Preview 'Request Help' flow (POST /connect/request with user_id) creates a pending ping (status='pending', request_id returned) and appears in /connect/requests outgoing; POST /api/demo/reset restores seeded state. sana/jade professional/requests gating unchanged (jade verification_required=true empty; sana returns 2 requests). Frontend (390x844): I NEED HELP (demo persona) — search bar (pro-search), 18 category chips + Available now/≤250m/≤500m filter chips, big map with 13 photo markers w/ teal verified rings+checks+green availability dots, orange FAB (fab-post-request → 'My Request'), collapsed sheet 'pro-sheet-header' shows '13 professionals nearby · 1 new offer'; expanding reveals my-request-card (Technology · IT support, Active · expires 3d, Edit/Pause/Delete), OFFERS TO HELP (Rory Accept/Decline/View, Dev Connected, Felix Declined = 3 offers × avg 2 buttons = 6 offer-* nodes), and 13 pro-row-* cards each with avatar+INTRO Verified+profession+primary_category+specialties+distance+availability+response time+years experience. Filters verified: search 'lawyer' → 1 row (Grace, Lawyer, Legal) ✓; ≤250m → 5 rows ✓; HR chip → 1 row (Sana, HR Consultant) ✓; Available now → 9 rows ✓ (backend uses u.active_now boolean, distinct from p.availability display string — see minor note). PREVIEW SHEET: tapping pro-row opens pro-preview-sheet with name/profession/INTRO Verified/verified categories/distance/availability + preview-view-profile + preview-request-help buttons ✓; on Tom the flow correctly hit 'already connected' path (Tom is in demo seeded 13 connections) — the pending-request path is verified via backend test test_pending_ping_created (200 pending + outgoing entry). I CAN HELP (sana) — compact pro-profile-card (Verified by INTRO badge, Edit + Verification buttons), filter-pay-Open-to-paying / filter-pay-Free-advice / filter-fresh chips, RadarView with amber H request markers, req-sheet-header '2 matching requests nearby'; 2 request-row-* cards (HR staff performance issue Open to paying 80m + HR resignation advice Free advice 350m). Role swap sana can_help→need_help: need-help-home renders with 12 fresh pro-row cards, 0 stale request-row leak ✓. Jade (unverified I Can Help): verification-required-card visible w/ 'Start verification →', no crash, non-map layout preserved ✓. People mode regression: demo persona in People mode → normal radar (Networking vibe pill, Social/Networking/Campus/Events mode chips, social map w/ vibe cluster labels +7 Advice/+9 Coffee/+2 Networking/+5/+14 Chat, stats card 65 nearby · 51 aligned · 500m radius, demo mode banner), pro-role-switch correctly hidden, 0 professional pro-row / request-row leak ✓. Final POST /api/demo/reset → 200 ok, state restored. Deprecated Expo Web warnings ('shadow*' style props / props.pointerEvents / useNativeDriver on web) reproduce on every load — cosmetic, unchanged since iter 15.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "I Need Help · Available now chip", "issue": "Filter shows 9 rows but only 4 display the string 'Available now' in the meta line. Backend filters by user.active_now boolean (server.py:2310) while the card shows professional_profiles.availability free-text (e.g. 'Evenings and weekends'). Not a bug per se, but the label 'Available now' on the chip vs 'Evenings and weekends' on the card row is confusing for users. Suggest either (a) filter on availability='Available now' string to match label, or (b) hide/adjust the availability string when active_now is true, or (c) rename chip to 'Active now'. Reference: ProfessionalHome.tsx:175 chip label; server.py:2310 filter; server.py:2170 pub['active_now']=u.get('active_now', True).", "affected_testIDs": ["filter-available-now"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.*", "issue": "Pre-existing 'shadow*' style props deprecation warning on Expo Web (unchanged since iter 15-19). Cosmetic. Reference: theme.ts."},
+      {"component": "props.pointerEvents", "issue": "Pre-existing 'props.pointerEvents is deprecated. Use style.pointerEvents' warning on Expo Web. Cosmetic, not a regression."},
+      {"component": "Animated useNativeDriver on web", "issue": "MapSheet.tsx (ProfessionalHome.tsx:484-530) uses Animated with useNativeDriver:false already, but a separate `Animated: useNativeDriver is not supported` warning still fires from another Animated call site on web. Cosmetic; MapSheet expand/collapse still works via tap. Reference: ProfessionalHome.tsx:490."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter20_radar_ui.py",
+    "/app/test_reports/pytest/pytest_iter20.xml",
+    "/tmp/i20_demo_home.png",
+    "/tmp/i20_demo_expanded.png",
+    "/tmp/i20_preview.png",
+    "/tmp/i20_sana_canhelp.png",
+    "/tmp/i20_jade.png",
+    "/tmp/i20_people.png"
+  ],
+  "action_items": [
+    "Optional UX: rename 'Available now' chip → 'Active now' OR filter server-side on availability string, to remove the mismatch between chip label and pro card text (see integration_issues[0]).",
+    "No blocking issues. Iteration 20 map-first Professional radar is production-ready."
+  ],
+  "critical_code_review_comments": [
+    "ProfessionalHome.tsx:62-80 — outer SegmentedControl (pro-role-switch) wraps NeedHelpHome or CanHelpHome; role state cleanly resets rendered surface (no stale markers observed on swap).",
+    "ProfessionalHome.tsx:83-316 NeedHelpHome — search + chips row above RadarView; RadarView users mapped from shown pros with bearing fallback (p.bearing ?? charCode*37 %360, L195). Fallback is deterministic per-user and only fires when backend returns bearing=null. Backend now provides bearing when u.demo_bearing exists — 13/13 demo pros have numeric bearing.",
+    "ProfessionalHome.tsx:150-158 client-side filter — search matches name/profession/primary_category/specialties/verified_categories (case-insensitive) and maxDist ≤250/500. Correct. Category and available_now handled server-side via query params.",
+    "ProfessionalHome.tsx:209-212 fab-post-request — orange floating action button; label toggles 'Post Request' ↔ 'My Request' based on active help_request. Verified working (My Request visible when demo has active request).",
+    "ProfessionalHome.tsx:215-311 MapSheet — collapsed header shows dynamic label with pluralised counts + new-offer summary. Tap-toggle works reliably on web; PanResponder is the drag path.",
+    "ProfessionalHome.tsx:246-281 Offers section — renders offer-* card per ping w/ Accept/Decline/View Profile when status='new' or 'Connected'/'Declined' status chip otherwise. Matches spec.",
+    "ProfessionalHome.tsx:283-306 Verified professionals list — cards render Avatar, INTRO Verified StatusBadge, profession · primary_category · distance, specialties, availability · response_time · years_experience. All required fields present.",
+    "ProfessionalHome.tsx:318-482 CanHelpHome — compact pro-profile-card only shown in map mode (verified profile+!verRequired). Non-map layout for unverified jade correctly uses ScrollView wrapper w/ RefreshControl and shows verification-required-card + full-size profile card w/ Get Verified CTA.",
+    "ProfessionalHome.tsx:532-578 ProPreview — Modal-based preview sheet with View Profile + Request Help; correctly handles res.status === 'connected' vs 'pending' branches (line 540).",
+    "server.py:2168-2190 _pro_public — bearing added at L2171 sourced from u.demo_bearing. Non-demo users would have bearing=None; RadarView handles that via frontend fallback."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter20_radar_ui.py (new — 9 tests)"
+  ],
+  "success_rate": {"backend": "9/9 (100%)", "frontend": "7/7 target E2E flows (100%)"},
+  "seed_data_creation": "None. Final POST /api/demo/reset executed after Preview Request Help test — 200 ok, counts restored to defaults (people:80, professionals:23, help_requests:14, connections:13, pending:5).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 20 (map-first pro radar) fully verified. New testIDs to know: pro-search, filter-available-now, filter-dist-250, filter-dist-500, nh-cat-filter-<Category>, fab-post-request, pro-sheet-header, my-request-card, req-edit, req-pause, req-delete, offer-<id>, offer-accept-<id>, offer-decline-<id>, offer-view-<id>, pro-row-<user_id>, pro-preview-sheet, preview-view-profile, preview-request-help, pro-profile-card, edit-pro-profile, go-verification, filter-pay-Open-to-paying, filter-pay-Free-advice, filter-fresh, req-sheet-header, request-row-<id>, verification-required-card, no-pros-empty, no-requests-empty. Regression suite: /app/backend/tests/test_iter20_radar_ui.py (needs EXPO_PUBLIC_BACKEND_URL env). Playwright login uses fetch → localStorage.setItem('auth_token', JSON.stringify(access_token)) + intro_app_mode='professional' before page.goto('/'). Preview 'Request Sent ✓' state won't show when target is already in demo seeded connections (Tom is one) — backend test test_pending_ping_created covers the pending path. MapSheet drag uses PanResponder; tap on pro-sheet-header / req-sheet-header is the reliable web toggle. Dismiss ping popup (text=Dismiss) before interacting.",
+  "rca_of_issue": "N/A — no bugs found. The only surfaced item (Available now chip vs availability string mismatch) is a pre-existing UX ambiguity carried over from prior iterations, not a regression from the map-first UI change."
+}

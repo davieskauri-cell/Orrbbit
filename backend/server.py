@@ -2168,6 +2168,7 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
     return {
         "user_id": user_id, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"),
         "active_now": u.get("active_now", True),
+        "bearing": u.get("demo_bearing"),
         "profession": prof.get("profession"), "primary_category": prof.get("primary_category"),
         "additional_categories": prof.get("additional_categories", []),
         "about": prof.get("about", ""), "years_experience": prof.get("years_experience", 0),

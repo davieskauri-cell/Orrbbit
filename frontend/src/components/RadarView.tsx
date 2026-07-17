@@ -314,7 +314,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
       u,
       x: CX + r * Math.sin(rad),
       y: CY - r * Math.cos(rad),
-      color: (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
+      color: (u as any).pro ? colors.teal : (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
       bearing: approx.bearing,
       dist: approx.distance,
     };
@@ -555,8 +555,14 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                       />
                     )}
                     <Avatar uri={p.u.photo_url} name={p.u.name} size={size} ringColor={p.color} />
-                    {p.u.compatible && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
-                    {p.u.vibe === "opportunity" && (
+                    {p.u.compatible && !(p.u as any).pro && <View style={[styles.compatDot, { backgroundColor: p.color }]} />}
+                    {(p.u as any).pro && (
+                      <View style={styles.proCheckBadge}>
+                        <Ionicons name="checkmark" size={8} color="#FFF" />
+                      </View>
+                    )}
+                    {(p.u as any).pro && p.u.active_now && <View style={styles.availDot} />}
+                    {p.u.vibe === "opportunity" && !(p.u as any).pro && (
                       <View style={styles.oppBadge}>
                         <Ionicons name="sparkles" size={8} color="#FFF" />
                       </View>
@@ -817,6 +823,30 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  proCheckBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: colors.teal,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  availDot: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.success,
     borderWidth: 2,
     borderColor: colors.surface,
   },
