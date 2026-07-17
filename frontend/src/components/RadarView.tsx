@@ -54,10 +54,11 @@ function opportunityClusterLabel(users: NearbyUser[]): string {
   if (topT && topT[1] / opp.length >= 0.5) {
     const short: Record<string, string> = {
       "Paid task": "Paid Tasks",
-      "Need help": "Help",
+      "Need help": "Requests",
       "Can help": "Can Help",
       "Selling something": "Selling",
       "Collaboration": "Collab",
+      "Professional": "Pros",
     };
     if (short[topT[0]]) return short[topT[0]];
   }

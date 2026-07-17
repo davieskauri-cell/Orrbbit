@@ -13,6 +13,7 @@ import RadarView from "@/src/components/RadarView";
 import StatusBadge from "@/src/components/StatusBadge";
 import SectionHeader from "@/src/components/SectionHeader";
 import PillChip from "@/src/components/PillChip";
+import SegmentedControl from "@/src/components/SegmentedControl";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const AMBER = "#F59E0B";
@@ -56,33 +57,41 @@ export default function ProfessionalHome() {
     );
   }
 
-  return role === "need_help" ? (
-    <NeedHelpHome onSwitch={() => pickRole("can_help")} />
-  ) : (
-    <CanHelpHome onSwitch={() => pickRole("need_help")} coords={coords} vibeMap={vibeMap} me={user} />
-  );
-}
-
-function RoleHeader({ title, switchLabel, onSwitch }: { title: string; switchLabel: string; onSwitch: () => void }) {
   return (
-    <View style={styles.roleHeader}>
-      <Text style={styles.h2}>{title}</Text>
-      <Pressable testID="switch-role" onPress={onSwitch} hitSlop={8}>
-        <Text style={styles.switchText}>{switchLabel}</Text>
-      </Pressable>
+    <View style={{ flex: 1 }}>
+      <SegmentedControl
+        testID="pro-role-switch"
+        options={[
+          { value: "need_help", label: "I Need Help", testID: "role-seg-need", accessibilityLabel: "I need help" },
+          { value: "can_help", label: "I Can Help", testID: "role-seg-can", accessibilityLabel: "I can help" },
+        ]}
+        value={role}
+        onChange={(v) => pickRole(v)}
+        style={{ marginTop: 0, marginBottom: spacing.xs }}
+      />
+      {role === "need_help" ? (
+        <NeedHelpHome vibeMap={vibeMap} coords={coords} me={user} />
+      ) : (
+        <CanHelpHome coords={coords} vibeMap={vibeMap} me={user} />
+      )}
     </View>
   );
 }
 
-function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
+function NeedHelpHome({ vibeMap, coords, me }: any) {
   const router = useRouter();
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [pros, setPros] = useState<any[]>([]);
-  const [verifiedOnly, setVerifiedOnly] = useState(true);
+  const [category, setCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [availableNow, setAvailableNow] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const { coords } = useApp();
   const active = requests.find((r) => r.status === "active" || r.status === "paused");
+
+  useEffect(() => {
+    api<any>("/config").then((c) => setCategories(c.pro_categories || [])).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -92,11 +101,14 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
       if (act) setOffers(await api<any[]>(`/help-requests/${act.id}/offers`));
       else setOffers([]);
       if (coords) {
-        const p = await api<any>(`/professionals?lat=${coords.lat}&lng=${coords.lng}${verifiedOnly ? "&verified_only=true" : ""}`);
+        let q = `/professionals?lat=${coords.lat}&lng=${coords.lng}`;
+        if (category) q += `&category=${encodeURIComponent(category)}`;
+        if (availableNow) q += "&available_now=true";
+        const p = await api<any>(q);
         setPros(p.professionals);
       }
     } catch {}
-  }, [coords, verifiedOnly]);
+  }, [coords, category, availableNow]);
 
   useEffect(() => {
     load();
@@ -136,7 +148,6 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
       testID="need-help-home"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.teal} />}
     >
-      <RoleHeader title="I Need Help" switchLabel="Switch to I Can Help" onSwitch={onSwitch} />
       {active ? (
         <View style={[styles.card, shadow.card]} testID="my-request-card">
           <View style={styles.rowBetween}>
@@ -209,17 +220,47 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
       )}
 
       <SectionHeader
-        title="Professionals nearby"
-        right={
-          <PillChip
-            testID="verified-only-toggle"
-            label="Verified only"
-            icon={verifiedOnly ? "checkbox" : "square-outline"}
-            active={verifiedOnly}
-            onPress={() => setVerifiedOnly(!verifiedOnly)}
-          />
-        }
+        title="Verified professionals nearby"
+        right={<PillChip testID="filter-available-now" label="Available now" active={availableNow} onPress={() => setAvailableNow(!availableNow)} />}
       />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+        {categories.map((c) => (
+          <PillChip key={c} testID={`nh-cat-filter-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
+        ))}
+      </ScrollView>
+      {pros.length > 0 && (
+        <View style={{ marginTop: spacing.xs }}>
+          <RadarView
+            users={pros.map((p: any) => ({
+              id: `pro:${p.user_id}`,
+              name: p.profession,
+              age: 0,
+              photo_url: p.photo_url,
+              vibe: "opportunity",
+              intent: p.about,
+              distance: p.distance,
+              bearing: p.bearing,
+              compatible: true,
+              active_now: p.availability === "Available now",
+              verified: true,
+              score: 6,
+              vibe_details: { opportunity_type: "Professional", category: p.primary_category },
+            })) as any}
+            vibeMap={vibeMap}
+            onSelect={(u: any) => router.push(`/professional/profile/${u.id.slice(4)}`)}
+            meUri={me?.photo_url}
+            meName={me?.name}
+            radiusSetting={me?.radius || 50}
+            coords={coords}
+          />
+        </View>
+      )}
+      {pros.length === 0 && (
+        <View style={[styles.card, { alignItems: "center" }]} testID="no-pros-empty">
+          <Text style={styles.cardTitle}>No verified professionals found nearby</Text>
+          <Text style={[styles.cardMeta, { textAlign: "center" }]}>Try increasing your distance or selecting another category.</Text>
+        </View>
+      )}
       {pros.map((p) => (
         <Pressable key={p.user_id} testID={`pro-row-${p.user_id}`} style={[styles.card, shadow.card]} onPress={() => router.push(`/professional/profile/${p.user_id}`)}>
           <View style={styles.proRow}>
@@ -247,7 +288,7 @@ function NeedHelpHome({ onSwitch }: { onSwitch: () => void }) {
   );
 }
 
-function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
+function CanHelpHome({ coords, vibeMap, me }: any) {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [verification, setVerification] = useState<any>({ status: "Not Submitted" });
@@ -300,7 +341,6 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
       testID="can-help-home"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.teal} />}
     >
-      <RoleHeader title="I Can Help" switchLabel="Switch to I Need Help" onSwitch={onSwitch} />
       {profile ? (
         <View style={[styles.card, shadow.card]} testID="pro-profile-card">
           <View style={styles.proRow}>
@@ -376,8 +416,9 @@ function CanHelpHome({ onSwitch, coords, vibeMap, me }: any) {
             </View>
           )}
           {requests.length === 0 && (
-            <View style={[styles.card, { alignItems: "center" }]}>
-              <Text style={styles.cardMeta}>No matching requests in your categories right now. Pull to refresh.</Text>
+            <View style={[styles.card, { alignItems: "center" }]} testID="no-requests-empty">
+              <Text style={styles.cardTitle}>No matching help requests nearby</Text>
+              <Text style={[styles.cardMeta, { textAlign: "center" }]}>New requests will appear here when they match your verified categories.</Text>
             </View>
           )}
           {requests.map((r) => (

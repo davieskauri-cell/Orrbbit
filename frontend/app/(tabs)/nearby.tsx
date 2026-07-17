@@ -4,6 +4,7 @@ import { showAlert } from "@/src/lib/alert";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
+import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
 import UserRow from "@/src/components/UserRow";
 import EmptyState from "@/src/components/EmptyState";
@@ -24,7 +25,7 @@ export default function NearbyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
-  const { nearby, vibeMap, refresh, coords, requestLocation } = useApp();
+  const { nearby, vibeMap, refresh, coords, requestLocation, appMode } = useApp();
   const [filter, setFilter] = useState("all");
   const [detailFilters, setDetailFilters] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,6 +70,10 @@ export default function NearbyScreen() {
     detailFilters.every((k) => DETAIL_FILTERS.find((f) => f.key === k)?.test(n))
   );
   const hidden = !user?.visible || user?.ghost_mode || user?.paused;
+
+  if (appMode === "professional") {
+    return <ProfessionalNearby role={user?.professional_role} coords={coords} insetsTop={insets.top} />;
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
@@ -192,7 +197,75 @@ export default function NearbyScreen() {
   );
 }
 
+function ProfessionalNearby({ role, coords, insetsTop }: { role?: string | null; coords: any; insetsTop: number }) {
+  const router = useRouter();
+  const [pros, setPros] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [verRequired, setVerRequired] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const canHelp = role === "can_help";
+
+  const load = React.useCallback(async () => {
+    if (!coords) return;
+    try {
+      if (canHelp) {
+        const res = await api<any>(`/professional/requests?lat=${coords.lat}&lng=${coords.lng}`);
+        setRequests(res.requests);
+        setVerRequired(!!res.verification_required);
+      } else {
+        const res = await api<any>(`/professionals?lat=${coords.lat}&lng=${coords.lng}`);
+        setPros(res.professionals);
+      }
+    } catch {}
+  }, [coords, canHelp]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <View style={[styles.container, { paddingTop: insetsTop + spacing.sm }]}>
+      <Text style={styles.title}>Nearby</Text>
+      <Text style={styles.sub}>{canHelp ? "Help requests matching your verified categories" : "Verified professionals near you"}</Text>
+      <FlatList
+        data={canHelp ? requests : pros}
+        keyExtractor={(item: any) => item.id || item.user_id}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.teal} />}
+        ListEmptyComponent={
+          canHelp ? (
+            verRequired ? (
+              <EmptyState icon="shield-half" title="Verification required" text="Complete professional verification to view and respond to help requests." />
+            ) : (
+              <EmptyState icon="briefcase-outline" title="No matching help requests nearby" text="New requests will appear here when they match your verified categories." />
+            )
+          ) : (
+            <EmptyState icon="people-outline" title="No verified professionals found nearby" text="Try increasing your distance or selecting another category." />
+          )
+        }
+        renderItem={({ item }: any) =>
+          canHelp ? (
+            <Pressable testID={`nearby-req-${item.id}`} style={styles.proCard} onPress={() => router.push(`/professional/request/${item.id}`)}>
+              <Text style={styles.proBadge}>{item.category}</Text>
+              <Text style={styles.proTitle}>{item.public_summary}</Text>
+              <Text style={styles.proMeta}>{item.payment} · ~{item.distance}m away</Text>
+            </Pressable>
+          ) : (
+            <Pressable testID={`nearby-pro-${item.user_id}`} style={styles.proCard} onPress={() => router.push(`/professional/profile/${item.user_id}`)}>
+              <Text style={styles.proTitle}>{item.name} · {item.profession}</Text>
+              {item.verified_by_intro && <Text style={styles.proBadge}>✓ Professionally Verified</Text>}
+              <Text style={styles.proMeta}>{item.primary_category} · ~{item.distance}m{item.response_time ? ` · ${item.response_time}` : ""}</Text>
+            </Pressable>
+          )
+        }
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  proCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: spacing.lg, marginBottom: spacing.md, gap: 4 },
+  proBadge: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
+  proTitle: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
+  proMeta: { color: colors.textSecondary, fontSize: font.sm },
   container: { flex: 1, backgroundColor: colors.surface },
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl },
   sub: { color: colors.textSecondary, fontSize: font.base, paddingHorizontal: spacing.xl, marginTop: 2, marginBottom: spacing.md },

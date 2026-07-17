@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 19 — Adaptive People+Professional Radar E2E. Backend spot checks (6/6 pytest pass on /app/backend/tests/test_iter19_adaptive_radar.py): /api/professionals?category=HR filters to HR-only pros, &available_now=true returns subset, /professionals returns verified-only (never unverified), /professional/requests gates unverified jade (empty list) and returns >=1 request for verified sana, PUT /users/me/mode + GET /auth/me correctly persists {app_mode, professional_role} across professional/need_help → professional/can_help → people cycles. Frontend (390x844): sana can_help → SegmentedControl 'People|Professional' + 'I Need Help|I Can Help' both render (role-seg-need + role-seg-can), profile card w/ 'Verified by INTRO', 'MATCHING REQUESTS NEARBY' section, filter chips (filter-pay-Open-to-paying / filter-pay-Free-advice / filter-fresh), RadarView shows amber H request marker; sana need_help → 18 nh-cat-filter-* category chips, filter-available-now chip, 12 pro-row-* cards with 'Professionally Verified · <profession>' StatusBadge; sana People mode → pro-role-switch hidden, 0 leaked request-row-* / no professional data leak; sana professional/can_help /nearby → 2 nearby-req-* cards (HR staff performance issue, HR advice resignation) + 'Help requests matching your verified categories' heading; jade unverified I Can Help → verification-required-card + 'Start verification →' link; jade Nearby → 'Verification required' empty state; demo persona (Alex) professional/need_help → my-request-card (Technology · IT support), 6 offer-* rows (Dev connected, Rory pending w/ Accept+Decline+View, Felix declined), 18 category chips, 13 pros, filter-available-now; demo persona /nearby → 13 nearby-pro-* cards each labelled 'Professionally Verified' + profession + primary_category; Profile → demo-switch-persona → /demo-accounts screen loads with Kauri/James/Sarah/Olivia/etc account rows. Cluster labels code (RadarView.tsx L42-68 opportunityClusterLabel): 'Professional'→'Pros', 'Need help'→'Requests', 'Paid task'→'Paid Tasks' — code-reviewed correct. Test coverage: 9/9 target flows verified; 6/6 backend endpoints pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "src/theme.ts shadow.*", "issue": "Pre-existing Expo Web deprecation warning 'shadow*' style props are deprecated. Use \"boxShadow\". Cosmetic, unchanged since iter 15-17. Reference: src/theme.ts."},
+      {"component": "props.pointerEvents", "issue": "Pre-existing 'props.pointerEvents is deprecated. Use style.pointerEvents' warning on Expo Web. Cosmetic, not a regression."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter19_adaptive_radar.py",
+    "/app/test_reports/pytest/pytest_iter19.xml",
+    "/tmp/sana_radar.png",
+    "/tmp/sana_need_help.png",
+    "/tmp/sana_people.png",
+    "/tmp/sana_nearby_canhelp.png",
+    "/tmp/jade_can_help.png",
+    "/tmp/demo_need_help.png",
+    "/tmp/demo_nearby_pros_direct.png",
+    "/tmp/demo_switch_final.png"
+  ],
+  "action_items": [
+    "All 11 spec bullets from the review request pass end-to-end. No action items — iteration 19 is production-ready.",
+    "Optional: consider addressing the pre-known Expo Web shadow*/pointerEvents deprecation warnings sitewide by migrating to boxShadow / style.pointerEvents. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "ProfessionalHome.tsx L62-71 — pro-role-switch uses shared SegmentedControl with identical styling to AppModeSwitch. role-seg-need + role-seg-can testIDs work.",
+    "ProfessionalHome.tsx L104-108 — /professionals query correctly appends &category + &available_now params, matching backend filter surface.",
+    "ProfessionalHome.tsx L233-256 — NeedHelpHome RadarView opportunity_type='Professional' → cluster label 'Pros' (RadarView.tsx L61).",
+    "ProfessionalHome.tsx L321-335 — CanHelpHome maps requests to reqUsers with opportunity_type='Need help' + category → cluster label 'Requests' (RadarView.tsx L57).",
+    "ProfessionalHome.tsx L379-388 — verification-required-card renders only when verRequired flag set (returned by /professional/requests for unverified). Start verification links to /professional/verification. Correct gating.",
+    "ProfessionalHome.tsx L264-282 — pro-row cards show 'Professionally Verified · <verified_profession>' StatusBadge + verified_categories checklist row. Matches spec.",
+    "nearby.tsx L74-76 + L200-262 — ProfessionalNearby branch reads appMode + role and renders nearby-req-* (can_help) or nearby-pro-* (need_help) accordingly. Empty states include 'Verification required' when unverified.",
+    "profile.tsx L281-286 — demo-switch-persona Pressable routes to /demo-accounts. Only shown for is_demo users.",
+    "SegmentedControl.tsx — shared 2-tab styled component used identically by AppModeSwitch and pro-role-switch. Same pill+shadow styling.",
+    "server.py — no new endpoints added (per E1 intent); /professionals accepts category+available_now, /professional/requests gates unverified with verification_required flag, PUT /users/me/mode persists app_mode+professional_role."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter19_adaptive_radar.py (new)"],
+  "success_rate": {"backend": "6/6 (100%)", "frontend": "9/9 target E2E flows (100%)"},
+  "seed_data_creation": "None. Final POST /api/demo/reset executed → demo state restored (people:80, pros:23, help_requests:14, connections:13, pending:7, verifications:20, notifications:6).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Adaptive radar is fully verified. Regression suite: /app/backend/tests/test_iter19_adaptive_radar.py (needs EXPO_PUBLIC_BACKEND_URL env). Frontend testIDs to know: pro-role-switch, role-seg-need, role-seg-can, need-help-home, can-help-home, my-request-card, offer-<id>, offer-accept-<id>, offer-decline-<id>, filter-available-now, filter-fresh, filter-pay-Open-to-paying, filter-pay-Free-advice, nh-cat-filter-<category>, pro-row-<user_id>, request-row-<id>, verification-required-card, nearby-req-<id>, nearby-pro-<user_id>, demo-switch-persona. NOTE: bottom tab navigation via page.get_by_role('link') was flaky (React Navigation intercepts); direct URL navigation (page.goto('/nearby'), page.goto('/profile')) works reliably. Also incoming ping modal ('Someone nearby wants to network' Dismiss/View Profile) may appear on demo persona first-load — handle by clicking Dismiss before interacting with other UI, or dismiss via page.on('dialog').",
+  "rca_of_issue": "N/A — no bugs found."
+}

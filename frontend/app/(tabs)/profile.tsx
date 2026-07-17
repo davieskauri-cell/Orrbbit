@@ -258,7 +258,7 @@ export default function ProfileScreen() {
           <Text style={styles.demoText}>
             Everything here is seeded sample data. Explore freely — nothing affects real users.
           </Text>
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
             <Pressable
               testID="demo-reset-btn"
               style={styles.demoBtn}
@@ -276,6 +276,14 @@ export default function ProfileScreen() {
             >
               <Ionicons name="refresh" size={14} color={colors.teal} />
               <Text style={styles.demoBtnText}>{demoResetting ? "Resetting…" : "Reset Demo Data"}</Text>
+            </Pressable>
+            <Pressable
+              testID="demo-switch-persona"
+              style={styles.demoBtn}
+              onPress={() => router.push("/demo-accounts")}
+            >
+              <Ionicons name="people" size={14} color={colors.teal} />
+              <Text style={styles.demoBtnText}>Switch Persona</Text>
             </Pressable>
             <Pressable
               testID="demo-exit-btn"
