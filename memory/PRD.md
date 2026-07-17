@@ -239,3 +239,10 @@ Tested: backend curl matrix (accept/decline/block/invisible/404/self/duplicate/s
 - ~80 people, 23 professionals across all verification states, 14 help requests, connections/pings/offers/notifications, populated admin dashboard
 - DEMO badge on radar + Profile card with Reset Demo Data (POST /api/demo/reset) and Exit Demo Mode
 - Production-safe: reset only touches demo-flagged/persona records; non-demo users get 403
+
+## Adaptive People + Professional Radar (July 2026) — DONE
+- One shared radar screen; role selector (I Need Help | I Can Help) via shared SegmentedControl below mode switch
+- I Need Help: verified professionals on map + list, category/available-now filters, spec empty states
+- I Can Help: matching help requests on map (verified categories only), verification-required gate
+- Nearby tab follows mode+role; mode/role persist server-side; cluster labels: +N Pros / +N Requests
+- Demo persona quick-switching from Profile demo card
