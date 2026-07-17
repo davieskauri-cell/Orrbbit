@@ -102,7 +102,10 @@ export default function RadarScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.header}>
-          <Logo size={26} />
+          <View style={styles.logoRow}>
+            <Logo size={26} />
+            {user?.is_demo && <Text style={styles.demoBadge} testID="demo-badge">DEMO</Text>}
+          </View>
           <View style={styles.headerRight}>
             <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
               <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
@@ -118,7 +121,10 @@ export default function RadarScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.header}>
-        <Logo size={26} />
+        <View style={styles.logoRow}>
+          <Logo size={26} />
+          {user?.is_demo && <Text style={styles.demoBadge} testID="demo-badge">DEMO</Text>}
+        </View>
         <View style={styles.headerRight}>
           <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
             <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
@@ -515,6 +521,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   headerRight: { flexDirection: "row", gap: spacing.sm },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: "hidden" },
   iconBtn: {
     width: 40,
     height: 40,

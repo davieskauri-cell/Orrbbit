@@ -233,3 +233,9 @@ Tested: backend curl matrix (accept/decline/block/invisible/404/self/duplicate/s
 - Admin dashboard: profession/categories/docs+expiry, image preview, approve/reject/more_info/suspend/renew/mark_expired, audit history
 - Public profile: Professionally Verified card (profession, ✓ categories, verified since, valid until, Verified by Intro)
 - In-app notifications (db.notifications) for all verification events — push still MOCKED
+
+## Demo Environment (July 2026) — DONE
+- 'Explore Demo' one-tap login (no credentials) into persona demo@intro.demo with full seeded dataset
+- ~80 people, 23 professionals across all verification states, 14 help requests, connections/pings/offers/notifications, populated admin dashboard
+- DEMO badge on radar + Profile card with Reset Demo Data (POST /api/demo/reset) and Exit Demo Mode
+- Production-safe: reset only touches demo-flagged/persona records; non-demo users get 403

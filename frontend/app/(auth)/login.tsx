@@ -12,7 +12,6 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
-import { useTestMode } from "@/src/lib/testMode";
 import { LogoMark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import FormField from "@/src/components/FormField";
@@ -22,7 +21,6 @@ export default function Login() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signIn, demoLogin } = useAuth();
-  const [testMode] = useTestMode();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +47,7 @@ export default function Login() {
     setError(null);
     setDemoBusy(true);
     try {
-      const u = await demoLogin();
+      const u = await demoLogin("demo@intro.demo");
       go(u);
     } catch (e: any) {
       setError(e.message || "Demo login failed");
@@ -104,15 +102,14 @@ export default function Login() {
           loading={busy}
           style={{ marginTop: spacing.xl }}
         />
-        {testMode && (
-          <SecondaryButton
-            testID="login-demo"
-            title={demoBusy ? "Loading demo…" : "Use Demo Account"}
-            onPress={demo}
-            color={colors.teal}
-            style={{ marginTop: spacing.md, borderColor: colors.teal }}
-          />
-        )}
+        <SecondaryButton
+          testID="login-demo"
+          title={demoBusy ? "Loading demo…" : "Explore Demo"}
+          onPress={demo}
+          color={colors.teal}
+          style={{ marginTop: spacing.md, borderColor: colors.teal }}
+        />
+        <Text style={styles.demoHint}>No account needed — explore INTRO with realistic sample data.</Text>
 
         <Pressable onPress={() => router.replace("/(auth)/register")} style={styles.linkRow}>
           <Text style={styles.linkText}>New here? </Text>
@@ -130,6 +127,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.display, fontWeight: "800", textAlign: "center" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs, marginBottom: spacing.xl, textAlign: "center" },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.lg },
+  demoHint: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.sm },
   linkRow: { flexDirection: "row", justifyContent: "center", marginTop: spacing.xl, paddingVertical: spacing.md },
   linkText: { color: colors.textSecondary, fontSize: font.base },
 });

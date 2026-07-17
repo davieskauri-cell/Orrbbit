@@ -2550,6 +2550,307 @@ async def seed_professional_demo():
 # ========================== END PROFESSIONAL MODE ==========================
 
 
+# ===================== Full Demo Environment (demo_env) =====================
+DEMO_ENV_VERSION = 3
+DEMO_PERSONA_EMAIL = "demo@intro.demo"
+
+# (radar_email_name, profession_title, profession_key, categories, state, docs)
+# states: verified | expiring | pending | rejected | expired | draft
+DEMO_ENV_PROS = [
+    ("tom", "Accountant", "Accounting", ["Tax", "Bookkeeping", "BAS"], "verified", 1),
+    ("grace", "Lawyer", "Law", ["Employment Law", "Commercial Law"], "verified", 3),
+    ("oscar", "Marketing Consultant", "Marketing", ["Digital Marketing", "SEO", "Branding"], "verified", 1),
+    ("lucas", "Business Consultant", "Business Consultant", ["Strategy", "Small Business"], "verified", 2),
+    ("hugo", "Electrician", "Electrician", ["Residential Electrical", "Solar"], "expiring", 2),
+    ("callum", "Plumber", "Plumber", ["General Plumbing", "Hot Water"], "expiring", 1),
+    ("angus", "Mechanic", "Mechanic", ["Servicing", "Diagnostics"], "verified", 1),
+    ("iris", "Photographer", "Photographer", ["Portraits", "Events"], "verified", 1),
+    ("matilda", "Mortgage Broker", "Mortgage Broker", ["Home Loans", "Refinancing"], "verified", 1),
+    ("pearl", "Property Manager", "Real Estate", ["Property Management", "Leasing"], "verified", 1),
+    ("rory", "IT Consultant", "IT", ["IT Support", "Web Development"], "verified", 1),
+    ("aria", "Graphic Designer", "Graphic Designer", ["Logos", "Branding"], "pending", 1),
+    ("ezra", "Personal Trainer", "Fitness", ["Personal Training", "Strength"], "pending", 2),
+    ("reuben", "Plumber", "Plumber", ["Drainage", "Gas Fitting"], "pending", 1),
+    ("jasper", "Builder", "Builder", ["Renovations", "Carpentry"], "rejected", 1),
+    ("sadie", "Marketing Consultant", "Marketing", ["Social Media", "Content"], "rejected", 1),
+    ("felix", "Electrician", "Electrician", ["Commercial Electrical"], "expired", 1),
+    ("bonnie", "Accountant", "Accounting", ["Payroll", "Tax"], "expired", 1),
+    ("theo", "Business Consultant", "Business Consultant", ["Startups"], "draft", 0),
+    ("luna", "Photographer", "Photographer", ["Weddings"], "draft", 0),
+]
+
+DEMO_ENV_REQUESTS = [
+    ("maya", "Marketing", "Need a marketing strategy for my small retail brand", "Open to paying", "24 hours"),
+    ("finn", "Business Consulting", "Need advice on pivoting my career into consulting", "Free advice", "24 hours"),
+    ("ava", "Technology", "Need IT support — laptop keeps dropping WiFi", "Open to paying", "24 hours"),
+    ("ruby", "Photography", "Need a photographer for a small product shoot", "Open to paying", "Today"),
+    ("willow", "Plumbing", "Need a plumber — kitchen tap leaking badly", "Open to paying", "24 hours"),
+    ("elsie", "Accounting", "Need tax advice before EOFY as a sole trader", "Open to paying", "24 hours"),
+    ("poppy", "HR", "Need HR advice on managing a difficult resignation", "Free advice", "24 hours"),
+    ("milo", "Automotive", "Need a mechanic — car making a rattling noise", "Open to paying", "24 hours"),
+    ("daisy", "Fitness", "Need help building a beginner gym program", "Skill swap", "Today"),
+    ("nora", "Legal", "Need quick legal advice on a rental bond dispute", "Not sure", "24 hours"),
+    ("toby", "Electrical", "Need an electrician to install two ceiling fans", "Open to paying", "24 hours"),
+    ("freya", "Finance", "Need help understanding my first home loan options", "Free advice", "Today"),
+]
+
+
+async def _demo_user_id(name: str) -> Optional[str]:
+    u = await db.users.find_one({"email": f"{name}@radar.intro.demo"}) or await db.users.find_one({"email": f"{name}@intro.demo"})
+    return u["id"] if u else None
+
+
+def _demo_docs(profession: str, n: int, expiry: Optional[str]):
+    templates = [
+        ("Professional Licence", "State Licensing Board"),
+        ("University Degree", "University of Melbourne"),
+        ("Insurance Certificate", "AAMI Business Insurance"),
+        ("Membership Certificate", "Industry Association"),
+    ]
+    docs = []
+    for i in range(max(n, 1)):
+        t, issuer = templates[i % len(templates)]
+        docs.append({
+            "id": str(uuid.uuid4()), "doc_name": f"{profession} — {t}", "issuer": issuer,
+            "issue_date": "2021-05-10", "expiry_date": expiry if i == 0 else None,
+            "doc_number": f"DEMO-{1000 + i}", "notes": "", "file_name": "credential.pdf",
+            "file_type": "application/pdf", "has_file": False,
+        })
+    return docs
+
+
+async def seed_demo_environment(force: bool = False):
+    # verified pros keep a wide radius so they can see demo help requests around the city
+    # (applied every startup because seed_demo_accounts resets radius)
+    pro_emails = [f"{n}@radar.intro.demo" for n, *_ in DEMO_ENV_PROS] + ["sana@radar.intro.demo", "dev@radar.intro.demo", "jade@radar.intro.demo"]
+    await db.users.update_many({"email": {"$in": pro_emails}}, {"$set": {"radius": 500}})
+    meta = await db.meta.find_one({"key": "demo_env_version"})
+    if not force and meta and meta.get("value") == DEMO_ENV_VERSION:
+        return {"skipped": True}
+    # ---- wipe previous demo-env + persona interaction data ----
+    demo_ids = [u["id"] async for u in db.users.find({"is_demo": True}, {"id": 1})]
+    persona = await db.users.find_one({"email": DEMO_PERSONA_EMAIL})
+    pid = persona["id"] if persona else None
+    await db.professional_profiles.delete_many({"demo_env": True})
+    await db.verification_submissions.delete_many({"demo_env": True})
+    await db.help_requests.delete_many({"demo_env": True})
+    await db.notifications.delete_many({"demo_env": True})
+    if pid:
+        # restore persona-related dynamic records fully (demo-to-demo only)
+        await db.pings.delete_many({"$or": [{"from_user_id": pid}, {"to_user_id": pid}]})
+        await db.matches.delete_many({"$or": [{"user_a": pid}, {"user_b": pid}]})
+        await db.blocks.delete_many({"$or": [{"blocker_id": pid}, {"blocked_id": pid}]})
+        await db.hides.delete_many({"$or": [{"hider_id": pid}, {"hidden_id": pid}]})
+        await db.notifications.delete_many({"user_id": pid})
+        await db.help_requests.delete_many({"user_id": pid})
+
+    # ---- 1. demo persona ----
+    persona_doc = {
+        "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "age": 29, "vibe": "networking",
+        "bio": "Demo explorer account — look around, everything here is seeded sample data.",
+        "interests": ["Business", "Coffee", "Fitness", "Tech"],
+        "photo_url": "https://randomuser.me/api/portraits/lego/1.jpg",
+        "photos": ["https://randomuser.me/api/portraits/lego/1.jpg"],
+        "demo_dist": 0, "demo_bearing": 0, "demo_minutes_ago": 1,
+        "visible": True, "radius": 500, "ghost_mode": False, "paused": False, "quiet_mode": False,
+        "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
+        "visible_for": 60, "verified": True, "active_now": True, "is_demo": True, "demo_env": True,
+        "trial_mode_active": False, "plan": "pro", "app_mode": "people", "professional_role": "need_help",
+        "vibe_details": {"looking_for": ["Networking", "New friends"], "tags": ["Business", "Startups"], "visibility": "public"},
+        "lat": None, "lng": None, "last_active": now_iso(),
+    }
+    if persona:
+        await db.users.update_one({"id": pid}, {"$set": persona_doc})
+    else:
+        persona_doc.update({"id": str(uuid.uuid4()), "hashed_password": pwd_context.hash(DEMO_PASSWORD), "created_at": now_iso()})
+        await db.users.insert_one(dict(persona_doc))
+        pid = persona_doc["id"]
+
+    # ---- 2. professionals in every verification state ----
+    now = datetime.now(timezone.utc)
+    for name, title, prof_key, cats, state, ndocs in DEMO_ENV_PROS:
+        uid = await _demo_user_id(name)
+        if not uid:
+            continue
+        await db.professional_profiles.update_one(
+            {"user_id": uid},
+            {"$set": {
+                "user_id": uid, "profession": title, "primary_category": PROFESSION_BROAD.get(prof_key, "Other"),
+                "additional_categories": [], "about": f"{title} helping locals with {', '.join(cats[:2]).lower()}.",
+                "years_experience": 3 + (len(name) % 14), "qualifications": f"{title} qualification",
+                "memberships": "Industry association" if state in ("verified", "expiring") else "",
+                "licences": "", "certifications": "", "specialties": cats,
+                "availability": "Available now" if len(name) % 2 == 0 else "Evenings and weekends",
+                "response_time": "Usually replies within 1 hour" if len(name) % 2 == 0 else "Usually replies within a day",
+                "rate": "$90/hr" if state in ("verified", "expiring") and len(name) % 2 == 0 else "",
+                "rate_type": "Hourly" if state in ("verified", "expiring") and len(name) % 2 == 0 else "",
+                "is_draft": state not in ("verified", "expiring"),
+                "demo": True, "demo_env": True, "created_at": now_iso(), "updated_at": now_iso(),
+            }}, upsert=True)
+        if state == "draft":
+            continue
+        status = {"verified": "Approved", "expiring": "Approved", "pending": "Pending Review",
+                  "rejected": "Rejected", "expired": "Expired"}[state]
+        expiry = None
+        if state == "verified":
+            expiry = "2028-07-12"
+        elif state == "expiring":
+            expiry = (now + timedelta(days=45 if name == "hugo" else 25)).date().isoformat()
+        elif state == "expired":
+            expiry = (now - timedelta(days=10)).date().isoformat()
+        history = [{"action": "submitted", "by": uid, "at": now_iso()}]
+        if status == "Approved":
+            history.append({"action": "approve", "by": "intro-admin", "at": now_iso()})
+        elif status == "Rejected":
+            history.append({"action": "reject", "by": "intro-admin", "note": "Document unreadable — please re-upload.", "at": now_iso()})
+        elif status == "Expired":
+            history += [{"action": "approve", "by": "intro-admin", "at": now_iso()}, {"action": "auto-expired", "by": "system", "at": now_iso()}]
+        await db.verification_submissions.insert_one({
+            "id": str(uuid.uuid4()), "user_id": uid, "profession": prof_key, "categories": cats,
+            "category": PROFESSION_BROAD.get(prof_key, "Other"),
+            "identity": {"full_name": name.capitalize(), "id_type": "Driver licence"},
+            "documents": _demo_docs(title, ndocs, expiry),
+            "status": status, "submitted_at": now_iso(),
+            "reviewed_at": now_iso() if status in ("Approved", "Rejected", "Expired") else None,
+            "reviewer": "intro-admin" if status != "Pending Review" else None,
+            "public_note": "Document unreadable — please re-upload." if status == "Rejected" else "",
+            "notes": [], "reminders_sent": [90] if state == "expiring" and name == "hugo" else [],
+            "history": history, "demo": True, "demo_env": True,
+        })
+
+    # ---- 3. help requests ----
+    for name, cat, summary, payment, expiry in DEMO_ENV_REQUESTS:
+        uid = await _demo_user_id(name)
+        if not uid or await db.help_requests.find_one({"user_id": uid, "status": {"$in": ["active", "paused"]}}):
+            continue
+        await db.help_requests.insert_one({
+            "id": str(uuid.uuid4()), "user_id": uid, "category": cat, "public_summary": summary,
+            "private_details": f"More context: {summary.lower()}. Happy to share specifics once connected.",
+            "payment": payment, "expiry": expiry,
+            "expires_at": _hr_expires_at(expiry),
+            "availability": "Available today", "status": "active",
+            "demo": True, "demo_env": True, "created_at": now_iso(), "updated_at": now_iso(),
+        })
+    # one expired + one paused example
+    for name, cat, summary, status_x, delta in [
+        ("arlo", "HR", "Need help drafting a workplace policy", "paused", timedelta(hours=20)),
+        ("pearl", "Marketing", "Needed flyers designed for open homes", "expired", timedelta(hours=-2)),
+    ]:
+        uid = await _demo_user_id(name)
+        if uid and not await db.help_requests.find_one({"user_id": uid}):
+            await db.help_requests.insert_one({
+                "id": str(uuid.uuid4()), "user_id": uid, "category": cat, "public_summary": summary,
+                "private_details": "Sample private details.", "payment": "Not sure", "expiry": "24 hours",
+                "expires_at": (now + delta).isoformat(), "availability": "", "status": status_x,
+                "demo": True, "demo_env": True, "created_at": now_iso(), "updated_at": now_iso(),
+            })
+
+    # ---- 4. persona connections / pings ----
+    async def mk_ping(from_name, to_id, status, about="connect", hr_id=None, hours=24, minutes_old=30):
+        fid = await _demo_user_id(from_name)
+        if not fid:
+            return None
+        ping = {
+            "id": str(uuid.uuid4()), "kind": "request", "about": about, "help_request_id": hr_id,
+            "from_user_id": fid, "to_user_id": to_id, "vibe": "open_to_chat", "status": status,
+            "distance_meters": 40 + (len(from_name) * 17) % 400,
+            "created_at": (now - timedelta(minutes=minutes_old)).isoformat(),
+            "expires_at": (now + timedelta(hours=hours)).isoformat(),
+        }
+        await db.pings.insert_one(dict(ping))
+        return ping
+
+    connections = ["maya", "tom", "grace", "ava", "ruby", "sophie", "jake", "mia", "olivia", "james", "willow", "hugo"]
+    for i, name in enumerate(connections):
+        uid = await _demo_user_id(name)
+        if not uid:
+            continue
+        await db.matches.insert_one({
+            "id": str(uuid.uuid4()), "user_a": pid, "user_b": uid,
+            "accepted_a": True, "accepted_b": True, "active": True,
+            "created_at": (now - timedelta(days=i, hours=3)).isoformat(),
+        })
+        if i < 6:
+            await mk_ping(name, pid, "accepted", minutes_old=60 * 24 * i + 90)
+    for name in ["finn", "aria", "lucas", "daisy", "felix"]:            # 5 pending incoming
+        await mk_ping(name, pid, "new", minutes_old=15)
+    for name in ["poppy", "arlo"]:                                       # declined
+        await mk_ping(name, pid, "declined", minutes_old=60 * 30)
+    await mk_ping("nora", pid, "new", hours=-2, minutes_old=60 * 30)     # expired pending
+    theo_id = await _demo_user_id("theo")                                 # persona's outgoing declined
+    if theo_id:
+        await db.pings.insert_one({
+            "id": str(uuid.uuid4()), "kind": "request", "about": "connect", "help_request_id": None,
+            "from_user_id": pid, "to_user_id": theo_id, "vibe": "networking", "status": "declined",
+            "distance_meters": 260, "created_at": (now - timedelta(days=2)).isoformat(),
+            "expires_at": (now - timedelta(days=1)).isoformat(),
+        })
+    marco_id = await _demo_user_id("marco")                               # blocked user example
+    if marco_id:
+        await db.blocks.insert_one({"id": str(uuid.uuid4()), "blocker_id": pid, "blocked_id": marco_id, "created_at": now_iso()})
+
+    # ---- 5. persona professional flow: own Need Help request with offers ----
+    hr_id = str(uuid.uuid4())
+    await db.help_requests.insert_one({
+        "id": hr_id, "user_id": pid, "category": "Technology",
+        "public_summary": "Need IT support with my laptop and email setup",
+        "private_details": "Laptop is slow and Outlook won't sync on my new phone. Can meet at a cafe nearby.",
+        "payment": "Open to paying", "expiry": "24 hours",
+        "expires_at": (now + timedelta(hours=72)).isoformat(), "availability": "Available today",
+        "status": "active", "demo": True, "demo_env": True, "created_at": now_iso(), "updated_at": now_iso(),
+    })
+    dev_id = await _demo_user_id("dev")
+    if dev_id:                                                            # accepted offer -> private unlocked
+        await mk_ping("dev", pid, "accepted", about="help_offer", hr_id=hr_id, minutes_old=120)
+        await db.matches.insert_one({
+            "id": str(uuid.uuid4()), "user_a": pid, "user_b": dev_id,
+            "accepted_a": True, "accepted_b": True, "active": True, "created_at": now_iso(),
+        })
+    await mk_ping("rory", pid, "new", about="help_offer", hr_id=hr_id, minutes_old=25)   # pending offer
+    await mk_ping("felix", pid, "declined", about="help_offer", hr_id=hr_id, minutes_old=300)  # declined offer
+
+    # ---- 6. notifications for persona ----
+    for i, (ntype, title, body_text) in enumerate([
+        ("connection_request", "New connection request", "Finn nearby wants to connect with you."),
+        ("offer_accepted", "Offer accepted", "You and Dev are now connected about your IT request."),
+        ("offer_declined", "Offer declined", "An offer on your request was declined."),
+        ("verification_approve", "Verification approved", "Sample: a professional you follow was verified."),
+        ("verification_expiring_90", "Credentials expiring soon", "Sample: a credential expires in 90 days."),
+        ("need_help_nearby", "Need Help nearby", "Someone 300m away needs IT support."),
+    ]):
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": pid, "type": ntype, "title": title, "body": body_text,
+            "read": i > 2, "created_at": (now - timedelta(hours=i * 5)).isoformat(), "demo_env": True,
+        })
+
+    await db.meta.update_one({"key": "demo_env_version"}, {"$set": {"value": DEMO_ENV_VERSION, "seeded_at": now_iso()}}, upsert=True)
+    counts = {
+        "people": len(demo_ids),
+        "professionals": await db.professional_profiles.count_documents({"demo": True}),
+        "help_requests": await db.help_requests.count_documents({"demo": True, "status": "active"}),
+        "connections": await db.matches.count_documents({"$or": [{"user_a": pid}, {"user_b": pid}]}),
+        "pending_requests": await db.pings.count_documents({"to_user_id": pid, "status": "new"}),
+        "verifications": await db.verification_submissions.count_documents({"demo": True}),
+        "notifications": await db.notifications.count_documents({"user_id": pid}),
+    }
+    logger.info("Seeded demo environment v%s: %s", DEMO_ENV_VERSION, counts)
+    return counts
+
+
+@api_router.post("/demo/reset")
+async def reset_demo(user: dict = Depends(get_current_user)):
+    """Restore all demo accounts and data to the original seeded state. Demo accounts only."""
+    if not user.get("is_demo"):
+        raise HTTPException(status_code=403, detail="Demo mode only")
+    await db.verification_submissions.delete_many({"demo": True})
+    await db.help_requests.delete_many({"demo": True})
+    await seed_demo_accounts()
+    counts = await seed_demo_environment(force=True)
+    return {"ok": True, "counts": counts}
+
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -2654,6 +2955,7 @@ async def seed_demo_accounts():
     logger.info("Seeded %d global demo users", len(GLOBAL_DEMO_USERS))
     await migrate_opportunity_records()
     await seed_professional_demo()
+    await seed_demo_environment()
 
 
 @app.on_event("shutdown")

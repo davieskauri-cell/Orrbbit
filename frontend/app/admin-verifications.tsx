@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
+import { useAuth } from "@/src/context/AuthContext";
 import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
 import { timeAgo } from "@/src/lib/format";
@@ -19,6 +20,7 @@ function fmtD(d?: string | null) {
 export default function AdminVerificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const [subs, setSubs] = useState<any[]>([]);
   const [filter, setFilter] = useState("Pending Review");
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -36,8 +38,9 @@ export default function AdminVerificationsScreen() {
   };
 
   const load = useCallback(() => {
+    if (!token) return;
     api<any[]>(`/admin/verifications?status_filter=${encodeURIComponent(filter)}`).then(setSubs).catch(() => setSubs([]));
-  }, [filter]);
+  }, [filter, token]);
   useEffect(() => { load(); }, [load]);
 
   const decide = async (id: string, action: string) => {
