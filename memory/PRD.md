@@ -259,3 +259,15 @@ Desktop-first admin web portal at `/control` (Expo web, React Native Web). Maste
 - QA: iteration_21 — backend 25/26, frontend 100%; test creds in memory/test_credentials.md (qa-admin@intro.control)
 - Phase 2 backlog: Connections, Chats moderation, Radar heatmaps, Notifications composer, Analytics, Feature Flags, App Config, Emergency Controls, System Health detail. Phase 3: Marketing, Subscriptions/Payments (provider-agnostic + webhook scaffolding + Payment Integration Settings page), Content Mgmt, Categories, DB Viewer, AI Insights (provider-agnostic via Emergent LLM key), Backups, Exports, Scheduled Jobs, Act-As-User impersonation, 2FA readiness
 - Known nits: add testIDs to /control screens for automation; cosmetic expo-router REPLACE warning on login redirect
+
+## INTRO Control Centre — Phase 2 (June 2026) — DONE
+- Connections viewer (pending/accepted/rejected/expired tabs, counts, active matches KPI)
+- Chats moderation: read-only conversation list from matches; message views audited (chat_viewed); messaging not launched yet (db.messages empty by design)
+- People Radar + Professional Radar insight pages (shared src/control/RadarPanel.tsx): stats, by vibe/category, most active areas, sample lists
+- Notifications composer: audience targeting (everyone/professionals/people_mode/professional_mode/city/category), scheduling (lazy dispatch on reads), delivery history; push MOCKED — delivered as in-app db.notifications (type announcement, campaign_id); campaigns in db.admin_notifications
+- Analytics: DAU/WAU/MAU, 5 daily series, 4-stage conversion funnel, weekly retention cohorts, popular categories/locations; session length not tracked (shown honestly)
+- Feature Flags (13 flags, db.feature_flags) with REAL server-side enforcement via feature_gate() in server.py: registration, help_requests creation, connect/request are gated; maintenance_mode 503s all gated endpoints with configurable message; maintenance_mode + registration flag changes require reauth (428)
+- Emergency Controls page: 7 one-click kill switches with confirmation + reauth; Settings page: 8 app-config values (db.app_config, super admin only, audited); System Health: latency, disk, memory, collection counts, background jobs, notification queue, failed admin logins
+- Backend: /app/backend/control_phase2.py (router included in server.py); ROLE_PERMS extended per role
+- QA iteration_22: backend 23/23, frontend 100% (flags restored to defaults after tests); fixed Td text-node warning
+- Remaining Phase 3: Marketing, Content Mgmt, Categories, Subscriptions/Payments (provider-agnostic infra + webhook scaffolding + integration settings page, DEMO-only seeded finance data), DB Viewer, AI Insights (provider-agnostic, Emergent LLM key), Backups, Exports (CSV/Excel/PDF), Scheduled Jobs page, Act-As-User impersonation, 2FA readiness

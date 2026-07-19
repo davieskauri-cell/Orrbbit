@@ -93,7 +93,7 @@ export default function Notifications() {
             {!data.items.length ? <EmptyText>No notifications sent yet.</EmptyText> : data.items.map((n: any) => (
               <Tr key={n.id}>
                 <Td flex={1.6}>{n.title}</Td>
-                <Td>{n.audience}{n.city ? ` (${n.city})` : ''}{n.category ? ` (${n.category})` : ''}</Td>
+                <Td>{`${n.audience}${n.city ? ` (${n.city})` : ''}${n.category ? ` (${n.category})` : ''}`}</Td>
                 <Td flex={0.7}>{n.targeted}</Td>
                 <Td flex={0.7}>{n.delivered}</Td>
                 <Td flex={0.9}><Badge status={n.status === 'sent' ? 'active' : 'pending'} label={n.status} /></Td>

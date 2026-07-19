@@ -91,9 +91,11 @@ export function Tr({ children, onPress }: { children: React.ReactNode; onPress?:
 }
 
 export function Td({ children, flex = 1 }: { children: React.ReactNode; flex?: number }) {
+  const isTextual = typeof children === 'string' || typeof children === 'number' ||
+    (Array.isArray(children) && children.every((c) => typeof c === 'string' || typeof c === 'number' || c === null || c === undefined || c === false));
   return (
     <View style={{ flex, paddingRight: 8, justifyContent: 'center' }}>
-      {typeof children === 'string' || typeof children === 'number' ? (
+      {isTextual ? (
         <Text style={s.td} numberOfLines={2}>{children}</Text>
       ) : (
         children
