@@ -1,0 +1,54 @@
+{
+  "summary": "INTRO Control Centre Phase 1 tested end-to-end. Backend: 25/26 pytest cases pass (96%). Frontend: login → dashboard (KPIs, 6 SVG charts, System Status chips, DEMO badge), LIVE/DEMO switch with confirm modal, sidebar navigation to all Phase 1 pages, Users list + search + detail (profile, counts, timeline, admin action buttons), Professional Verification queue tabs, Command Centre with category+time filters, Admin Users (Create admin form with roles + list showing both super admins), Audit Logs with all our test actions logged (admin_email, mode, old/new values, IP), Payments placeholder correctly shows 'Payment integration not configured'. Global search from topbar works ('sana' → dropdown result). Bootstrap admin (k97davies) correctly returns must_change_password=true and gated dashboard (403). Wrong-password returns 401 with generic 'Invalid credentials'. Reauth+ban+audit flow verified via API. One minor spec deviation found: HIGH_RISK_ACTIONS includes 'suspend' — the spec says only ban+delete need reauth for users (suspend is correctly high-risk only for the reports module).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/control/users/{id}/action (suspend)",
+        "issue": "Suspend on a user returns HTTP 428 requiring reauth. Per spec, only 'ban' and 'delete' should need reauth for users; 'suspend' should succeed without prior reauth. Root cause: control_center.py:45 defines HIGH_RISK_ACTIONS = {'ban','delete','suspend'} globally, then user action handler runs _check_recent_reauth() for any action in that set. Recommended: remove 'suspend' from HIGH_RISK_ACTIONS and instead gate suspend per-module (only inside the reports action handler, as is already done for ban)."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login + all Control screens", "issues": [
+        "No testID/data-testid on any control-centre interactive element (email/password inputs, Sign in button, DEMO/LIVE badge, modal Confirm/Cancel, sidebar links, user-row, Admin Action buttons). Everything currently has to be selected by text — brittle for future testing. Recommend adding testIDs (login-email, login-password, login-submit, mode-badge, mode-switch-confirm, sidebar-{route}, user-row-{id}, admin-action-{key}, reauth-password, reauth-submit).",
+        "Placeholder pages (Payments, Feature Flags, etc.) show wording like 'Payments arrives in Phase 3' — the review request expected wording 'Coming Soon'. The intent (a placeholder + Phase note + payment-integration-not-configured message) is satisfied, but you may want the copy to include the literal 'Coming Soon' string too."
+      ]}
+    ],
+    "react_native_issues": [
+      {"component": "Shadow style props", "issue": "Console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Migrate shadow* / elevation styles to boxShadow / RN 0.76+ compatible style. Reference: appears on every Control page load."},
+      {"component": "Expo Router navigator", "issue": "Console error on login redirect: 'The action REPLACE with payload {\"name\":\"index\",\"params\":{}} was not handled by any navigator. Do you have a route named \"index\"?' — likely from a router.replace('/control') or replace('index') somewhere in login.tsx / _layout.tsx. Cosmetic (redirect still happens) but should be cleaned up."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_control_center.py",
+    "/app/test_reports/pytest/pytest_control_center.xml"
+  ],
+  "action_items": [
+    "Remove 'suspend' from HIGH_RISK_ACTIONS in /app/backend/control_center.py (line 45). Keep the per-module reauth gate for reports.suspend that already exists (line 750).",
+    "Add testID attributes to all interactive elements in the /control frontend (login form, mode badge, sidebar entries, user rows, admin action buttons, all modal Confirm/Cancel and reauth password input).",
+    "Fix the Expo Router 'REPLACE {name:index}' warning emitted on login redirect (likely in /app/frontend/app/control/_layout.tsx Redirect target or login.tsx post-login navigation).",
+    "Migrate deprecated 'shadow*' style props to 'boxShadow' across control-centre components (theme.ts / Shell.tsx / cards).",
+    "Optional: update Phase 2/3 placeholder copy to include the literal string 'Coming Soon' as the review request expected."
+  ],
+  "critical_code_review_comments": [
+    "control_center.py is 826 lines — approaching the 700-line guideline. Consider splitting into control_auth.py, control_users.py, control_verifications.py, control_reports.py once Phase 2 lands.",
+    "Bootstrap admin (k97davies@icloud.com) is seeded with must_change_password=true — verified via API, correctly blocks /dashboard with 403. Good.",
+    "LIVE/DEMO isolation correctly enforced server-side (400 when acting on demo user in LIVE mode).",
+    "Every mutating endpoint writes to admin_audit_logs with admin_email, action, target_type/id, old_value, new_value, ip, mode, at — audit trail is comprehensive and visible in the Audit Logs UI.",
+    "Reauth window (5 min) works correctly; 428 is returned when window expired.",
+    "Payments/Subscriptions KPIs are correctly null and system.payments='not_configured' — no fabricated financial data, as required."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_control_center.py (new pytest suite: 26 cases across auth, dashboard, activity, users, user-actions+reauth, professionals, verifications, help_requests, reports, audit, search)"
+  ],
+  "success_rate": {"backend": "96% (25/26 pytest)", "frontend": "100% of covered flows (login, mode switch, users list+detail, verifications, command centre, admin users, audit logs, placeholder page, global search)"},
+  "seed_data_creation": "None — used existing demo seed. Test artifacts: temporarily banned then unbanned Marco (dac9b960...) via API test, featured/unfeatured one help request, warned one report, renewed one Approved verification. All actions are visible in Audit Logs and are recoverable (no destructive test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "QA super admin qa-admin@intro.control / QaControl!2026x (no forced change). Bootstrap admin k97davies@icloud.com / Kau09123! MUST remain in must_change_password=true state — do NOT change its password. High-risk actions return 428 → call POST /api/control/auth/reauth {password} then retry. Reauth valid 5 min. Default mode=demo, use header X-Admin-Mode: live to switch. Frontend Ban/Delete/Suspend confirmation is a ModalCard (React Native Web) with a text-'Confirm' button; reauth uses ReauthModal with an input[type=password]. Selectors are text-based (no testIDs yet).",
+  "rca_of_issue": "Suspend-requires-reauth bug: control_center.py line 45 declares HIGH_RISK_ACTIONS = {'ban','delete','suspend'}. In control_user_action (line 545) any action in that set triggers _check_recent_reauth(), so a plain suspend now returns 428 unless the admin reauthed in the last 5 minutes. Per the review-request spec ('admin actions: suspend/unsuspend/ban/force logout/verify email/reset password/delete — ban+delete need reauth'), suspend should NOT require reauth on users. Mitigation: drop 'suspend' from HIGH_RISK_ACTIONS. The reports module already independently calls _check_recent_reauth() for its suspend/ban actions (lines 749-756), so removing 'suspend' from the global set does not weaken report-suspend gating."
+}

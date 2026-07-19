@@ -2307,7 +2307,7 @@ async def nearby_professionals(
         # V2: professionals must be actively verified to be publicly listed
         if not pub["verified_by_intro"]:
             continue
-        if available_now and not pub["active_now"]:
+        if available_now and not (pub["active_now"] and pub.get("availability") == "Available now"):
             continue
         out.append(pub)
     out.sort(key=lambda x: (not x["verified_by_intro"], x.get("distance") if x.get("distance") is not None else 9999))
@@ -2853,6 +2853,15 @@ async def reset_demo(user: dict = Depends(get_current_user)):
 
 
 app.include_router(api_router)
+
+from control_center import control_router, bootstrap_control_admin  # noqa: E402
+app.include_router(control_router)
+
+
+@app.on_event("startup")
+async def startup_control_center():
+    await bootstrap_control_admin()
+
 
 app.add_middleware(
     CORSMiddleware,
