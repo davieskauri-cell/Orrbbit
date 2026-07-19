@@ -42,7 +42,7 @@ ROLE_PERMS = {
     "finance": {"dashboard", "activity", "search"},
     "analytics": {"dashboard", "activity", "search"},
 }
-HIGH_RISK_ACTIONS = {"ban", "delete", "suspend"}
+HIGH_RISK_ACTIONS = {"ban", "delete"}
 
 
 def now():

@@ -246,3 +246,16 @@ Tested: backend curl matrix (accept/decline/block/invisible/404/self/duplicate/s
 - I Can Help: matching help requests on map (verified categories only), verification-required gate
 - Nearby tab follows mode+role; mode/role persist server-side; cluster labels: +N Pros / +N Requests
 - Demo persona quick-switching from Profile demo card
+
+## INTRO Control Centre — Phase 1 (June 2026) — DONE
+Desktop-first admin web portal at `/control` (Expo web, React Native Web). Master operating portal reusing the existing backend/DB.
+- Separate admin auth domain: JWT (token_type=control_access, 8h expiry), bcrypt, login at /control/login, forced password change on first login (min 10 chars), account lockout (5 fails → 15 min), login audit (IP/UA), reauth (POST /auth/reauth, 5-min window) for high-risk actions (ban, delete, create admin) via HTTP 428 → reauth modal
+- Secure bootstrap: first Super Admin seeded once from backend/.env (CONTROL_BOOTSTRAP_EMAIL/PASSWORD); never re-runs; no creds in source
+- Roles: super_admin, operations, verification, support, moderation, marketing, finance, analytics (ROLE_PERMS in control_center.py); Admin Users page (super admin only, create requires reauth, temp password forces change)
+- LIVE/DEMO mode: X-Admin-Mode header; demo = is_demo users (+linked docs via user_id), live = real users; confirmation modal before LIVE (red badge) / DEMO (blue badge); cross-mode user management blocked (400)
+- Modules built: Dashboard (15 KPIs, system status, 6 SVG charts), Command Centre (live feed, category+time filters, 10s auto-refresh in Live), Action Required (quick approve/reject/renew), Users (search/pagination/detail/timeline/actions: suspend/unsuspend/ban/force logout/verify email/reset password/delete), Professionals, Verification queues (Pending/Approved/Rejected/Expired/Expiring Soon + decisions with note), Help Requests (close/feature/delete), Reports (warn/suspend/ban/dismiss), Audit Logs (who/what/when/old/new/IP/mode), Global search, Phase 2/3 placeholder pages
+- Payments/Subscriptions: intentionally "Not configured" — NO fake financial data in LIVE (per user requirement); full module deferred to Phase 3 as provider-agnostic integration-ready infra
+- Files: backend/control_center.py (all admin APIs under /api/control, mounted in server.py), frontend/src/control/{theme,ui,Shell,ControlContext}, frontend/app/control/* 
+- QA: iteration_21 — backend 25/26, frontend 100%; test creds in memory/test_credentials.md (qa-admin@intro.control)
+- Phase 2 backlog: Connections, Chats moderation, Radar heatmaps, Notifications composer, Analytics, Feature Flags, App Config, Emergency Controls, System Health detail. Phase 3: Marketing, Subscriptions/Payments (provider-agnostic + webhook scaffolding + Payment Integration Settings page), Content Mgmt, Categories, DB Viewer, AI Insights (provider-agnostic via Emergent LLM key), Backups, Exports, Scheduled Jobs, Act-As-User impersonation, 2FA readiness
+- Known nits: add testIDs to /control screens for automation; cosmetic expo-router REPLACE warning on login redirect
