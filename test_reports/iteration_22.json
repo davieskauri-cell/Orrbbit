@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 22 — INTRO Control Centre Phase 2. Backend: 23/23 pytest tests pass covering Connections, Chats (+audit), Radar Insights (people/professional), Notifications composer (immediate + scheduled + queue + city validation + persistence), Analytics, Feature Flags (defaults + non-emergency no-reauth + maintenance/registration 428 reauth), REAL enforcement (help_requests → 503, maintenance → registration 503, connections → 503), App Config + audit, System Health, and consolidated audit-log actions. Frontend (1920x800): admin login OK; sidebar contains all Phase 2 items with NO P3 tag (P3 tag remains only on Marketing/Content Management/Categories/Subscriptions/Payments as required). Connections page renders 5 KPI cards + tab filters + table. Chats page shows 'Read-Only' badge, moderation banner, 13 conversations with '0 messages' and View buttons. People Radar and Professional Radar render stat cards + bar charts + sample lists (Available Now / Evenings And Weekends badges visible). Notifications compose form + audience chips + schedule field + delivery history table populated (including my test QA campaigns) — SEND flow verified end-to-end via backend (13 pros targeted, delivered). Analytics page shows 7 KPIs incl 'Not tracked' Session Length, 5 charts, Conversion Funnel (Registered→Completed→Engaged→Connected), Retention (weekly cohorts). Feature Flags page lists all 13 flags with Emergency badges + Enabled toggles + audit trail. Emergency Controls page shows 7 kill-switch cards with 'Normal' badges and 'Signed In As Super Admin' badge. System Health page shows service cards (api/database/storage/email=Not Configured/push=Mocked/memory=Operational) + collection counts + background jobs (3, all Healthy) + Scheduled Notifications queue. Settings page shows all 8 config inputs with 'Saved' green badge on autosave. CLEANUP VERIFIED: all feature flags restored to defaults (all enabled=true, maintenance_mode=false).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Notifications delivery history — Audience column", "issue": "Console error 'Unexpected text node: everyone / professionals. A text node cannot be a child of a <View>.' fires whenever the delivery table renders. Root cause: /app/frontend/src/control/ui.tsx Td component only wraps children in <Text> if `typeof children === 'string'`, but in /app/frontend/app/control/notifications.tsx:96 the cell contains an array of string fragments (`{n.audience}{n.city ? ` (${n.city})` : ''}{n.category ? ` (${n.category})` : ''}`), which bypasses the wrap and leaks raw text into a <View>. Fix: wrap that Td body in <Text>…</Text>, OR make Td always render children through <Text> when any child is a primitive.", "testID": "n/a", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "control/notifications.tsx delivery history Td", "issue": "Raw string fragments rendered directly inside a <View> (React Native Web warning). Reference: /app/frontend/app/control/notifications.tsx:96 with helper /app/frontend/src/control/ui.tsx:93."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_control_phase2.py",
+    "/app/test_reports/pytest/pytest_iter22.xml"
+  ],
+  "action_items": [
+    "Fix the 'text node cannot be a child of <View>' warning on the Notifications page by wrapping the composed Audience cell in <Text> (or hardening the Td helper to always wrap primitive children).",
+    "Optional: add testID attributes to Phase 2 pages (compose title/body/Send now, audience chips, flag toggles, emergency cards) for future automated coverage — currently text selectors work but testIDs are absent."
+  ],
+  "critical_code_review_comments": [
+    "control_phase2.py:245-247 lazily delivers scheduled campaigns only when GET /notifications is polled; system-health also lists them. This is acceptable given the roadmap, but consider a small startup task or cron if operators expect delivery within seconds after `scheduled_at` without visiting the page.",
+    "control_phase2.py:107 chats list currently uses a limit of 100 without pagination; fine for demo but should be paginated before LIVE messaging launches.",
+    "ui.tsx Td helper: the `typeof children === 'string'` check silently fails for arrays of strings — see the Notifications bug above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter22_control_phase2.py (new)"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% pages load; 1 non-fatal RN-Web text-node warning on Notifications"},
+  "seed_data_creation": "Created several 'QA Iter22 test' admin_notifications campaigns (immediate + scheduled). Also inserted delivered in-app notifications for ~13 demo pros (announcement type, campaign_id set). These are non-destructive demo-mode records. No feature flag or app-config state left mutated (all restored to defaults; min_age set to its default 18 as part of the audit test).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend suite `test_iter22_control_phase2.py` requires env vars EXPO_PUBLIC_BACKEND_URL, MONGO_URL, DB_NAME (the reauth test resets last_reauth_at directly in Mongo). The QA admin last_reauth_at may still be within its 5-minute window between test suites — if you re-run the maintenance-reauth test, either clear last_reauth_at in Mongo first or wait 5 minutes. Feature-flag enforcement tests toggle flags temporarily; the session-scope teardown fixture restores every flag. If a test run is interrupted, manually verify GET /api/control/feature-flags shows all enabled=true and maintenance_mode=false. Frontend uses text-based selectors (no testIDs on Phase 2 pages) — use `page.get_by_text('Sign in')` for login. All 13 flags + 8 config keys, and the notifications delivery table are verified render-only; the Td text-node bug is the only frontend issue found.",
+  "rca_of_issue": "Notifications text-node warning: /app/frontend/src/control/ui.tsx Td (line 93-102) uses `typeof children === 'string' || typeof children === 'number'` to decide whether to wrap children in <Text>. When notifications.tsx (line 96) passes a compound expression `{n.audience}{n.city ? ` (${n.city})` : ''}{n.category ? ` (${n.category})` : ''}`, React represents the children as an ARRAY of strings, so the typeof check is false → the raw strings render directly inside a <View>, which triggers the React-Native-Web warning. Fix: in notifications.tsx wrap in <Text> (e.g. `<Td><Text>{n.audience}...</Text></Td>`), or update Td to detect primitive children within an array."
+}

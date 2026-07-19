@@ -241,6 +241,18 @@ async def get_current_user(cred: Optional[HTTPAuthorizationCredentials] = Depend
     return user
 
 
+async def feature_gate(flag: str):
+    """Control Centre kill-switches: maintenance mode blocks all gated actions;
+    individual flags block their feature when explicitly disabled."""
+    m = await db.feature_flags.find_one({"key": "maintenance_mode"})
+    if m and m.get("enabled"):
+        msg_doc = await db.app_config.find_one({"key": "maintenance_message"})
+        raise HTTPException(status_code=503, detail=(msg_doc or {}).get("value") or "Intro is briefly down for maintenance. Please try again soon.")
+    f = await db.feature_flags.find_one({"key": flag})
+    if f and f.get("enabled") is False:
+        raise HTTPException(status_code=503, detail="This feature is temporarily unavailable")
+
+
 def haversine(lat1, lon1, lat2, lon2) -> float:
     R = 6371000.0
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -491,6 +503,7 @@ async def root():
 
 @api_router.post("/auth/register")
 async def register(body: RegisterIn):
+    await feature_gate("registration")
     if body.age < 18:
         raise HTTPException(status_code=400, detail="You must be 18 or older to use Intro")
     existing = await db.users.find_one({"email": body.email.lower()})
@@ -1131,6 +1144,7 @@ async def _validate_connect_target(me: dict, target_id: str) -> dict:
 async def request_connection(body: MatchIn, user: dict = Depends(get_current_user)):
     """Consent flow step 1: create a PENDING connection request. The other user
     must explicitly accept before any connection (or Opportunity private details) unlocks."""
+    await feature_gate("connections")
     target = await _validate_connect_target(user, body.user_id)
     if body.help_request_id:
         ok, vcats = await _active_pro(user["id"])
@@ -2012,6 +2026,7 @@ async def set_mode(body: ModeIn, user: dict = Depends(get_current_user)):
 # --------------------- Help Requests (I Need Help) ---------------------
 @api_router.post("/help-requests")
 async def create_help_request(body: HelpRequestIn, user: dict = Depends(get_current_user)):
+    await feature_gate("help_requests")
     if body.category not in PRO_CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
     if not body.public_summary.strip():
@@ -2855,7 +2870,9 @@ async def reset_demo(user: dict = Depends(get_current_user)):
 app.include_router(api_router)
 
 from control_center import control_router, bootstrap_control_admin  # noqa: E402
+from control_phase2 import control_p2_router  # noqa: E402
 app.include_router(control_router)
+app.include_router(control_p2_router)
 
 
 @app.on_event("startup")

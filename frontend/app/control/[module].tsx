@@ -10,15 +10,15 @@ const PHASE_3 = ['marketing', 'content-management', 'categories', 'subscriptions
 export default function ComingSoon() {
   const { module } = useLocalSearchParams<{ module: string }>();
   const name = (module || '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  const phase = PHASE_3.includes(module || '') ? 3 : 2;
+  const phase = PHASE_3.includes(module || '') ? 3 : 3;
   return (
     <Shell title={name}>
       <Card style={{ alignItems: 'center', paddingVertical: 60 }}>
         <Text style={{ fontSize: 40, marginBottom: 12 }}>🚧</Text>
         <Text style={{ fontSize: 17, fontWeight: '800', color: CC.navy, marginBottom: 6 }}>{name} arrives in Phase {phase}</Text>
         <Text style={{ color: CC.sub, fontSize: 13, textAlign: 'center', maxWidth: 420 }}>
-          This module is on the Control Centre roadmap. Phase 1 covers Dashboard, Command Centre, Users,
-          Professionals, Verification, Help Requests, Reports, Audit Logs and Admin Users.
+          This module is on the Control Centre roadmap. Phases 1 and 2 are live — Phase 3 covers Marketing,
+          Content Management, Categories, Subscriptions and Payments.
         </Text>
         {(module === 'payments' || module === 'subscriptions') ? (
           <View style={{ marginTop: 16, backgroundColor: '#F1F5F9', borderRadius: 8, padding: 12, maxWidth: 460 }}>
