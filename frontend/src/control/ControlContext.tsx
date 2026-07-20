@@ -30,6 +30,7 @@ type Ctx = {
   reauth: (password: string) => Promise<void>;
   setMode: (m: 'live' | 'demo') => void;
   req: (path: string, opts?: RequestInit) => Promise<any>;
+  download: (path: string, filename: string) => Promise<void>;
 };
 
 const ControlCtx = createContext<Ctx | null>(null);
@@ -138,9 +139,26 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem('cc_mode', m);
   }, []);
 
+  const download = useCallback(
+    async (path: string, filename: string) => {
+      const res = await fetch(`${BASE}${path}`, {
+        headers: { Authorization: `Bearer ${token}`, 'X-Admin-Mode': mode },
+      });
+      if (!res.ok) throw new ApiError(res.status, 'Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [token, mode]
+  );
+
   const value = useMemo(
-    () => ({ admin, token, mode, booting, login, logout, changePassword, reauth, setMode, req }),
-    [admin, token, mode, booting, login, logout, changePassword, reauth, setMode, req]
+    () => ({ admin, token, mode, booting, login, logout, changePassword, reauth, setMode, req, download }),
+    [admin, token, mode, booting, login, logout, changePassword, reauth, setMode, req, download]
   );
 
   return <ControlCtx.Provider value={value}>{children}</ControlCtx.Provider>;

@@ -238,6 +238,8 @@ async def get_current_user(cred: Optional[HTTPAuthorizationCredentials] = Depend
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if payload.get("imp"):
+        user["_impersonated_by"] = payload["imp"]  # admin impersonation session (Control Centre)
     return user
 
 
@@ -566,6 +568,8 @@ async def me(user: dict = Depends(get_current_user)):
 @api_router.delete("/users/me")
 async def delete_account(user: dict = Depends(get_current_user)):
     """Permanently delete the account and personal data (App Store / Play Store requirement)."""
+    if user.get("_impersonated_by"):
+        raise HTTPException(status_code=403, detail="Account deletion is blocked during admin impersonation")
     if user.get("is_demo"):
         raise HTTPException(status_code=403, detail="Demo accounts cannot be deleted")
     uid = user["id"]
@@ -2871,8 +2875,11 @@ app.include_router(api_router)
 
 from control_center import control_router, bootstrap_control_admin  # noqa: E402
 from control_phase2 import control_p2_router  # noqa: E402
+from control_phase3 import control_p3_router, webhook_router  # noqa: E402
 app.include_router(control_router)
 app.include_router(control_p2_router)
+app.include_router(control_p3_router)
+app.include_router(webhook_router)
 
 
 @app.on_event("startup")

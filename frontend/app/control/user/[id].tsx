@@ -18,7 +18,7 @@ const ACTIONS: { key: string; label: string; variant: any; confirm: string }[] =
 
 export default function UserDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { req, reauth, mode } = useCC();
+  const { req, reauth, mode, admin } = useCC();
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[] | null>(null);
@@ -27,6 +27,7 @@ export default function UserDetail() {
   const [confirmAction, setConfirmAction] = useState<any>(null);
   const [reauthFor, setReauthFor] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [impersonation, setImpersonation] = useState<any>(null);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +43,11 @@ export default function UserDetail() {
     setBusy(true);
     setError('');
     try {
+      if (action === 'impersonate') {
+        const res = await req(`/users/${id}/impersonate`, { method: 'POST' });
+        setImpersonation(res);
+        return;
+      }
       const res = await req(`/users/${id}/action`, { method: 'POST', body: JSON.stringify({ action }) });
       if (action === 'delete') { router.replace('/control/users' as any); return; }
       setNotice(res.temp_password ? `Temporary password (share securely, shown once): ${res.temp_password}` : `Action "${action}" completed and audited.`);
@@ -97,6 +103,10 @@ export default function UserDetail() {
             {ACTIONS.filter((a) => (statusLabel === 'suspended' ? a.key !== 'suspend' : a.key !== 'unsuspend')).map((a) => (
               <Btn key={a.key} small variant={a.variant} title={a.label} disabled={busy} onPress={() => setConfirmAction(a)} />
             ))}
+            {admin?.role === 'super_admin' ? (
+              <Btn small variant="teal" title="Act as User" disabled={busy}
+                onPress={() => setConfirmAction({ key: 'impersonate', label: 'Act as User', variant: 'teal', confirm: 'Start a 30-minute impersonation session for troubleshooting? Password, payment and subscription changes are blocked and everything is logged.' })} />
+            ) : null}
           </View>
         </Card>
       </View>
@@ -130,6 +140,31 @@ export default function UserDetail() {
           try { await reauth(pw); const a = reauthFor; setReauthFor(null); await run(a); }
           catch (e: any) { setError(e.message); setBusy(false); }
         }} />
+
+      <ModalCard visible={!!impersonation} title="Impersonating User" onClose={async () => { setImpersonation(null); try { await req('/impersonate/exit', { method: 'POST' }); } catch {} }}>
+        <View style={{ backgroundColor: CC.redSoft, borderRadius: 8, padding: 10, marginBottom: 12 }}>
+          <Text style={{ color: CC.red, fontWeight: '800', fontSize: 13 }}>
+            🔴 IMPERSONATING {impersonation?.user?.name} — session expires in {impersonation?.expires_minutes} minutes
+          </Text>
+        </View>
+        <Text style={{ fontSize: 13, color: CC.text, marginBottom: 8 }}>
+          You are acting as {impersonation?.user?.name} ({impersonation?.user?.email}) for troubleshooting and bug
+          reproduction. This session was written to the audit log.
+        </Text>
+        {(impersonation?.restrictions || []).map((r: string) => (
+          <Text key={r} style={{ fontSize: 12, color: CC.sub, marginTop: 2 }}>🔒 {r}</Text>
+        ))}
+        <Text style={{ fontSize: 12, color: CC.navy, fontWeight: '700', marginTop: 12 }}>User session token (expires automatically):</Text>
+        <Text selectable style={{ fontSize: 10, color: CC.sub, backgroundColor: '#F1F5F9', borderRadius: 6, padding: 8, marginTop: 4 }} numberOfLines={3}>
+          {impersonation?.token}
+        </Text>
+        <Text style={{ fontSize: 11, color: CC.sub, marginTop: 6 }}>
+          Use this token as the Authorization bearer against the app API to reproduce the user&apos;s experience.
+        </Text>
+        <View style={{ marginTop: 14, alignItems: 'flex-end' }}>
+          <Btn variant="danger" title="Exit impersonation" onPress={async () => { setImpersonation(null); try { await req('/impersonate/exit', { method: 'POST' }); } catch {} }} />
+        </View>
+      </ModalCard>
     </Shell>
   );
 }
