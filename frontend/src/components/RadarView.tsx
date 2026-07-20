@@ -12,6 +12,7 @@ import Reanimated, {
 } from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
 import MapTiles from "@/src/components/MapTiles";
+import { AdaptiveRadarPillMarker, RadarClusterMarker, estimatePillWidth } from "@/src/components/AdaptiveRadarPillMarker";
 import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
 import { colors, anim } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
@@ -401,15 +402,20 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     });
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
     const dominant = top && top[1] / c.users.length >= 0.5 ? top[0] : null;
+    const label =
+      dominant === "opportunity"
+        ? opportunityClusterLabel(c.users)
+        : dominant
+        ? SHORT_VIBE[dominant] || null
+        : null;
+    // adaptive pills have content-based width — clamp inside the visible radar
+    const w = estimatePillWidth(c.users.length, label);
     return {
       ...c,
+      x: Math.min(Math.max(c.x, w / 2 + 10), MAP_W - w / 2 - 10),
+      w,
       color: (dominant && vibeMap[dominant]?.color) || colors.teal,
-      label:
-        dominant === "opportunity"
-          ? opportunityClusterLabel(c.users)
-          : dominant
-          ? SHORT_VIBE[dominant] || null
-          : null,
+      label,
     };
   });
 
@@ -572,21 +578,25 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
               );
             })}
 
-            {/* clusters — vibe-coloured count bubbles */}
+            {/* clusters — adaptive pill markers: [count badge][content-width label] */}
             {clusterInfo.map((c) => (
-              <MapAnchor key={`cluster-${c.key}`} cx={c.x} cy={c.y} w={40} h={40} z={z} style={styles.blip}>
-                <Pressable
-                  testID={`radar-cluster-${c.key}`}
-                  style={[styles.cluster, { backgroundColor: c.color }]}
-                  onPress={() => onCluster?.(c.users)}
-                >
-                  <Text style={styles.clusterText}>+{c.users.length}</Text>
-                  {c.label && (
-                    <Text style={styles.clusterVibe} numberOfLines={1}>
-                      {c.label}
-                    </Text>
-                  )}
-                </Pressable>
+              <MapAnchor key={`cluster-${c.key}`} cx={c.x} cy={c.y} w={c.w} h={34} z={z} style={styles.blip}>
+                {c.label ? (
+                  <AdaptiveRadarPillMarker
+                    testID={`radar-cluster-${c.key}`}
+                    count={c.users.length}
+                    label={c.label}
+                    color={c.color}
+                    onPress={() => onCluster?.(c.users)}
+                  />
+                ) : (
+                  <RadarClusterMarker
+                    testID={`radar-cluster-${c.key}`}
+                    count={c.users.length}
+                    color={c.color}
+                    onPress={() => onCluster?.(c.users)}
+                  />
+                )}
               </MapAnchor>
             ))}
           </View>
@@ -638,7 +648,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         <View style={styles.privacyPill}>
           <Ionicons name="lock-closed" size={10} color={colors.textSecondary} />
           <Text style={styles.privacyPillText} numberOfLines={1}>
-            Exact locations hidden · You only see approximate nearby users
+            Exact locations hidden · You only see approximate locations.
           </Text>
           <Pressable testID="privacy-learn-more" onPress={onLearnMore} hitSlop={8}>
             <Text style={styles.learnMore}>Learn more</Text>
@@ -778,23 +788,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   focusChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
-  cluster: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.teal,
-    borderWidth: 2.5,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#111827",
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  clusterText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  clusterVibe: { color: "#FFF", fontSize: 9, fontWeight: "700", maxWidth: 38, textAlign: "center" },
   radiusChip: {
     position: "absolute",
     top: 12,

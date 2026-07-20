@@ -93,7 +93,6 @@ export default function RadarScreen() {
   const myVibe = user?.vibe ? vibeMap[user.vibe] : undefined;
   const compatible = nearby.filter((n) => n.compatible);
   const strongMatches = compatible.filter((n) => (n.score ?? 0) >= 6);
-  const activeCount = nearby.filter((n) => n.active_now).length;
   const best = strongMatches[0];
   const bestVibe = best?.vibe ? vibeMap[best.vibe] : undefined;
   const hidden = !user?.visible || user?.ghost_mode || user?.paused;
@@ -312,21 +311,16 @@ export default function RadarScreen() {
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{nearby.length >= 100 ? "100+" : nearby.length}</Text>
                 <Text style={styles.statLabel}>Nearby</Text>
-                <Text style={styles.statSub}>{activeCount} active now</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={[styles.statNum, { color: colors.teal }]}>{compatible.length}</Text>
                 <Text style={styles.statLabel}>Aligned</Text>
-                <Text style={styles.statSub}>{strongMatches.length} strong matches</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
                 <Text style={[styles.statNum, { color: colors.orange }]}>{user?.radius || 50}m</Text>
                 <Text style={styles.statLabel}>Radius</Text>
-                <Text style={styles.statSub}>
-                  {user?.plan === "pro" ? "Pro Plan" : user?.plan === "plus" ? "Plus Plan" : "Free Plan"}
-                </Text>
               </View>
             </View>
 
@@ -611,7 +605,6 @@ const styles = StyleSheet.create({
   densityTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   densityText: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 19 },
   densityLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800", marginTop: spacing.sm },
-  statSub: { color: colors.textTertiary, fontSize: 9.5, fontWeight: "600", marginTop: 2, textAlign: "center" },
   nearbyNow: { marginTop: spacing.md },
   nearbyNowKicker: { color: colors.orange, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: spacing.sm },
   nearbyNowInner: { flexDirection: "row", alignItems: "center", gap: spacing.md },

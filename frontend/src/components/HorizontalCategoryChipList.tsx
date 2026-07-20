@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from "react";
 import { FlatList, Pressable, Text, View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, font, controlHeight } from "@/src/theme";
+import { colors, spacing, font } from "@/src/theme";
 
 export type CategoryChipItem = {
   key: string;
@@ -54,7 +54,7 @@ export default function HorizontalCategoryChipList({ items, activeKey, onSelect,
       data={items}
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={{ flexGrow: 0 }}
+      style={{ flexGrow: 0, flexShrink: 0 }}
       contentContainerStyle={styles.content}
       ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
       keyExtractor={(item) => item.key}
@@ -88,7 +88,7 @@ export default function HorizontalCategoryChipList({ items, activeKey, onSelect,
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     alignItems: "center",
     paddingBottom: spacing.sm,
   },
@@ -100,10 +100,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 8,
     borderRadius: 999,
-    minHeight: controlHeight.chip,
+    minHeight: 40,
   },
   chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
   chipText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
