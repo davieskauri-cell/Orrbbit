@@ -285,3 +285,12 @@ Desktop-first admin web portal at `/control` (Expo web, React Native Web). Maste
 - New deps: openpyxl, reportlab (requirements.txt updated); EMERGENT_LLM_KEY in backend/.env
 - Files: backend/control_phase3.py; frontend/app/control/{marketing,content-management,categories,subscriptions,payments,ai-insights,database-viewer,backups,exports}.tsx; download() helper in ControlContext
 - ALL 3 PHASES COMPLETE. Control Centre is the master operating portal. Remaining nits: cosmetic REPLACE navigator warning, testIDs for automation. Future: scheduled AI reports automation, 2FA for admins, real payment provider hookup, real push via Firebase.
+
+## UI/UX Design System Audit (June 2026) — DONE (iteration_24: regression-clean, 0 new console errors)
+No logic/branding changes — pure consistency polish across the mobile app.
+- theme.ts extended: avatarSize (xs32-xl96), controlHeight (buttonLg56/button52/input52/compact44/chip36), touchTarget 44, cardPadding, anim (fast150/base250/slow400/pulse1500), font.micro=10/font.label=11, type.micro, radius.sheet=22
+- 8pt-grid sweep: eliminated all off-grid paddings/margins (3→4, 5→4, 7→8, 10→12) across ~20 files; icon-text gaps unified to 6 (dominant convention, 48 prior uses)
+- Standardized: bottom sheet radius 22 everywhere (PingModal was 28), sheet handles 40x4, photo tile radius 14, min fonts raised (7/8→9, metrics 9→10), touch targets 40→44 (ProfessionalHome search, profile demo buttons)
+- Components migrated to tokens: PrimaryButton, FormField, SegmentedControl, PillChip, Avatar (default avatarSize.md, transition anim.fast), RadarView (anim.pulse), PingModal, VibePill, PhotoGrid, MeetupMap, ModeSelector
+- Control Centre untouched (has its own CC token system)
+- Pre-existing (not from audit, left as-is): TS type warnings in nearby.tsx/privacy.tsx/PingModal, RN-Web shadow* deprecation warnings on PrimaryButton/AppCard (optional boxShadow migration)
