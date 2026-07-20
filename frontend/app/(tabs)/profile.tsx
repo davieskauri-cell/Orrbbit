@@ -10,6 +10,7 @@ import { showAlert } from "@/src/lib/alert";
 import { useTestMode } from "@/src/lib/testMode";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
+import DemoEnvironmentCard from "@/src/components/DemoEnvironmentCard";
 import InterestChip from "@/src/components/InterestChip";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
@@ -251,53 +252,25 @@ export default function ProfileScreen() {
       )}
 
       {user?.is_demo && (
-        <View style={styles.demoCard} testID="demo-env-card">
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-            <Text style={styles.demoBadge}>DEMO ENVIRONMENT</Text>
-          </View>
-          <Text style={styles.demoText}>
-            Everything here is seeded sample data. Explore freely — nothing affects real users.
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-            <Pressable
-              testID="demo-reset-btn"
-              style={styles.demoBtn}
-              onPress={async () => {
-                if (demoResetting) return;
-                setDemoResetting(true);
-                try {
-                  await api("/demo/reset", { method: "POST" });
-                  showAlert("Demo reset", "All demo data has been restored to its original seeded state.");
-                } catch (e: any) {
-                  showAlert("Reset failed", e.message || "Try again.");
-                }
-                setDemoResetting(false);
-              }}
-            >
-              <Ionicons name="refresh" size={14} color={colors.teal} />
-              <Text style={styles.demoBtnText}>{demoResetting ? "Resetting…" : "Reset Demo Data"}</Text>
-            </Pressable>
-            <Pressable
-              testID="demo-switch-persona"
-              style={styles.demoBtn}
-              onPress={() => router.push("/demo-accounts")}
-            >
-              <Ionicons name="people" size={14} color={colors.teal} />
-              <Text style={styles.demoBtnText}>Switch Persona</Text>
-            </Pressable>
-            <Pressable
-              testID="demo-exit-btn"
-              style={styles.demoBtn}
-              onPress={async () => {
-                await signOut();
-                router.replace("/(auth)/onboarding");
-              }}
-            >
-              <Ionicons name="exit-outline" size={14} color={colors.orange} />
-              <Text style={[styles.demoBtnText, { color: colors.orange }]}>Exit Demo Mode</Text>
-            </Pressable>
-          </View>
-        </View>
+        <DemoEnvironmentCard
+          resetting={demoResetting}
+          onReset={async () => {
+            if (demoResetting) return;
+            setDemoResetting(true);
+            try {
+              await api("/demo/reset", { method: "POST" });
+              showAlert("Demo reset", "All demo data has been restored to its original seeded state.");
+            } catch (e: any) {
+              showAlert("Reset failed", e.message || "Try again.");
+            }
+            setDemoResetting(false);
+          }}
+          onSwitchPersona={() => router.push("/demo-accounts")}
+          onExit={async () => {
+            await signOut();
+            router.replace("/(auth)/onboarding");
+          }}
+        />
       )}
 
       <Pressable
@@ -386,11 +359,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xl,
   },
-  demoCard: { backgroundColor: colors.tealSoft, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.xl, gap: spacing.md },
-  demoBadge: { backgroundColor: colors.teal, color: "#FFF", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
-  demoText: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 18 },
-  demoBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: 12, minHeight: 44 },
-  demoBtnText: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   logout: {
     flexDirection: "row",
     alignItems: "center",

@@ -15,6 +15,7 @@ import RadarView from "@/src/components/RadarView";
 import StatusBadge from "@/src/components/StatusBadge";
 import SectionHeader from "@/src/components/SectionHeader";
 import PillChip from "@/src/components/PillChip";
+import HorizontalCategoryChipList from "@/src/components/HorizontalCategoryChipList";
 import SegmentedControl from "@/src/components/SegmentedControl";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
@@ -171,15 +172,20 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
           placeholderTextColor={colors.textTertiary}
         />
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.chipsRow}>
-        <PillChip testID="filter-available-now" label="Available now" active={availableNow} onPress={() => setAvailableNow(!availableNow)} />
-        {[250, 500].map((d) => (
-          <PillChip key={d} testID={`filter-dist-${d}`} label={`≤ ${d}m`} active={maxDist === d} onPress={() => setMaxDist(maxDist === d ? null : d)} />
-        ))}
-        {categories.map((c) => (
-          <PillChip key={c} testID={`nh-cat-filter-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
-        ))}
-      </ScrollView>
+      <HorizontalCategoryChipList
+        testID="ch-filter-row"
+        items={[{ key: "__available" }, { key: "__d250" }, { key: "__d500" }, ...categories.map((c: string) => ({ key: c }))]}
+        renderChip={(item) => {
+          if (item.key === "__available")
+            return <PillChip testID="filter-available-now" label="Available now" active={availableNow} onPress={() => setAvailableNow(!availableNow)} />;
+          if (item.key === "__d250" || item.key === "__d500") {
+            const d = item.key === "__d250" ? 250 : 500;
+            return <PillChip testID={`filter-dist-${d}`} label={`≤ ${d}m`} active={maxDist === d} onPress={() => setMaxDist(maxDist === d ? null : d)} />;
+          }
+          const c = item.key;
+          return <PillChip testID={`nh-cat-filter-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />;
+        }}
+      />
 
       <View style={{ flex: 1, justifyContent: "flex-start" }}>
         <RadarView
@@ -434,12 +440,16 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
 
       {profile && !verRequired && (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.chipsRow}>
-            {["Open to paying", "Free advice"].map((p) => (
-              <PillChip key={p} testID={`filter-pay-${p.replace(/\s+/g, "-")}`} label={p} active={payment === p} onPress={() => setPayment(payment === p ? null : p)} />
-            ))}
-            <PillChip testID="filter-fresh" label="Last 4h" active={freshOnly} onPress={() => setFreshOnly(!freshOnly)} />
-          </ScrollView>
+          <HorizontalCategoryChipList
+            testID="nh-filter-row"
+            items={[{ key: "Open to paying" }, { key: "Free advice" }, { key: "__fresh" }]}
+            renderChip={(item) => {
+              if (item.key === "__fresh")
+                return <PillChip testID="filter-fresh" label="Last 4h" active={freshOnly} onPress={() => setFreshOnly(!freshOnly)} />;
+              const p = item.key;
+              return <PillChip testID={`filter-pay-${p.replace(/\s+/g, "-")}`} label={p} active={payment === p} onPress={() => setPayment(payment === p ? null : p)} />;
+            }}
+          />
           <View style={{ flex: 1 }}>
             <RadarView
               users={reqUsers as any}
@@ -580,7 +590,6 @@ function ProPreview({ p, onClose }: { p: any; onClose: () => void }) {
 const styles = StyleSheet.create({
   searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.sm },
   searchInput: { flex: 1, color: colors.text, fontSize: font.base, paddingVertical: 8 },
-  chipsRow: { paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.sm },
   fab: { position: "absolute", right: spacing.lg, bottom: spacing.lg + 56, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 48, shadowColor: "#FF5A1F", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
   fabText: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: colors.border, shadowColor: "#0F172A", shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: -6 }, elevation: 8, overflow: "hidden" },

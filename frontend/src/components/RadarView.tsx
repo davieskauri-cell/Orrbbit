@@ -866,8 +866,9 @@ const styles = StyleSheet.create({
   rightControls: {
     position: "absolute",
     right: 12,
-    top: "50%",
-    marginTop: -66,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
     gap: 12,
   },
   ctrlBtn: {

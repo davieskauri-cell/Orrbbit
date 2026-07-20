@@ -294,3 +294,11 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Components migrated to tokens: PrimaryButton, FormField, SegmentedControl, PillChip, Avatar (default avatarSize.md, transition anim.fast), RadarView (anim.pulse), PingModal, VibePill, PhotoGrid, MeetupMap, ModeSelector
 - Control Centre untouched (has its own CC token system)
 - Pre-existing (not from audit, left as-is): TS type warnings in nearby.tsx/privacy.tsx/PingModal, RN-Web shadow* deprecation warnings on PrimaryButton/AppCard (optional boxShadow migration)
+
+## Targeted UI Layout Correction (June 2026) — DONE
+- NEW src/components/HorizontalCategoryChipList.tsx: shared FlatList-based horizontal chip row (natural-width chips, flexShrink 0, 12px ItemSeparator, spacing.xl edge padding, hidden indicator, stable keys, viewability-aware gentle scroll-into-view only when selected chip is partly off-screen, optional renderChip)
+- ModeSelector.tsx rewritten to use it (Social/Networking/Campus/Events/Fitness — was ScrollView+gap); ProfessionalHome both filter rows migrated (renderChip=PillChip); chipsRow style removed
+- RadarView rightControls: removed marginTop:-66 hack → top:0/bottom:0/justifyContent center (no negative margins)
+- (tabs)/index.tsx: vibeSelector + visChip equal minHeight 36 (aligned vertical centres), statBox +paddingHorizontal
+- NEW src/components/DemoEnvironmentCard.tsx: compact demo settings card (badge+info header, one-line desc, 3 identical 48px full-width left-aligned action rows, Exit orange accent, ≥700px → 3 equal columns); profile.tsx inline demo card + 5 orphan styles removed; card margins now match settings card/Log Out (marginHorizontal spacing.xl)
+- All testIDs preserved (mode-*, demo-env-card, demo-reset-btn, demo-switch-persona, demo-exit-btn, filter-*). Zero logic changes. Verified via screenshots (390px): people radar, category switch (no jumps/gaps), professional radar, profile demo card.
