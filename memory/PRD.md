@@ -271,3 +271,17 @@ Desktop-first admin web portal at `/control` (Expo web, React Native Web). Maste
 - Backend: /app/backend/control_phase2.py (router included in server.py); ROLE_PERMS extended per role
 - QA iteration_22: backend 23/23, frontend 100% (flags restored to defaults after tests); fixed Td text-node warning
 - Remaining Phase 3: Marketing, Content Mgmt, Categories, Subscriptions/Payments (provider-agnostic infra + webhook scaffolding + integration settings page, DEMO-only seeded finance data), DB Viewer, AI Insights (provider-agnostic, Emergent LLM key), Backups, Exports (CSV/Excel/PDF), Scheduled Jobs page, Act-As-User impersonation, 2FA readiness
+
+## INTRO Control Centre — Phase 3 (June 2026) — DONE (iteration_23: backend 31/31, frontend 100%)
+- Marketing: banners, promo codes, referral campaigns (db.marketing_banners/promo_codes/referral_campaigns), featured professionals/help requests, all audited
+- Content Management: 5 editable pages (guidelines/privacy/terms/faq/support) in db.content_pages
+- Categories: built-in help categories + professions w/ usage counts (lazy import PRO_CATEGORIES from server), custom categories staged in db.custom_categories
+- Subscriptions & Payments: provider-agnostic integration-ready infra. LIVE = "not configured" (null KPIs, no records, refunds 400-blocked). DEMO = seeded is_demo_data records (db.demo_subscriptions/demo_payments) + working demo refunds. Payment Integration Settings page; webhook scaffold POST /api/webhooks/payments (logs+ignores → db.payment_webhook_events). Plans: free/intro_plus/intro_professional. No card data ever stored.
+- Database Viewer: super admin, read-only, whitelisted collections, hashed_password/file_base64 redacted, every view audited
+- AI Insights: provider-agnostic (db.ai_settings provider/model, PUT super admin), Emergent LLM key (gpt-5.4 via emergentintegrations LlmChat streaming), 13 report types, history (db.ai_reports w/ metrics_snapshot), PDF/CSV export (reportlab/csv), disclaimer, graceful "AI Not Configured" state
+- Backups: mongodump to /app/backups, log download, restore via mongorestore --drop (super admin + reauth 428)
+- Exports: users/professionals/reports/analytics/revenue/subscriptions in CSV/XLSX(openpyxl)/PDF(reportlab), audited; revenue/subscriptions in LIVE export "not configured" rows
+- Act-As-User: super admin + reauth, 30-min impersonation JWT (imp claim), audit + db.impersonation_logs, account deletion blocked during impersonation (server.py get_current_user attaches _impersonated_by; delete_account 403s), red "Impersonating User" modal in user detail
+- New deps: openpyxl, reportlab (requirements.txt updated); EMERGENT_LLM_KEY in backend/.env
+- Files: backend/control_phase3.py; frontend/app/control/{marketing,content-management,categories,subscriptions,payments,ai-insights,database-viewer,backups,exports}.tsx; download() helper in ControlContext
+- ALL 3 PHASES COMPLETE. Control Centre is the master operating portal. Remaining nits: cosmetic REPLACE navigator warning, testIDs for automation. Future: scheduled AI reports automation, 2FA for admins, real payment provider hookup, real push via Firebase.
