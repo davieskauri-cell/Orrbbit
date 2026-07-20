@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import { colors } from "@/src/theme";
+import { colors, avatarSize, anim } from "@/src/theme";
 
 const GRADS = ["#FF5A1F", "#20B2AA", "#8B5CF6", "#FF2D55", "#F59E0B", "#22C55E"];
 
@@ -12,7 +12,7 @@ type Props = {
   ringColor?: string | null;
 };
 
-export default function Avatar({ uri, name, size = 48, ringColor }: Props) {
+export default function Avatar({ uri, name, size = avatarSize.md, ringColor }: Props) {
   const initials = (name || "?")
     .split(" ")
     .map((p) => p[0])
@@ -26,7 +26,7 @@ export default function Avatar({ uri, name, size = 48, ringColor }: Props) {
     <Image
       source={{ uri }}
       style={{ width: inner, height: inner, borderRadius: inner / 2 }}
-      transition={150}
+      transition={anim.fast}
     />
   ) : (
     <View

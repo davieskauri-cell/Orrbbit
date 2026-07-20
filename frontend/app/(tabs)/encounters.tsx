@@ -69,7 +69,7 @@ export default function EncountersScreen() {
               onPress={() => router.push(`/person/${item.id}`)}
             >
               <Avatar uri={item.photo_url} name={item.name} size={52} ringColor={vibe?.color} />
-              <View style={{ flex: 1, gap: 3 }}>
+              <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.name}>
                   {item.name}, {item.age}
                 </Text>

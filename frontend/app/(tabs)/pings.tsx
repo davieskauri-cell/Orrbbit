@@ -117,7 +117,7 @@ export default function PingsScreen() {
                     return (
                       <View key={p.id} style={styles.row} testID={`ping-row-${p.id}`}>
                         <Avatar uri={p.user.photo_url} name={p.user.name} size={52} ringColor={vibe?.color} />
-                        <View style={{ flex: 1, gap: 3 }}>
+                        <View style={{ flex: 1, gap: 4 }}>
                           <Text style={styles.headline}>
                             <Text style={{ fontWeight: "800" }}>{p.user.name}</Text>{" "}
                             {isRequest
@@ -192,7 +192,7 @@ export default function PingsScreen() {
               return (
                 <View key={r.id} style={styles.row} testID={`sent-request-${r.id}`}>
                   <Avatar uri={r.user.photo_url} name={r.user.name} size={44} />
-                  <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
                     <Text style={styles.headline}>
                       <Text style={{ fontWeight: "800" }}>{r.user.name}</Text>
                       {r.about === "opportunity" ? " · Opportunity" : ""}

@@ -24,13 +24,13 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 999,
     alignSelf: "flex-start",
   },
-  small: { paddingHorizontal: spacing.sm, paddingVertical: 3 },
+  small: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   label: { fontSize: font.sm, fontWeight: "600", maxWidth: 180 },
 });

@@ -120,7 +120,7 @@ export default function ProfileScreen() {
       <View style={[styles.card, shadow.card]}>
         <View style={styles.profileRow}>
           <Avatar uri={user?.photo_url} name={user?.name} size={76} ringColor={vibe?.color || colors.teal} />
-          <View style={{ flex: 1, gap: 5 }}>
+          <View style={{ flex: 1, gap: 6 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Text style={styles.name}>
                 {user?.name}
@@ -387,9 +387,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   demoCard: { backgroundColor: colors.tealSoft, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.xl, gap: spacing.md },
-  demoBadge: { backgroundColor: colors.teal, color: "#FFF", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
+  demoBadge: { backgroundColor: colors.teal, color: "#FFF", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
   demoText: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 18 },
-  demoBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: 10, minHeight: 40 },
+  demoBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: 12, minHeight: 44 },
   demoBtnText: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   logout: {
     flexDirection: "row",

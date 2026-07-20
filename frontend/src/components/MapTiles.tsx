@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 2,
     left: 6,
-    fontSize: 8,
+    fontSize: 9,
     color: "#9AA5AB",
   },
 });

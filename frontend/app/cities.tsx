@@ -162,6 +162,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
-  joinChip: { backgroundColor: colors.tealSoft, paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: 999 },
+  joinChip: { backgroundColor: colors.tealSoft, paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: 999 },
   joinText: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
 });

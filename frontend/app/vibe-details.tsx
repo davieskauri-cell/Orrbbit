@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 999,
   },
   chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },

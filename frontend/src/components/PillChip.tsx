@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, Pressable, StyleSheet, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, iconSize, type } from "@/src/theme";
+import { colors, spacing, iconSize, type, controlHeight } from "@/src/theme";
 
 type Props = {
   label: string;
@@ -42,14 +42,14 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
     borderRadius: 999,
-    minHeight: 36,
+    minHeight: controlHeight.chip,
     justifyContent: "center",
   },
   text: { ...type.chip, color: colors.textSecondary },

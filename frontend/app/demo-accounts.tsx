@@ -195,7 +195,7 @@ export default function DemoAccountsScreen() {
             onPress={() => !current && switchTo(a.email)}
           >
             <Avatar uri={a.photo_url} name={a.name} size={52} ringColor={vibe?.color} />
-            <View style={{ flex: 1, gap: 3 }}>
+            <View style={{ flex: 1, gap: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Text style={styles.name}>
                   {a.name}, {a.age}
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   cityTag: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
   filterBlock: { marginBottom: spacing.sm },
-  filterLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 5 },
+  filterLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 4 },
   chipRow: { gap: spacing.xs },
   chip: {
     backgroundColor: colors.card,

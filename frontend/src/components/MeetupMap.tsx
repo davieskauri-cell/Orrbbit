@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   bubble: { position: "absolute", alignItems: "center" },
   bubbleLabel: {
-    marginTop: 3,
+    marginTop: 4,
     fontSize: 11,
     fontWeight: "700",
     color: colors.text,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     bottom: 10,
     alignSelf: "center",
     backgroundColor: "#FFFFFFDD",
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
   },

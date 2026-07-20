@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   hero: { alignItems: "center", gap: 6, marginTop: spacing.md },
   name: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
-  badge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 5, minHeight: 28 },
+  badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 4, minHeight: 28 },
   badgeText: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   profession: { color: colors.text, fontSize: font.base, fontWeight: "700" },
   meta: { color: colors.textSecondary, fontSize: font.sm },

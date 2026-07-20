@@ -76,10 +76,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   name: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
-  meta: { color: colors.textSecondary, fontSize: font.sm, marginTop: 3, marginBottom: spacing.md },
+  meta: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4, marginBottom: spacing.md },
   joinBtn: {
     backgroundColor: colors.tealSoft,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 999,
     alignItems: "center",
   },

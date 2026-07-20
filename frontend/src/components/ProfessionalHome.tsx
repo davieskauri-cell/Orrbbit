@@ -578,7 +578,7 @@ function ProPreview({ p, onClose }: { p: any; onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 40, marginBottom: spacing.sm },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.sm },
   searchInput: { flex: 1, color: colors.text, fontSize: font.base, paddingVertical: 8 },
   chipsRow: { paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.sm },
   fab: { position: "absolute", right: spacing.lg, bottom: spacing.lg + 56, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 48, shadowColor: "#FF5A1F", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
@@ -630,9 +630,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 999,
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: "center",
   },
   smallBtnText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },

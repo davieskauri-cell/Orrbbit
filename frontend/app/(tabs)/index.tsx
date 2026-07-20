@@ -270,7 +270,7 @@ export default function RadarScreen() {
                     size={52}
                     ringColor={preview.vibe ? vibeMap[preview.vibe]?.color : undefined}
                   />
-                  <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
                     <Text style={styles.previewName}>
                       {preview.name}, {preview.age}
                     </Text>
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: "row", gap: spacing.sm },
   logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: "hidden" },
+  demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
   iconBtn: {
     width: 40,
     height: 40,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 999,
     paddingLeft: 4,
-    paddingRight: 10,
+    paddingRight: 12,
     paddingVertical: 4,
   },
   topRow: {
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
   lockTagText: { color: colors.textTertiary, fontSize: 11, fontWeight: "800" },
   sheetNote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.md },

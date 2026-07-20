@@ -109,7 +109,7 @@ export default function HelpRequestScreen() {
             <View style={[styles.userCard, shadow.card]}>
               <Avatar uri={data.user.photo_url} name={data.user.name} size={46} ringColor={AMBER} />
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={styles.userName}>{data.user.name}</Text>
                   {data.user.verified && <Ionicons name="checkmark-circle" size={15} color={colors.teal} />}
                 </View>
@@ -143,7 +143,7 @@ export default function HelpRequestScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  headerBadge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: AMBER + "1A", paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
+  headerBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: AMBER + "1A", paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },
   headerBadgeText: { color: AMBER, fontSize: font.base, fontWeight: "800" },
   category: { color: colors.teal, fontSize: font.sm, fontWeight: "800", letterSpacing: 1, marginTop: spacing.lg, textTransform: "uppercase" },
   summary: { color: colors.text, fontSize: font.xl, fontWeight: "800", marginTop: spacing.xs },

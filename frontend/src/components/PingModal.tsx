@@ -100,13 +100,13 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg + 6,
-    borderTopRightRadius: radius.lg + 6,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
     padding: spacing.xl,
     paddingBottom: spacing.xxl,
   },
   handle: {
-    width: 42,
+    width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.border,

@@ -75,8 +75,8 @@ export default function SavedScreen() {
               onPress={() => router.push(`/person/${item.id}`)}
             >
               <Avatar uri={item.photo_url} name={item.name} size={54} ringColor={vibe?.color} />
-              <View style={{ flex: 1, gap: 3 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Text style={styles.name}>{item.name}, {item.age}</Text>
                   {item.verified && <Ionicons name="checkmark-circle" size={15} color={colors.teal} />}
                 </View>

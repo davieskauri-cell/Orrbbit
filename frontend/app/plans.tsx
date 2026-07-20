@@ -157,10 +157,10 @@ const styles = StyleSheet.create({
   planName: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
   planRadius: { fontSize: font.base, fontWeight: "800", marginTop: 2 },
   planPrice: { color: colors.text, fontSize: font.base, fontWeight: "700" },
-  currentChip: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: 999, marginTop: 4 },
+  currentChip: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 999, marginTop: 4 },
   currentText: { fontSize: 10, fontWeight: "800" },
   tagline: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4, marginBottom: spacing.md },
-  featRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 },
+  featRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
   featText: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   footnote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.xl },
 });

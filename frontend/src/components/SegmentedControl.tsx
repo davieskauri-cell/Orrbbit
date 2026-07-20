@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet, ViewStyle } from "react-native";
-import { colors, spacing, font, shadow } from "@/src/theme";
+import { colors, spacing, font, shadow, controlHeight } from "@/src/theme";
 
 export type SegmentOption = {
   value: string;
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: spacing.sm,
-    minHeight: 36,
+    minHeight: controlHeight.chip,
     borderRadius: 999,
   },
   tabActive: { backgroundColor: colors.surface, ...shadow.segment },

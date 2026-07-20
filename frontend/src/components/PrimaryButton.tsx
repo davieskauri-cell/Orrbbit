@@ -1,6 +1,6 @@
 import React from "react";
 import { Text, StyleSheet, Pressable, ActivityIndicator, ViewStyle } from "react-native";
-import { colors, radius, type } from "@/src/theme";
+import { colors, radius, type, spacing, controlHeight } from "@/src/theme";
 
 type Props = {
   title: string;
@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: 24,
+    minHeight: controlHeight.buttonLg,
+    paddingHorizontal: spacing.xl,
     shadowColor: "#0F172A",
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1.5,
     borderColor: colors.border,
-    minHeight: 52,
-    paddingHorizontal: 24,
+    minHeight: controlHeight.button,
+    paddingHorizontal: spacing.xl,
     backgroundColor: colors.surface,
   },
   secondaryText: { ...type.button, fontWeight: "600", color: colors.text },

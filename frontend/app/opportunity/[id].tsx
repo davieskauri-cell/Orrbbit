@@ -161,8 +161,8 @@ export default function OpportunityScreen() {
         <Text style={styles.sectionLabel}>SHARED BY</Text>
         <View style={[styles.profileCard, shadow.card]} testID="opportunity-profile-card">
           <Avatar uri={data.user.photo_url} name={data.user.name} size={54} ringColor={AMBER} />
-          <View style={{ flex: 1, gap: 3 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Text style={styles.profileName}>
                 {data.user.name}, {data.user.age}
               </Text>
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   headerBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: AMBER + "1A",
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
@@ -255,14 +255,14 @@ const styles = StyleSheet.create({
   payChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     alignSelf: "flex-start",
     backgroundColor: AMBER + "12",
     borderWidth: 1,
     borderColor: AMBER + "44",
     borderRadius: 999,
     paddingHorizontal: spacing.md,
-    paddingVertical: 5,
+    paddingVertical: 4,
     marginTop: spacing.sm,
   },
   payChipText: { color: AMBER, fontSize: font.sm, fontWeight: "700" },

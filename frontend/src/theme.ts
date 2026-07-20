@@ -57,16 +57,54 @@ export const radius = {
   input: 14,
   chip: 999,
   card: 22,
+  sheet: 22,
   container: 22,
 };
 
 export const font = {
+  micro: 10, // smallest permitted text (map labels, dots)
+  label: 11, // tiny badges & meta labels
   sm: 12,
   base: 14,
   lg: 16,
   xl: 20,
   xxl: 26,
   display: 34,
+};
+
+// Standard avatar sizes — use instead of arbitrary numbers
+export const avatarSize = {
+  xs: 32,
+  sm: 40,
+  md: 48,
+  lg: 64,
+  xl: 96,
+};
+
+// Standard control heights (buttons, inputs, chips) + minimum touch target
+export const controlHeight = {
+  buttonLg: 56, // PrimaryButton
+  button: 52, // SecondaryButton / OutlineButton
+  input: 52, // FormField inputs
+  compact: 44, // small tappable controls — never go below this for touchables
+  chip: 36, // PillChip / SegmentedControl segments (non-primary targets)
+};
+export const touchTarget = 44;
+
+// Card & screen padding
+export const cardPadding = {
+  standard: 16, // AppCard default
+  roomy: 20,
+  compact: 12,
+};
+
+// Animation durations & easing — keep motion consistent app-wide
+export const anim = {
+  fast: 150, // micro-interactions (press feedback, image fade)
+  base: 250, // sheet/modal transitions
+  slow: 400, // screen-level emphasis
+  pulse: 1500, // ambient loops (radar pulse)
+  easing: "ease-out" as const,
 };
 
 // Global typography hierarchy — use for all new/updated text styles
@@ -80,6 +118,7 @@ export const type = {
   body: { fontSize: 15, lineHeight: 22, fontWeight: "400" as const, color: colors.textSecondary },
   caption: { fontSize: 12, lineHeight: 16, fontWeight: "600" as const, color: colors.textSecondary },
   helper: { fontSize: 12, lineHeight: 16, fontWeight: "500" as const, color: colors.textTertiary },
+  micro: { fontSize: 10, lineHeight: 13, fontWeight: "700" as const, color: colors.textTertiary },
   button: { fontSize: 16, lineHeight: 20, fontWeight: "700" as const },
   chip: { fontSize: 12, lineHeight: 16, fontWeight: "700" as const },
 };

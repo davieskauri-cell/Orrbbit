@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TextInput, StyleSheet, ViewStyle, TextInputProps } from "react-native";
-import { colors, spacing, radius, font } from "@/src/theme";
+import { colors, spacing, radius, font, controlHeight } from "@/src/theme";
 
 type Props = TextInputProps & {
   label: string;
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     color: colors.text,
     fontSize: font.lg,
-    minHeight: 52,
+    minHeight: controlHeight.input,
   },
   inputError: { borderColor: colors.pink },
   helperRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },

@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.sm, lineHeight: 21 },
   typeWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
-  typeChip: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: 999 },
+  typeChip: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 4, borderRadius: 999 },
   typeText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.xl, marginTop: spacing.lg },
   liveRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.sm },

@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,

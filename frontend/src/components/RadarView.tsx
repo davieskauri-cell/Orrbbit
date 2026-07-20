@@ -13,7 +13,7 @@ import Reanimated, {
 import Avatar from "@/src/components/Avatar";
 import MapTiles from "@/src/components/MapTiles";
 import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
-import { colors } from "@/src/theme";
+import { colors, anim } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -202,8 +202,8 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     ).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1500, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: anim.pulse, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: anim.pulse, useNativeDriver: true }),
       ])
     ).start();
   }, [spin, pulse]);
@@ -723,11 +723,11 @@ const styles = StyleSheet.create({
   youLabel: {
     marginTop: 2,
     backgroundColor: colors.teal,
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 1,
     borderRadius: 999,
   },
-  youLabelText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
+  youLabelText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
   mePointer: {
     width: 0,
     height: 0,
@@ -774,8 +774,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   focusChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
   cluster: {
@@ -794,14 +794,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   clusterText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  clusterVibe: { color: "#FFF", fontSize: 7, fontWeight: "700", maxWidth: 38, textAlign: "center" },
+  clusterVibe: { color: "#FFF", fontSize: 9, fontWeight: "700", maxWidth: 38, textAlign: "center" },
   radiusChip: {
     position: "absolute",
     top: 12,
     left: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: colors.border,
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
     right: 12,
     top: "50%",
     marginTop: -66,
-    gap: 10,
+    gap: 12,
   },
   ctrlBtn: {
     width: 40,
@@ -892,13 +892,13 @@ const styles = StyleSheet.create({
     maxWidth: MAP_W - 70,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
     shadowColor: "#111827",
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -913,7 +913,7 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     backgroundColor: "rgba(255,255,255,0.95)",
     borderWidth: 1,
     borderColor: colors.border,

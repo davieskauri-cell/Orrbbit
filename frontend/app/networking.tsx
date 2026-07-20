@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   sub: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.sm, lineHeight: 21 },
   sectionTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.xl, marginBottom: spacing.md },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: { backgroundColor: colors.tealSoft, paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: 999 },
+  chip: { backgroundColor: colors.tealSoft, paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: 999 },
   chipText: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   fieldRow: {
     flexDirection: "row",

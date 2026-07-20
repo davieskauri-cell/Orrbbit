@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   nsRow: { flexDirection: "row", gap: spacing.xs },
   nsBox: { flex: 1, backgroundColor: colors.tealSoft, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: "center" },
   nsNum: { color: colors.teal, fontSize: font.xl, fontWeight: "800" },
-  nsLabel: { color: colors.textSecondary, fontSize: 9, marginTop: 2, textAlign: "center" },
+  nsLabel: { color: colors.textSecondary, fontSize: 10, marginTop: 2, textAlign: "center" },
   sectionTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.xl, marginBottom: spacing.sm },
   cityRow: {
     flexDirection: "row",

@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   howNum: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 14,
     backgroundColor: AMBER,
     alignItems: "center",
     justifyContent: "center",

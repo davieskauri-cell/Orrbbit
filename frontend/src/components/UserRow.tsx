@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: 4 },
   topLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   distance: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
   bio: { color: colors.textSecondary, fontSize: font.sm },
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   tags: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
   reasonRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   reason: { color: colors.orange, fontSize: 11, fontWeight: "700", flex: 1 },
-  availRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  availRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   availDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
   availText: { color: colors.success, fontSize: 11, fontWeight: "700" },
 });
