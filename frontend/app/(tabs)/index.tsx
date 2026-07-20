@@ -15,7 +15,6 @@ import Avatar from "@/src/components/Avatar";
 import EmptyState from "@/src/components/EmptyState";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
-import ModeCards from "@/src/components/ModeCards";
 import AppModeSwitch from "@/src/components/AppModeSwitch";
 import ProfessionalHome from "@/src/components/ProfessionalHome";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
@@ -156,8 +155,6 @@ export default function RadarScreen() {
           </Text>
         </Pressable>
       </View>
-
-      <ModeCards />
 
       {user?.event_name && (
         <View style={styles.eventBanner} testID="event-banner">
