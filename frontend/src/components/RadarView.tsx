@@ -19,7 +19,7 @@ import type { NearbyUser, Vibe } from "@/src/context/AppContext";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const MAP_W = SCREEN_W; // edge to edge
-const MAP_H = Math.min(Math.max(Math.round(SCREEN_H * 0.42), 320), 430); // ~42% of screen so stats stay above the fold
+const MAP_H = Math.min(Math.max(Math.round(SCREEN_H * 0.48), 360), 500); // radar is the hero — takes ~half the screen
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
