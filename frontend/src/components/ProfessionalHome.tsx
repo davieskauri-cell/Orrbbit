@@ -195,24 +195,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
         />
       </View>
 
-      {/* primary controls — same style & behaviour as the People Radar */}
-      <View style={styles.controlsRow}>
-        <Pressable testID="pro-radius-btn" style={styles.ctrlChip} onPress={() => setShowRadius(true)}>
-          <Ionicons name="resize" size={13} color={colors.teal} />
-          <Text style={styles.ctrlChipText}>Radius: {me?.radius || 50}m</Text>
-          <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-        </Pressable>
-        <Pressable testID="pro-filters-btn" style={styles.ctrlChip} onPress={() => setShowFilters(true)}>
-          <Ionicons name="options-outline" size={14} color={colors.text} />
-          <Text style={styles.ctrlChipText}>Filters</Text>
-          {filterCount > 0 && (
-            <View style={styles.filterBadge} testID="filter-count-badge">
-              <Text style={styles.filterBadgeText}>{filterCount}</Text>
-            </View>
-          )}
-        </Pressable>
-      </View>
-
+      {/* Radius + Filters render on the map — same components & size as the People Radar */}
       <View style={{ flex: 1, justifyContent: "flex-start" }}>
         <RadarView
           users={shown.map((p: any) => ({
@@ -239,6 +222,9 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
           meName={me?.name}
           radiusSetting={me?.radius || 50}
           coords={coords}
+          onRadiusPress={() => setShowRadius(true)}
+          onFilters={() => setShowFilters(true)}
+          filterCount={filterCount}
         />
         <Pressable testID="fab-post-request" style={styles.fab} onPress={() => router.push("/professional/need-help")}>
           <Ionicons name="add" size={18} color="#FFF" />
@@ -602,28 +588,7 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
 }
 
 const styles = StyleSheet.create({
-  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.sm },
-  controlsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  ctrlChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
-    minHeight: 44,
-    shadowColor: "#111827",
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  ctrlChipText: { color: colors.text, fontSize: 12, fontWeight: "700" },
-  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.teal, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  filterBadgeText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.md },
   topRatedChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.purple, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
   topRatedChipText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
   ratingLine: { color: colors.warning, fontSize: font.sm, fontWeight: "700" },

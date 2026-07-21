@@ -177,9 +177,10 @@ type Props = {
   onCluster?: (users: NearbyUser[]) => void;
   onRadiusPress?: () => void;
   onLearnMore?: () => void;
+  filterCount?: number;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount }: Props) {
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -646,6 +647,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         <Pressable testID="radar-filters" style={styles.filtersBtn} onPress={onFilters} hitSlop={8}>
           <Ionicons name="options-outline" size={14} color={colors.text} />
           <Text style={styles.filtersText}>Filters</Text>
+          {!!filterCount && (
+            <View style={styles.filterCountBadge} testID="filter-count-badge">
+              <Text style={styles.filterCountText}>{filterCount}</Text>
+            </View>
+          )}
         </Pressable>
       )}
 
@@ -960,4 +966,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   filtersText: { color: colors.text, fontSize: 12, fontWeight: "700" },
+  filterCountBadge: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.teal,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  filterCountText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
 });
