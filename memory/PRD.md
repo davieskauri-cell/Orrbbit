@@ -302,3 +302,12 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - (tabs)/index.tsx: vibeSelector + visChip equal minHeight 36 (aligned vertical centres), statBox +paddingHorizontal
 - NEW src/components/DemoEnvironmentCard.tsx: compact demo settings card (badge+info header, one-line desc, 3 identical 48px full-width left-aligned action rows, Exit orange accent, ≥700px → 3 equal columns); profile.tsx inline demo card + 5 orphan styles removed; card margins now match settings card/Log Out (marginHorizontal spacing.xl)
 - All testIDs preserved (mode-*, demo-env-card, demo-reset-btn, demo-switch-persona, demo-exit-btn, filter-*). Zero logic changes. Verified via screenshots (390px): people radar, category switch (no jumps/gaps), professional radar, profile demo card.
+
+## Professional Mode Redesign — Consent-Based Connection Flow (June 2026) ✅
+- Radar: category chips removed → Radius + Filters controls (People-radar style); shared RadiusSheet component now used by both radars.
+- ProfessionalFilterSheet: available now, verified only, multi-category, min rating, sort (nearest/rating/response), Clear All/Apply, count badge; persists in Professional Mode only.
+- Map markers: availability dot (green/amber/grey), verification check, Top Rated purple badge; ProfessionalPreviewSheet (rating, specialties, bio, Connect + View Full Profile — no direct chat).
+- Flow: structured request (/professional/connect/[userId], category + ≤300-char message) → professional accepts in Requests tab → Session created → messaging unlocks (/professional/session/[id]) → complete → review (stars/text/recommend, requester-only, once).
+- Mode-aware bottom nav: Professional = Radar/Nearby/Requests/Sessions/Profile with unread badges; People = unchanged Pings/Encounters.
+- Backend: /app/backend/professional_flow.py (db.pro_requests/pro_sessions/pro_messages/pro_reviews), rate limits (5 pending/10 per hr), real rating aggregation (top_rated = ≥4.5 & ≥5 reviews), demo-only seeded reviews & sessions.
+- Tests: /app/backend/tests/test_iter25_professional_flow.py (26/26), /app/test_reports/iteration_25.json. No booking/payments (not implemented — deliberately omitted).

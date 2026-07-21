@@ -2184,6 +2184,8 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
         return None
     ver = await _verification_status(user_id)
     verified = ver["status"] == "Approved"
+    from professional_flow import pro_rating
+    rating_info = await pro_rating(db, user_id)
     return {
         "user_id": user_id, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"),
         "active_now": u.get("active_now", True),
@@ -2206,6 +2208,7 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
         "verification": {"status": ver["status"], "verified_at": ver.get("reviewed_at")} if verified else {"status": ver["status"]},
         "distance": u.get("demo_dist"),
         "regulated": prof.get("primary_category") in REGULATED_CATEGORIES,
+        **rating_info,
     }
 
 
@@ -2309,16 +2312,22 @@ async def matching_requests(
 @api_router.get("/professionals")
 async def nearby_professionals(
     lat: float = Query(...), lng: float = Query(...),
-    category: Optional[str] = None, verified_only: bool = False, available_now: bool = False,
+    category: Optional[str] = None, categories: Optional[str] = None,
+    verified_only: bool = False, available_now: bool = False,
+    min_rating: Optional[float] = None, sort: str = "nearest",
     user: dict = Depends(get_current_user),
 ):
     blocked = await get_blocked_ids(user["id"])
+    cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+    if category:
+        cat_list.append(category)
+    radius = float(user.get("radius", 50))
     profs = await db.professional_profiles.find({"is_draft": {"$ne": True}}).to_list(200)
     out = []
     for p in profs:
         if p["user_id"] == user["id"] or p["user_id"] in blocked:
             continue
-        if category and category != p.get("primary_category") and category not in p.get("additional_categories", []):
+        if cat_list and not ({p.get("primary_category"), *p.get("additional_categories", [])} & set(cat_list)):
             continue
         pub = await _pro_public(p["user_id"], user)
         if not pub:
@@ -2328,8 +2337,23 @@ async def nearby_professionals(
             continue
         if available_now and not (pub["active_now"] and pub.get("availability") == "Available now"):
             continue
+        if min_rating is not None and (pub.get("rating") is None or pub["rating"] < min_rating):
+            continue
+        if pub.get("distance") is not None and pub["distance"] > radius:
+            continue
         out.append(pub)
-    out.sort(key=lambda x: (not x["verified_by_intro"], x.get("distance") if x.get("distance") is not None else 9999))
+
+    def _resp_minutes(x):
+        import re as _re
+        m = _re.search(r"(\d+)", x.get("response_time") or "")
+        return int(m.group(1)) if m else 999
+
+    if sort == "rating":
+        out.sort(key=lambda x: (-(x.get("rating") or 0), x.get("distance") if x.get("distance") is not None else 9999))
+    elif sort == "response":
+        out.sort(key=lambda x: (_resp_minutes(x), x.get("distance") if x.get("distance") is not None else 9999))
+    else:
+        out.sort(key=lambda x: (not x["verified_by_intro"], x.get("distance") if x.get("distance") is not None else 9999))
     return {"professionals": out[:50]}
 
 
@@ -2866,6 +2890,9 @@ async def reset_demo(user: dict = Depends(get_current_user)):
     await db.help_requests.delete_many({"demo": True})
     await seed_demo_accounts()
     counts = await seed_demo_environment(force=True)
+    import professional_flow as _pf
+    import sys as _s
+    await _pf.seed_pro_flow_demo(_s.modules[__name__], force=True)
     return {"ok": True, "counts": counts}
 
 
@@ -2880,6 +2907,11 @@ app.include_router(control_router)
 app.include_router(control_p2_router)
 app.include_router(control_p3_router)
 app.include_router(webhook_router)
+
+import sys as _sys  # noqa: E402
+import professional_flow as _pro_flow  # noqa: E402
+_pro_flow.bind(_sys.modules[__name__])
+app.include_router(_pro_flow.pro_flow_router)
 
 
 @app.on_event("startup")
@@ -2990,6 +3022,7 @@ async def seed_demo_accounts():
     await migrate_opportunity_records()
     await seed_professional_demo()
     await seed_demo_environment()
+    await _pro_flow.seed_pro_flow_demo(_sys.modules[__name__])
 
 
 @app.on_event("shutdown")

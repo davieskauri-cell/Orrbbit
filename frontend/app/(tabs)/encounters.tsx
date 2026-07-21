@@ -9,6 +9,7 @@ import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
 import SegmentedControl from "@/src/components/SegmentedControl";
+import SessionsScreen from "@/src/components/professional/SessionsScreen";
 import { colors, spacing, font } from "@/src/theme";
 
 type Encounter = {
@@ -27,7 +28,13 @@ function timeLabel(mins: number) {
   return `${Math.round(mins / 60)} hr ago`;
 }
 
-export default function EncountersScreen() {
+export default function EncountersTab() {
+  const { appMode } = useApp();
+  if (appMode === "professional") return <SessionsScreen />;
+  return <PeopleEncountersScreen />;
+}
+
+function PeopleEncountersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { vibeMap } = useApp();

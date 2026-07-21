@@ -567,7 +567,32 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                         <Ionicons name="checkmark" size={8} color="#FFF" />
                       </View>
                     )}
-                    {(p.u as any).pro && p.u.active_now && <View style={styles.availDot} />}
+                    {(p.u as any).pro && (
+                      <View
+                        style={[
+                          styles.availDot,
+                          {
+                            backgroundColor:
+                              (p.u as any).avail_state === "available"
+                                ? colors.success
+                                : (p.u as any).avail_state === "busy"
+                                ? "#F59E0B"
+                                : (p.u as any).avail_state === "appointment"
+                                ? colors.teal
+                                : (p.u as any).avail_state === "offline"
+                                ? colors.grey
+                                : p.u.active_now
+                                ? colors.success
+                                : colors.grey,
+                          },
+                        ]}
+                      />
+                    )}
+                    {(p.u as any).top_rated && (
+                      <View style={styles.topRatedBadge}>
+                        <Ionicons name="star" size={7} color="#FFF" />
+                      </View>
+                    )}
                     {p.u.vibe === "opportunity" && !(p.u as any).pro && (
                       <View style={styles.oppBadge}>
                         <Ionicons name="sparkles" size={8} color="#FFF" />
@@ -842,6 +867,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     borderWidth: 2,
     borderColor: colors.surface,
+  },
+  topRatedBadge: {
+    position: "absolute",
+    bottom: -2,
+    left: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: colors.purple,
+    borderWidth: 1.5,
+    borderColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   oppBadge: {
     position: "absolute",

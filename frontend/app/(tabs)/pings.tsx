@@ -8,6 +8,7 @@ import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
+import RequestsScreen from "@/src/components/professional/RequestsScreen";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 const PHRASE: Record<string, string> = {
@@ -27,7 +28,13 @@ function timeAgo(iso: string) {
   return `${Math.round(mins / 60)} hr ago`;
 }
 
-export default function PingsScreen() {
+export default function PingsTab() {
+  const { appMode } = useApp();
+  if (appMode === "professional") return <RequestsScreen />;
+  return <PeoplePingsScreen />;
+}
+
+function PeoplePingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { vibeMap } = useApp();

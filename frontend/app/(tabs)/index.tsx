@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl } from "react-native";
 import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, type NearbyUser } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
-import { api } from "@/src/lib/api";
 import { toggleVisibility, startVisibilitySession } from "@/src/services/privacyService";
 import { distLabel } from "@/src/lib/format";
 import RadarView from "@/src/components/RadarView";
+import RadiusSheet from "@/src/components/RadiusSheet";
 import VibePill from "@/src/components/VibePill";
 import Avatar from "@/src/components/Avatar";
 import EmptyState from "@/src/components/EmptyState";
@@ -18,8 +18,6 @@ import Logo from "@/src/components/Logo";
 import AppModeSwitch from "@/src/components/AppModeSwitch";
 import ProfessionalHome from "@/src/components/ProfessionalHome";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
-
-const ALL_RADII = [10, 25, 50, 100, 250, 500];
 
 export default function RadarScreen() {
   const insets = useSafeAreaInsets();
@@ -30,32 +28,6 @@ export default function RadarScreen() {
   const [showRadius, setShowRadius] = useState(false);
   const [preview, setPreview] = useState<NearbyUser | null>(null);
   const [, forceTick] = useState(0);
-
-  const maxR = user?.max_radius || 50;
-
-  const pickRadius = async (r: number) => {
-    if (r > maxR) {
-      setShowRadius(false);
-      const needsPlus = r <= 100;
-      showAlert(
-        needsPlus ? "Unlock 100m with Intro Plus" : "Unlock extended discovery with Intro Pro",
-        needsPlus
-          ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-          : "Intro Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
-        [
-          { text: "Maybe later", style: "cancel" },
-          { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
-        ]
-      );
-      return;
-    }
-    try {
-      const updated = await api("/users/me/state", { method: "PUT", body: { radius: r } });
-      setUser(updated as any);
-    } catch {}
-    setShowRadius(false);
-    refresh();
-  };
 
   // refresh the session countdown label every 30s
   useEffect(() => {
@@ -465,37 +437,7 @@ export default function RadarScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={showRadius} transparent animationType="slide" onRequestClose={() => setShowRadius(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowRadius(false)}>
-          <Pressable style={[styles.radiusSheet, { paddingBottom: insets.bottom + spacing.xl }]} onPress={() => {}}>
-            <Text style={styles.sheetTitle}>Discovery radius</Text>
-            <Text style={styles.sheetSub}>Your radius depends on your plan.</Text>
-            {ALL_RADII.map((r) => {
-              const locked = r > maxR;
-              const selected = (user?.radius || 50) === r;
-              return (
-                <Pressable
-                  key={r}
-                  testID={`radius-sheet-${r}`}
-                  style={[styles.sheetRow, selected && styles.sheetRowActive]}
-                  onPress={() => pickRadius(r)}
-                >
-                  <Text style={[styles.sheetRowText, locked && { color: colors.textTertiary }]}>{r}m</Text>
-                  {locked ? (
-                    <View style={styles.lockTag}>
-                      <Ionicons name="lock-closed" size={11} color={colors.textTertiary} />
-                      <Text style={styles.lockTagText}>{r <= 100 ? "Plus" : "Pro"}</Text>
-                    </View>
-                  ) : selected ? (
-                    <Ionicons name="checkmark" size={18} color={colors.teal} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-            <Text style={styles.sheetNote}>Bigger radius. Same privacy. Exact locations stay hidden.</Text>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <RadiusSheet visible={showRadius} onClose={() => setShowRadius(false)} onChanged={refresh} />
     </View>
   );
 }
@@ -607,40 +549,6 @@ const styles = StyleSheet.create({
   stackItem: { borderWidth: 2, borderColor: colors.surface, borderRadius: 17 },
   moreText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
   whyShown: { color: colors.teal, fontSize: font.sm, fontWeight: "600", marginTop: spacing.sm, lineHeight: 18 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(17,24,39,0.4)", justifyContent: "flex-end" },
-  radiusSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-  },
-  sheetTitle: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
-  sheetSub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md },
-  sheetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-    minHeight: 48,
-  },
-  sheetRowActive: { backgroundColor: colors.tealSoft },
-  sheetRowText: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
-  lockTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  lockTagText: { color: colors.textTertiary, fontSize: 11, fontWeight: "800" },
-  sheetNote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.md },
   trialBanner: {
     flexDirection: "row",
     alignItems: "center",

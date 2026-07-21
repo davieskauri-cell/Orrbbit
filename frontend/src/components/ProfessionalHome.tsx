@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Modal, Animated as RNAnimated, PanResponder, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Dimensions, Animated as RNAnimated, PanResponder } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { api } from "@/src/lib/api";
@@ -7,16 +7,18 @@ import { showAlert } from "@/src/lib/alert";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { acceptPing, declinePing } from "@/src/services/pingService";
-import { requestConnection } from "@/src/services/matchingService";
-import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { timeAgo, distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
 import RadarView from "@/src/components/RadarView";
+import RadiusSheet from "@/src/components/RadiusSheet";
 import StatusBadge from "@/src/components/StatusBadge";
 import SectionHeader from "@/src/components/SectionHeader";
 import PillChip from "@/src/components/PillChip";
 import HorizontalCategoryChipList from "@/src/components/HorizontalCategoryChipList";
 import SegmentedControl from "@/src/components/SegmentedControl";
+import ProfessionalFilterSheet from "@/src/components/professional/ProfessionalFilterSheet";
+import ProfessionalPreviewSheet from "@/src/components/professional/ProfessionalPreviewSheet";
+import { ProFilters, getProFilters, setProFilters, activeFilterCount, proFiltersToQuery } from "@/src/state/proFilters";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const AMBER = "#F59E0B";
@@ -86,11 +88,12 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [pros, setPros] = useState<any[]>([]);
-  const [category, setCategory] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ProFilters>(getProFilters());
+  const [showFilters, setShowFilters] = useState(false);
+  const [showRadius, setShowRadius] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [availableNow, setAvailableNow] = useState(false);
   const [search, setSearch] = useState("");
-  const [maxDist, setMaxDist] = useState<number | null>(null);
+  const [pendingSent, setPendingSent] = useState(0);
   const [preview, setPreview] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const active = requests.find((r) => r.status === "active" || r.status === "paused");
@@ -107,14 +110,13 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
       if (act) setOffers(await api<any[]>(`/help-requests/${act.id}/offers`));
       else setOffers([]);
       if (coords) {
-        let q = `/professionals?lat=${coords.lat}&lng=${coords.lng}`;
-        if (category) q += `&category=${encodeURIComponent(category)}`;
-        if (availableNow) q += "&available_now=true";
-        const p = await api<any>(q);
+        const p = await api<any>(`/professionals?lat=${coords.lat}&lng=${coords.lng}${proFiltersToQuery(filters)}`);
         setPros(p.professionals);
       }
+      const reqs = await api<any>("/professional/connect/requests");
+      setPendingSent(reqs.pending_sent || 0);
     } catch {}
-  }, [coords, category, availableNow]);
+  }, [coords, filters]);
 
   useEffect(() => {
     load();
@@ -150,14 +152,34 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
   const q = search.trim().toLowerCase();
   const shown = pros.filter(
     (p: any) =>
-      (!maxDist || (p.distance ?? 0) <= maxDist) &&
-      (!q ||
-        [p.name, p.profession, p.primary_category, ...(p.specialties || []), ...(p.verified_categories || [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q))
+      !q ||
+      [p.name, p.profession, p.primary_category, ...(p.specialties || []), ...(p.verified_categories || [])]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
   );
   const newOffers = offers.filter((o) => o.status === "new").length;
+  const availNow = shown.filter((p: any) => p.active_now && p.availability === "Available now").length;
+  const filterCount = activeFilterCount(filters);
+
+  const applyFilters = (f: ProFilters) => {
+    setProFilters(f);
+    setFilters(f);
+    setShowFilters(false);
+  };
+
+  const availState = (p: any) =>
+    p.active_now && p.availability === "Available now" ? "available" : !p.active_now ? "offline" : "busy";
+
+  const sheetLabel = [
+    `${shown.length} professional${shown.length === 1 ? "" : "s"} nearby`,
+    `${availNow} available now`,
+    `${shown.length} verified`,
+    pendingSent ? `${pendingSent} pending` : null,
+    newOffers ? `${newOffers} new offer${newOffers === 1 ? "" : "s"}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <View style={{ flex: 1 }} testID="need-help-home">
@@ -172,20 +194,24 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
           placeholderTextColor={colors.textTertiary}
         />
       </View>
-      <HorizontalCategoryChipList
-        testID="ch-filter-row"
-        items={[{ key: "__available" }, { key: "__d250" }, { key: "__d500" }, ...categories.map((c: string) => ({ key: c }))]}
-        renderChip={(item) => {
-          if (item.key === "__available")
-            return <PillChip testID="filter-available-now" label="Available now" active={availableNow} onPress={() => setAvailableNow(!availableNow)} />;
-          if (item.key === "__d250" || item.key === "__d500") {
-            const d = item.key === "__d250" ? 250 : 500;
-            return <PillChip testID={`filter-dist-${d}`} label={`≤ ${d}m`} active={maxDist === d} onPress={() => setMaxDist(maxDist === d ? null : d)} />;
-          }
-          const c = item.key;
-          return <PillChip testID={`nh-cat-filter-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />;
-        }}
-      />
+
+      {/* primary controls — same style & behaviour as the People Radar */}
+      <View style={styles.controlsRow}>
+        <Pressable testID="pro-radius-btn" style={styles.ctrlChip} onPress={() => setShowRadius(true)}>
+          <Ionicons name="resize" size={13} color={colors.teal} />
+          <Text style={styles.ctrlChipText}>Radius: {me?.radius || 50}m</Text>
+          <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+        </Pressable>
+        <Pressable testID="pro-filters-btn" style={styles.ctrlChip} onPress={() => setShowFilters(true)}>
+          <Ionicons name="options-outline" size={14} color={colors.text} />
+          <Text style={styles.ctrlChipText}>Filters</Text>
+          {filterCount > 0 && (
+            <View style={styles.filterBadge} testID="filter-count-badge">
+              <Text style={styles.filterBadgeText}>{filterCount}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
 
       <View style={{ flex: 1, justifyContent: "flex-start" }}>
         <RadarView
@@ -202,6 +228,8 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
             compatible: true,
             active_now: p.availability === "Available now",
             verified: true,
+            avail_state: availState(p),
+            top_rated: !!p.top_rated,
             score: 6,
             vibe_details: { opportunity_type: "Professional", category: p.primary_category },
           })) as any}
@@ -220,7 +248,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
 
       <MapSheet
         testID="pro-sheet"
-        collapsedLabel={`${shown.length} professional${shown.length === 1 ? "" : "s"} nearby${newOffers ? ` · ${newOffers} new offer${newOffers === 1 ? "" : "s"}` : ""}`}
+        collapsedLabel={sheetLabel}
         onRefresh={load}
         refreshing={refreshing}
         setRefreshing={setRefreshing}
@@ -298,9 +326,20 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
             <View style={styles.proRow}>
               <Avatar uri={p.photo_url} name={p.name} size={46} ringColor={colors.teal} />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.proName}>{p.name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={styles.proName}>{p.name}</Text>
+                  {p.top_rated && (
+                    <View style={styles.topRatedChip}>
+                      <Ionicons name="star" size={8} color="#FFF" />
+                      <Text style={styles.topRatedChipText}>Top Rated</Text>
+                    </View>
+                  )}
+                </View>
                 {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="INTRO Verified" />}
                 <Text style={styles.cardMeta}>{p.profession} · {p.primary_category}{p.distance != null ? ` · ${distLabel(p.distance)}` : ""}</Text>
+                <Text style={styles.ratingLine}>
+                  {p.rating != null ? `★ ${p.rating} (${p.review_count})` : "No reviews yet"}
+                </Text>
                 {!!p.specialties?.length && <Text style={styles.verCats} numberOfLines={1}>✓ {p.specialties.join(" · ")}</Text>}
                 <Text style={styles.cardMeta}>
                   {[p.availability, p.response_time, p.years_experience ? `${p.years_experience} yrs experience` : null].filter(Boolean).join(" · ")}
@@ -316,7 +355,30 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
         </View>
       </MapSheet>
 
-      {preview && <ProPreview p={preview} onClose={() => setPreview(null)} />}
+      {preview && (
+        <ProfessionalPreviewSheet
+          p={preview}
+          onClose={() => setPreview(null)}
+          onConnect={() => {
+            const id = preview.user_id;
+            setPreview(null);
+            router.push(`/professional/connect/${id}`);
+          }}
+          onViewProfile={() => {
+            const id = preview.user_id;
+            setPreview(null);
+            router.push(`/professional/profile/${id}`);
+          }}
+        />
+      )}
+      <RadiusSheet visible={showRadius} onClose={() => setShowRadius(false)} onChanged={load} />
+      <ProfessionalFilterSheet
+        visible={showFilters}
+        categories={categories}
+        value={filters}
+        onClose={() => setShowFilters(false)}
+        onApply={applyFilters}
+      />
     </View>
   );
 }
@@ -539,56 +601,32 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
   );
 }
 
-function ProPreview({ p, onClose }: { p: any; onClose: () => void }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const requestHelp = async () => {
-    setBusy(true);
-    try {
-      const res = await requestConnection(p.user_id);
-      if (res.status === "connected") showAlert("You're already connected", `Head to Pings to continue with ${p.name}.`);
-      else setSent(true);
-    } catch (e: any) {
-      showAlert("Couldn't send request", e.message || "Try again.");
-    }
-    setBusy(false);
-  };
-  return (
-    <Modal transparent animationType="slide" visible onRequestClose={onClose}>
-      <Pressable style={styles.previewOverlay} onPress={onClose}>
-        <Pressable style={styles.previewSheet} onPress={() => {}} testID="pro-preview-sheet">
-          <View style={styles.sheetHandle} />
-          <View style={styles.proRow}>
-            <Avatar uri={p.photo_url} name={p.name} size={54} ringColor={colors.teal} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.previewName}>{p.name}</Text>
-              <Text style={styles.cardMeta}>{p.profession}</Text>
-              {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="INTRO Verified" />}
-            </View>
-          </View>
-          {!!p.verified_categories?.length && (
-            <Text style={styles.verCats}>✓ {p.verified_categories.join(" · ")}</Text>
-          )}
-          <Text style={styles.cardMeta}>
-            {[p.distance != null ? distLabel(p.distance) : null, p.availability, p.response_time, p.years_experience ? `${p.years_experience} yrs experience` : null]
-              .filter(Boolean)
-              .join(" · ")}
-          </Text>
-          {!!p.about && <Text style={styles.cardMeta} numberOfLines={3}>{p.about}</Text>}
-          <Text style={styles.previewLock}>Private details stay locked until you both accept.</Text>
-          <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-            <SecondaryButton testID="preview-view-profile" title="View Profile" onPress={() => { onClose(); router.push(`/professional/profile/${p.user_id}`); }} style={{ flex: 1, minHeight: 48 }} />
-            <PrimaryButton testID="preview-request-help" title={sent ? "Request Sent ✓" : "Request Help"} onPress={requestHelp} loading={busy} disabled={sent} style={{ flex: 1, minHeight: 48 }} />
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
   searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.sm },
+  controlsRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  ctrlChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+    minHeight: 44,
+    shadowColor: "#111827",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  ctrlChipText: { color: colors.text, fontSize: 12, fontWeight: "700" },
+  filterBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.teal, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  filterBadgeText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
+  topRatedChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.purple, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  topRatedChipText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
+  ratingLine: { color: colors.warning, fontSize: font.sm, fontWeight: "700" },
   searchInput: { flex: 1, color: colors.text, fontSize: font.base, paddingVertical: 8 },
   fab: { position: "absolute", right: spacing.lg, bottom: spacing.lg + 56, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 48, shadowColor: "#FF5A1F", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
   fabText: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
