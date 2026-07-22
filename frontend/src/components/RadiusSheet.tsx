@@ -30,10 +30,10 @@ export default function RadiusSheet({
       onClose();
       const needsPlus = r <= 100;
       showAlert(
-        needsPlus ? "Unlock 100m with IntroYu Plus" : "Unlock extended discovery with IntroYu Pro",
+        needsPlus ? "Unlock 100m with IntroU Plus" : "Unlock extended discovery with IntroU Pro",
         needsPlus
           ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-          : "IntroYu Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+          : "IntroU Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
         [
           { text: "Maybe later", style: "cancel" },
           { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },

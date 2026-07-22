@@ -36,10 +36,10 @@ export default function EventModeScreen() {
         <Pressable testID="event-back" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>IntroYu Event Mode</Text>
+        <Text style={styles.title}>IntroU Event Mode</Text>
       </View>
       <Text style={styles.sub}>
-        Use IntroYu at live events to see who nearby is open to networking, coffee, advice or
+        Use IntroU at live events to see who nearby is open to networking, coffee, advice or
         a chat.
       </Text>
 

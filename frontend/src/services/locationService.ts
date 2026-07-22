@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
 
-// Melbourne CBD demo fallback so IntroYu always works
+// Melbourne CBD demo fallback so IntroU always works
 export const DEMO_LOCATION = { lat: -37.8136, lng: 144.9631 };
 
 export async function requestLocationPermission(): Promise<{

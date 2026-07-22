@@ -1,4 +1,4 @@
-// IntroYu brand palette — clean white, orange & teal
+// IntroU brand palette — clean white, orange & teal
 export const colors = {
   surface: "#FFFFFF",
   card: "#F8FAFC",

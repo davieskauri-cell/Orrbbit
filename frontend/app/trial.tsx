@@ -54,7 +54,7 @@ export default function TrialScreen() {
 
       <Text style={styles.bigTitle}>100 Metre Social Experiment</Text>
       <Text style={styles.sub}>
-        Join a live IntroYu trial and see who nearby is open to connecting.
+        Join a live IntroU trial and see who nearby is open to connecting.
       </Text>
 
       {event && (

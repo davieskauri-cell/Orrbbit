@@ -3,7 +3,11 @@ import { View, Text, StyleSheet } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { colors } from "@/src/theme";
 
-// IntroYu radar mark — a "you" dot sending waves to the top-right.
+// IntroU wordmark colours (brand spec)
+export const BRAND_NAVY = "#081A35";
+export const BRAND_TEAL = "#16B6B0";
+
+// IntroU radar mark — a "you" dot sending waves to the top-right.
 export function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
@@ -20,8 +24,8 @@ export default function Logo({ size = 34 }: { size?: number }) {
     <View style={styles.row}>
       <LogoMark size={size} />
       <Text style={[styles.word, { fontSize: size * 0.68 }]}>
-        <Text style={{ color: colors.text }}>Intro</Text>
-        <Text style={{ color: colors.teal }}>Yu</Text>
+        <Text style={{ color: BRAND_NAVY }}>Intro</Text>
+        <Text style={{ color: BRAND_TEAL }}>U</Text>
       </Text>
     </View>
   );

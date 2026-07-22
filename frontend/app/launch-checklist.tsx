@@ -59,7 +59,7 @@ export default function LaunchChecklistScreen() {
         </Pressable>
         <Text style={styles.title}>Launch Checklist</Text>
       </View>
-      <Text style={styles.sub}>Internal playbook for launching IntroYu in a new zone or city.</Text>
+      <Text style={styles.sub}>Internal playbook for launching IntroU in a new zone or city.</Text>
 
       <View style={styles.progressWrap}>
         <View style={[styles.progressBar, { width: `${(done.length / total) * 100}%` }]} />

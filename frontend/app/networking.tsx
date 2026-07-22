@@ -35,7 +35,7 @@ export default function NetworkingScreen() {
         <Pressable testID="networking-back" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>IntroYu Networking</Text>
+        <Text style={styles.title}>IntroU Networking</Text>
       </View>
       <Text style={styles.sub}>Know who in the room is open to networking before you approach.</Text>
 

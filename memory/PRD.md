@@ -318,3 +318,6 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Assets regenerated from the radar mark (/tmp/gen_brand.py): icon.png (mark only, white), adaptive-icon.png (white bg), favicon, splash-image.png (mark + wordmark + tagline, white). app.json: name=IntroYu, splash/adaptive bg #FFFFFF; web <title>IntroYu</title> (app/+html.tsx).
 - Unchanged intentionally: slug/scheme/bundle id (com.introapp.mobile), demo emails (@intro.demo), passwords (Intro123!), DB field verified_by_intro, reviewer id "intro-admin".
 - KNOWN GOTCHA: parallel search_replace calls on the SAME file can clobber each other — do same-file edits sequentially.
+
+## IntroYu → IntroU rename (June 2026) ✅
+- All "IntroYu"→"IntroU", "introyu"→"introu" across frontend/backend/app.json/+html title. Wordmark split "Intro"+"U" with brand hexes exported from Logo.tsx (BRAND_NAVY #081A35, BRAND_TEAL #16B6B0) used in Logo, onboarding, loading screen. Splash asset regenerated (/tmp script gone; see /tmp/gen_splash_introu.py pattern). App icon/mark unchanged.

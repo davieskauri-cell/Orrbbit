@@ -234,7 +234,7 @@ export default function VerificationScreen() {
                 <Text style={styles.label}>ID Type</Text>
                 {pills(ID_TYPES, (o) => idType === o, setIdType, "ver-id")}
 
-                <Text style={styles.helper}>Documents are never shown to other users — IntroYu administrators only. Approval is manual.</Text>
+                <Text style={styles.helper}>Documents are never shown to other users — IntroU administrators only. Approval is manual.</Text>
                 {error && <Text testID="ver-error" style={styles.error}>{error}</Text>}
                 <PrimaryButton testID="ver-submit" title="Submit for Review" onPress={submit} loading={busy} style={{ marginTop: spacing.lg }} />
               </>

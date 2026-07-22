@@ -14,7 +14,7 @@ export default function ReviewSetupScreen() {
   const { user } = useAuth();
   const { vibeMap } = useApp();
 
-  const planLabel = user?.plan === "pro" ? "IntroYu Pro" : user?.plan === "plus" ? "IntroYu Plus" : "Free";
+  const planLabel = user?.plan === "pro" ? "IntroU Pro" : user?.plan === "plus" ? "IntroU Plus" : "Free";
   const vibeLabel = user?.vibe ? vibeMap[user.vibe]?.label || user.vibe : "Not set";
   const detailsDone = user?.vibe_details && Object.keys(user.vibe_details).length > 0;
 
@@ -61,7 +61,7 @@ export default function ReviewSetupScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <PrimaryButton testID="start-using-intro" title="Start using IntroYu" onPress={() => router.replace("/(tabs)")} />
+        <PrimaryButton testID="start-using-intro" title="Start using IntroU" onPress={() => router.replace("/(tabs)")} />
       </View>
     </View>
   );

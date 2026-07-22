@@ -1,4 +1,4 @@
-// Approximate distance labels — IntroYu never shows exact GPS positions.
+// Approximate distance labels — IntroU never shows exact GPS positions.
 export function distLabel(d: number) {
   if (d >= 480) return "Within 500m";
   if (d >= 100) return `About ${Math.round(d / 25) * 25}m away`;

@@ -30,7 +30,7 @@ export default function Register() {
     if (!name.trim()) return setError("Please enter your name.");
     if (!email.trim()) return setError("Please enter your email.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
-    if (!ageNum || ageNum < 18) return setError("IntroYu is currently only available for users 18 and older.");
+    if (!ageNum || ageNum < 18) return setError("IntroU is currently only available for users 18 and older.");
     if (!confirm18) return setError("Please confirm you are 18 or older.");
     setBusy(true);
     try {

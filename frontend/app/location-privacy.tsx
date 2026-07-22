@@ -37,7 +37,7 @@ export default function LocationPrivacyScreen() {
       </View>
       <Text style={styles.title}>You control your location</Text>
       <Text style={styles.sub}>
-        IntroYu shows your exact location only to you. Other people nearby are shown
+        IntroU shows your exact location only to you. Other people nearby are shown
         approximately so nobody can track exact movement.
       </Text>
 

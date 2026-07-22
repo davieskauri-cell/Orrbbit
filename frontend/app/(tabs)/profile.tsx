@@ -19,7 +19,7 @@ const MENU = [
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
   { icon: "id-card-outline", label: "Vibe Details", route: "/vibe-details", testID: "menu-vibe-details" },
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
-  { icon: "diamond-outline", label: "IntroYu Plans", route: "/plans", testID: "menu-plans" },
+  { icon: "diamond-outline", label: "IntroU Plans", route: "/plans", testID: "menu-plans" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
   { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
@@ -30,8 +30,8 @@ const GLOBAL_MENU = [
   { icon: "map-outline", label: "City Launch Mode", route: "/cities", testID: "menu-cities" },
   { icon: "calendar-outline", label: "Event Mode", route: "/event-mode", testID: "menu-event-mode" },
   { icon: "qr-code-outline", label: "Join Event Code", route: "/join-event", testID: "menu-join-event" },
-  { icon: "school-outline", label: "IntroYu Campus", route: "/campus", testID: "menu-campus" },
-  { icon: "briefcase-outline", label: "IntroYu Networking", route: "/networking", testID: "menu-networking" },
+  { icon: "school-outline", label: "IntroU Campus", route: "/campus", testID: "menu-campus" },
+  { icon: "briefcase-outline", label: "IntroU Networking", route: "/networking", testID: "menu-networking" },
   { icon: "people-outline", label: "Communities", route: "/communities", testID: "menu-communities" },
   { icon: "megaphone-outline", label: "Ambassador Hub", route: "/ambassador", testID: "menu-ambassador" },
   { icon: "hourglass-outline", label: "Join Waitlist", route: "/waitlist", testID: "menu-waitlist" },
@@ -153,7 +153,7 @@ export default function ProfileScreen() {
           <View style={styles.statusItem} testID="my-plan-chip">
             <Ionicons name="diamond" size={14} color={colors.orange} />
             <Text style={styles.statusText}>
-              {user?.plan === "pro" ? "IntroYu Pro" : user?.plan === "plus" ? "IntroYu Plus" : "Free plan"}
+              {user?.plan === "pro" ? "IntroU Pro" : user?.plan === "plus" ? "IntroU Plus" : "Free plan"}
             </Text>
           </View>
           <View style={styles.statusItem}>
@@ -207,7 +207,7 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>IntroYu Worldwide · {user?.city || "Melbourne"}</Text>
+      <Text style={styles.sectionTitle}>IntroU Worldwide · {user?.city || "Melbourne"}</Text>
       <View style={styles.menu}>
         {GLOBAL_MENU.map((m) => (
           <Pressable
@@ -291,7 +291,7 @@ export default function ProfileScreen() {
       </Pressable>
 
       <Pressable testID="app-version" onPress={onVersionTap} style={styles.versionRow} hitSlop={10}>
-        <Text style={styles.versionText}>IntroYu v1.0.0{testMode ? " · Test mode" : ""}</Text>
+        <Text style={styles.versionText}>IntroU v1.0.0{testMode ? " · Test mode" : ""}</Text>
       </Pressable>
     </ScrollView>
   );

@@ -101,7 +101,7 @@ export default function ProfessionalConnectScreen() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.proName}>{pro.name}</Text>
               <Text style={styles.proMeta}>{pro.profession}</Text>
-              {pro.verified_by_intro && <StatusBadge icon="shield-checkmark" label="IntroYu Verified" />}
+              {pro.verified_by_intro && <StatusBadge icon="shield-checkmark" label="IntroU Verified" />}
             </View>
           </View>
 

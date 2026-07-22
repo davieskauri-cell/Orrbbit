@@ -169,7 +169,7 @@ export default function PersonPreview() {
             )}
             <View style={styles.protectedBadge} testID="safety-protected-badge">
               <Ionicons name="shield-checkmark" size={12} color={colors.teal} />
-              <Text style={styles.protectedText}>IntroYu safety protected</Text>
+              <Text style={styles.protectedText}>IntroU safety protected</Text>
             </View>
           </View>
           {!!reason && (

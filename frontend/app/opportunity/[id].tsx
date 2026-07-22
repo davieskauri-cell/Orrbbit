@@ -182,7 +182,7 @@ export default function OpportunityScreen() {
         <View style={styles.privacyNote}>
           <Ionicons name="shield-checkmark" size={15} color={colors.teal} />
           <Text style={styles.privacyText}>
-            Approximate distance only. Exact locations are never shared on IntroYu.
+            Approximate distance only. Exact locations are never shared on IntroU.
           </Text>
         </View>
 

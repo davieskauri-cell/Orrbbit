@@ -150,7 +150,7 @@ export default function NearbyScreen() {
                 onPress={() =>
                   showAlert(
                     "Why limit?",
-                    "IntroYu limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
+                    "IntroU limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
                   )
                 }
                 hitSlop={6}
@@ -174,7 +174,7 @@ export default function NearbyScreen() {
                 testID="nearby-empty"
                 icon="compass"
                 title="No one nearby right now"
-                text="IntroYu works best when people are close by. Try increasing your radius, changing your vibe, joining an event, or inviting people nearby."
+                text="IntroU works best when people are close by. Try increasing your radius, changing your vibe, joining an event, or inviting people nearby."
               />
               <View style={styles.emptyActions}>
                 {[

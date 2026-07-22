@@ -101,7 +101,7 @@ function PeopleEncountersScreen() {
             testID="encounters-empty"
             icon="footsteps"
             title="No encounters yet."
-            text="Keep IntroYu open to discover who's nearby."
+            text="Keep IntroU open to discover who's nearby."
           />
         }
       />

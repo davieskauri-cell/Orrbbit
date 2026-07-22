@@ -272,7 +272,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
                   <Avatar uri={o.professional.photo_url} name={o.professional.name} size={46} ringColor={colors.teal} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.proName}>{o.professional.name} would like to help</Text>
-                    {o.professional.verified_by_intro && <StatusBadge icon="shield-checkmark" label="Verified by IntroYu" />}
+                    {o.professional.verified_by_intro && <StatusBadge icon="shield-checkmark" label="Verified by IntroU" />}
                     <Text style={styles.cardMeta}>
                       {o.professional.profession} · {o.professional.years_experience} yrs{o.professional.distance != null ? ` · ${distLabel(o.professional.distance)}` : ""}
                     </Text>
@@ -321,7 +321,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
                     </View>
                   )}
                 </View>
-                {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="IntroYu Verified" />}
+                {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="IntroU Verified" />}
                 <Text style={styles.cardMeta}>{p.profession} · {p.primary_category}{p.distance != null ? ` · ${distLabel(p.distance)}` : ""}</Text>
                 <Text style={styles.ratingLine}>
                   {p.rating != null ? `★ ${p.rating} (${p.review_count})` : "No reviews yet"}
@@ -431,7 +431,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
           <Avatar uri={me?.photo_url} name={me?.name} size={34} ringColor={colors.teal} />
           <View style={{ flex: 1 }}>
             <Text style={styles.proName} numberOfLines={1}>{profile.profession}</Text>
-            <StatusBadge icon="shield-checkmark" label="Verified by IntroYu" />
+            <StatusBadge icon="shield-checkmark" label="Verified by IntroU" />
           </View>
           <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
             <Text style={styles.smallBtnText}>Edit</Text>
@@ -448,7 +448,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
               <Text style={styles.proName}>{profile.profession}</Text>
               <Text style={styles.cardMeta}>{profile.primary_category}{profile.additional_categories?.length ? ` +${profile.additional_categories.length}` : ""}</Text>
               {verification.status === "Approved" ? (
-                <StatusBadge icon="shield-checkmark" label="Verified by IntroYu" />
+                <StatusBadge icon="shield-checkmark" label="Verified by IntroU" />
               ) : (
                 <Text style={[styles.statusChip, { color: verification.status === "Pending Review" ? colors.orange : colors.textTertiary }]}>
                   Verification: {verification.status}

@@ -124,7 +124,7 @@ export default function Shell({ title, children, actions }: { title: string; chi
       <View style={st.brand}>
         <View style={st.brandMark}><Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>IN</Text></View>
         <View>
-          <Text style={st.brandText}>IntroYu</Text>
+          <Text style={st.brandText}>IntroU</Text>
           <Text style={st.brandSub}>Control Centre</Text>
         </View>
       </View>

@@ -12,7 +12,7 @@ type Props = {
   testID?: string;
 };
 
-/** Small status badge, e.g. "Verified by IntroYu". */
+/** Small status badge, e.g. "Verified by IntroU". */
 export default function StatusBadge({ label, icon, color = colors.teal, bg = colors.tealSoft, style, testID }: Props) {
   return (
     <View style={[styles.badge, { backgroundColor: bg }, style]} testID={testID}>
