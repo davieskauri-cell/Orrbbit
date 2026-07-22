@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { LogoMark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 import { colors, spacing } from "@/src/theme";
@@ -11,6 +11,11 @@ export default function Index() {
     return (
       <View style={styles.center} testID="app-loading">
         <LogoMark size={64} />
+        <Text style={styles.brand}>
+          <Text style={{ color: colors.text }}>Intro</Text>
+          <Text style={{ color: colors.teal }}>Yu</Text>
+        </Text>
+        <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
         <ActivityIndicator color={colors.teal} size="small" style={{ marginTop: spacing.xl }} />
       </View>
     );
@@ -23,4 +28,6 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
+  brand: { fontSize: 26, fontWeight: "800", letterSpacing: 0.3, marginTop: spacing.lg },
+  tagline: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
 });

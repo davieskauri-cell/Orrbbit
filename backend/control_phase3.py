@@ -1,4 +1,4 @@
-"""INTRO Control Centre — Phase 3 modules.
+"""IntroYu Control Centre — Phase 3 modules.
 
 Marketing, Content Management, Categories, Subscriptions & Payments (integration-ready,
 provider-agnostic, NO fake LIVE financial data), Database Viewer, AI Insights
@@ -217,8 +217,8 @@ async def add_category(body: CategoryIn, request: Request, admin: dict = Depends
 # ============================ SUBSCRIPTIONS & PAYMENTS ============================
 PLANS = [
     {"key": "free", "name": "Free", "price": None, "features": ["50m radius", "Core radar"]},
-    {"key": "intro_plus", "name": "Intro Plus", "price": None, "features": ["100m radius", "Priority pings"]},
-    {"key": "intro_professional", "name": "Intro Professional", "price": None, "features": ["500m radius", "Professional tools", "Verified badge priority"]},
+    {"key": "intro_plus", "name": "IntroYu Plus", "price": None, "features": ["100m radius", "Priority pings"]},
+    {"key": "intro_professional", "name": "IntroYu Professional", "price": None, "features": ["500m radius", "Professional tools", "Verified badge priority"]},
 ]
 WEBHOOK_EVENTS = ["subscription.created", "subscription.renewed", "subscription.upgraded", "subscription.downgraded",
                   "subscription.cancelled", "payment.succeeded", "payment.failed", "refund.issued", "trial.started", "trial.ended"]
@@ -297,7 +297,7 @@ async def billing_integration(admin: dict = Depends(require_perm("payments"))):
                     "supported_events": WEBHOOK_EVENTS},
         "last_successful_sync": None,
         "configuration_errors": ["No payment provider connected. The integration layer is provider-agnostic — Stripe, RevenueCat or others can be attached without rebuilding this module."],
-        "security": "Card details, security codes and payment credentials are never stored in the INTRO database. The provider remains the financial source of truth; INTRO stores only references and synced status.",
+        "security": "Card details, security codes and payment credentials are never stored in the IntroYu database. The provider remains the financial source of truth; IntroYu stores only references and synced status.",
     }
 
 
@@ -415,7 +415,7 @@ async def _run_ai(report_label: str, metrics: dict, settings: dict) -> str:
     provider = "openai" if settings.get("provider") in ("emergent", "openai") else settings.get("provider")
     chat = LlmChat(
         api_key=key, session_id=f"cc-insights-{uuid.uuid4()}",
-        system_message=("You are the analytics director for INTRO, a proximity-based social + professional networking app. "
+        system_message=("You are the analytics director for IntroYu, a proximity-based social + professional networking app. "
                         "Write concise, plain-English admin reports in markdown with short sections, bullet insights and 2-4 "
                         "actionable recommendations. Flag anomalies (spikes in reports, failed logins, verification failures). "
                         "Never invent numbers not present in the data. If payments are not configured, say so instead of estimating revenue."),
@@ -481,7 +481,7 @@ async def export_ai_insight(report_id: str, format: str = "pdf", admin: dict = D
             w.writerow([k, json.dumps(v) if isinstance(v, (list, dict)) else v])
         return Response(content=buf.getvalue(), media_type="text/csv",
                         headers={"Content-Disposition": f"attachment; filename=ai-report-{report_id[:8]}.csv"})
-    pdf = _make_pdf(f"INTRO AI Insight — {r['label']}", r["content"] + f"\n\n---\n{r['disclaimer']}\nGenerated {r['created_at']} by {r['generated_by']} ({r['mode']} mode)")
+    pdf = _make_pdf(f"IntroYu AI Insight — {r['label']}", r["content"] + f"\n\n---\n{r['disclaimer']}\nGenerated {r['created_at']} by {r['generated_by']} ({r['mode']} mode)")
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename=ai-report-{report_id[:8]}.pdf"})
 
@@ -516,7 +516,7 @@ def _rows_to_file(rows: list, columns: list, name: str, format: str) -> Response
                         headers={"Content-Disposition": f"attachment; filename={name}.xlsx"})
     if format == "pdf":
         text = "\n".join(" | ".join(str(r.get(c, "")) for c in columns) for r in rows[:200])
-        return Response(content=_make_pdf(f"INTRO Export — {name}", " | ".join(columns) + "\n" + text), media_type="application/pdf",
+        return Response(content=_make_pdf(f"IntroYu Export — {name}", " | ".join(columns) + "\n" + text), media_type="application/pdf",
                         headers={"Content-Disposition": f"attachment; filename={name}.pdf"})
     buf = io.StringIO()
     w = csv.writer(buf)
@@ -562,7 +562,7 @@ async def export_entity(entity: str, request: Request, format: str = "csv",
                    ["id", "is_demo_data", "customer", "email", "plan", "status", "billing_period", "trial", "started_at", "renews_at", "provider_ref"]
     ip, _ = _client_info(request)
     await audit(admin, "export_generated", "export", entity, new_value={"format": format, "rows": len(rows)}, ip=ip, mode=mode)
-    return _rows_to_file(rows, cols, f"intro-{entity}-{mode}", format)
+    return _rows_to_file(rows, cols, f"introyu-{entity}-{mode}", format)
 
 
 # ============================ BACKUPS ============================
@@ -602,7 +602,7 @@ async def backup_log(backup_id: str, admin: dict = Depends(require_super_admin()
     b = await db.backup_logs.find_one({"id": backup_id}, {"_id": 0})
     if not b:
         raise HTTPException(status_code=404, detail="Backup not found")
-    return Response(content=f"INTRO backup {backup_id}\nstatus: {b['status']}\npath: {b['path']}\n\n{b.get('log', '')}",
+    return Response(content=f"IntroYu backup {backup_id}\nstatus: {b['status']}\npath: {b['path']}\n\n{b.get('log', '')}",
                     media_type="text/plain", headers={"Content-Disposition": f"attachment; filename=backup-{backup_id[:8]}.log"})
 
 

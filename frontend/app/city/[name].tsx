@@ -34,7 +34,7 @@ export default function CityLandingScreen() {
     const updated = await api("/users/me/state", { method: "PUT", body: { city: name } });
     setUser(updated as any);
     await refresh();
-    showAlert(`Welcome to Intro ${name}`, "Your radar now shows people in this city.");
+    showAlert(`Welcome to IntroYu ${name}`, "Your radar now shows people in this city.");
   };
 
   return (
@@ -50,7 +50,7 @@ export default function CityLandingScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.brand}>INTRO <Text style={{ color: colors.orange }}>{String(name).toUpperCase()}</Text></Text>
+      <Text style={styles.brand}>IntroYu <Text style={{ color: colors.orange }}>{String(name).toUpperCase()}</Text></Text>
       <Text style={styles.tagline}>{STRINGS.mainMessage}</Text>
 
       {city && (
@@ -76,7 +76,7 @@ export default function CityLandingScreen() {
             </View>
           ) : (
             <Text style={styles.comingText}>
-              {"Intro hasn't launched in "}{name}{" yet. Join the waitlist and help bring real-life connections to your city."}
+              {"IntroYu hasn't launched in "}{name}{" yet. Join the waitlist and help bring real-life connections to your city."}
             </Text>
           )}
         </View>
@@ -99,7 +99,7 @@ export default function CityLandingScreen() {
       {isLive ? (
         <PrimaryButton
           testID="city-make-mine"
-          title={isMyCity ? `You're in Intro ${name}` : `Make ${name} my city`}
+          title={isMyCity ? `You're in IntroYu ${name}` : `Make ${name} my city`}
           disabled={isMyCity}
           onPress={makeMyCity}
           style={{ marginTop: spacing.xl }}

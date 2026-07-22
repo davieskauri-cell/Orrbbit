@@ -36,7 +36,7 @@ async function ensurePermission(): Promise<boolean> {
     const proceed = await new Promise<boolean>((resolve) =>
       Alert.alert(
         "Add your photos",
-        "Intro uses your gallery so you can pick profile photos people nearby will see.",
+        "IntroYu uses your gallery so you can pick profile photos people nearby will see.",
         [
           { text: "Not now", style: "cancel", onPress: () => resolve(false) },
           { text: "Continue", onPress: () => resolve(true) },

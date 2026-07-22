@@ -74,7 +74,7 @@ export default function SafetyScreen() {
     await reportUser(reportTarget.id, reason);
     setReportTarget(null);
     setMode(null);
-    showAlert("Report sent", "Thanks for keeping Intro safe. Our team will review it.");
+    showAlert("Report sent", "Thanks for keeping IntroYu safe. Our team will review it.");
   };
 
   const CARDS = [
@@ -102,7 +102,7 @@ export default function SafetyScreen() {
         <Text style={styles.title}>Safety first</Text>
       </View>
       <Text style={styles.sub}>
-        Intro is designed for real-world connection, but you are always in control.
+        IntroYu is designed for real-world connection, but you are always in control.
       </Text>
 
       {CARDS.map((c) => (

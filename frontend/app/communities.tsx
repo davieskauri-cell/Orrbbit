@@ -33,7 +33,7 @@ export default function CommunitiesScreen() {
         <Pressable testID="communities-back" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Intro Communities</Text>
+        <Text style={styles.title}>IntroYu Communities</Text>
       </View>
       <Text style={styles.sub}>Meet people nearby who share your interests.</Text>
 

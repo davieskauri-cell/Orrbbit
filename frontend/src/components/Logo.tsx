@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { colors } from "@/src/theme";
 
-// INTRO radar mark — a "you" dot sending waves to the top-right.
+// IntroYu radar mark — a "you" dot sending waves to the top-right.
 export function LogoMark({ size = 44 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
@@ -15,12 +15,13 @@ export function LogoMark({ size = 44 }: { size?: number }) {
   );
 }
 
-export default function Logo({ size = 34, wordColor }: { size?: number; wordColor?: string }) {
+export default function Logo({ size = 34 }: { size?: number }) {
   return (
     <View style={styles.row}>
       <LogoMark size={size} />
-      <Text style={[styles.word, { fontSize: size * 0.64, color: wordColor || colors.text }]}>
-        INTRO
+      <Text style={[styles.word, { fontSize: size * 0.68 }]}>
+        <Text style={{ color: colors.text }}>Intro</Text>
+        <Text style={{ color: colors.teal }}>Yu</Text>
       </Text>
     </View>
   );
@@ -28,5 +29,5 @@ export default function Logo({ size = 34, wordColor }: { size?: number; wordColo
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  word: { fontWeight: "800", letterSpacing: 1.5 },
+  word: { fontWeight: "800", letterSpacing: 0.2 },
 });

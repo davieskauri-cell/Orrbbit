@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Intro",
+    "name": "IntroYu",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#14B8A6"
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -43,7 +43,7 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F4FAF7"
+          "backgroundColor": "#FFFFFF"
         }
       ]
     ],

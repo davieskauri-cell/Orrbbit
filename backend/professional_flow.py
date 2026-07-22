@@ -1,4 +1,4 @@
-"""INTRO Professional connection flow — structured requests, sessions, messaging, reviews.
+"""IntroYu Professional connection flow — structured requests, sessions, messaging, reviews.
 
 Flow: Discover → Preview → Send Connection Request → Professional Accepts →
 Session (conversation unlocks) → Complete → Review.

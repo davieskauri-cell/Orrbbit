@@ -49,10 +49,10 @@ export default function JoinEventScreen() {
         <Pressable testID="join-event-back" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Join an Intro event</Text>
+        <Text style={styles.title}>Join an IntroYu event</Text>
       </View>
       <Text style={styles.sub}>
-        Enter an event code or scan a QR code to join a live Intro trial.
+        Enter an event code or scan a QR code to join a live IntroYu trial.
       </Text>
 
       {user?.event_name ? (

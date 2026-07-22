@@ -25,7 +25,7 @@ export default function FeedbackScreen() {
     try {
       await api("/feedback", { method: "POST", body: { spoke, experience, comments } });
       trackFeedbackSubmitted();
-      showAlert("Thank you!", "Your feedback helps us make Intro better.");
+      showAlert("Thank you!", "Your feedback helps us make IntroYu better.");
       router.replace("/(tabs)");
     } catch {
       setBusy(false);
@@ -59,7 +59,7 @@ export default function FeedbackScreen() {
     >
       <Text style={styles.title}>How did it go?</Text>
 
-      <Text style={styles.question}>Did INTRO help you start a real conversation?</Text>
+      <Text style={styles.question}>Did IntroYu help you start a real conversation?</Text>
       <Chips options={SPOKE} value={spoke} onPick={setSpoke} prefix="spoke" />
 
       <Text style={styles.question}>How was the experience?</Text>

@@ -311,3 +311,10 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Mode-aware bottom nav: Professional = Radar/Nearby/Requests/Sessions/Profile with unread badges; People = unchanged Pings/Encounters.
 - Backend: /app/backend/professional_flow.py (db.pro_requests/pro_sessions/pro_messages/pro_reviews), rate limits (5 pending/10 per hr), real rating aggregation (top_rated = ≥4.5 & ≥5 reviews), demo-only seeded reviews & sessions.
 - Tests: /app/backend/tests/test_iter25_professional_flow.py (26/26), /app/test_reports/iteration_25.json. No booking/payments (not implemented — deliberately omitted).
+
+## INTRO → IntroYu Rebrand (June 2026) ✅
+- Brand refresh only, zero UI/flow changes. All user-facing "INTRO/Intro" → "IntroYu" across frontend (app/, src/), backend (server.py, control_*.py, professional_flow.py), plans (IntroYu Plus/Pro), verified badges, Control Centre, notifications, maintenance copy, invite link (introyu.app), export filenames.
+- Two-tone wordmark: "Intro" navy + "Yu" teal (Logo.tsx, onboarding, loading screen). Tagline: "Real people. Real moments. Right nearby." (onboarding, loading, API root).
+- Assets regenerated from the radar mark (/tmp/gen_brand.py): icon.png (mark only, white), adaptive-icon.png (white bg), favicon, splash-image.png (mark + wordmark + tagline, white). app.json: name=IntroYu, splash/adaptive bg #FFFFFF; web <title>IntroYu</title> (app/+html.tsx).
+- Unchanged intentionally: slug/scheme/bundle id (com.introapp.mobile), demo emails (@intro.demo), passwords (Intro123!), DB field verified_by_intro, reviewer id "intro-admin".
+- KNOWN GOTCHA: parallel search_replace calls on the SAME file can clobber each other — do same-file edits sequentially.

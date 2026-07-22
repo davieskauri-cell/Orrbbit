@@ -27,7 +27,7 @@ export default function Exports() {
     setError('');
     try {
       const ext = format === 'xlsx' ? 'xlsx' : format;
-      await download(`/exports/${entity}?format=${format}`, `intro-${entity}-${mode}.${ext}`);
+      await download(`/exports/${entity}?format=${format}`, `introyu-${entity}-${mode}.${ext}`);
     } catch (e: any) { setError(e.message); }
     finally { setBusy(''); }
   };

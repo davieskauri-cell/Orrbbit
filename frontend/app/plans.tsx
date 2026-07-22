@@ -21,7 +21,7 @@ const PLANS = [
   },
   {
     key: "plus",
-    name: "Intro Plus",
+    name: "IntroYu Plus",
     price: "$6.99 / month",
     radius: "Up to 100m",
     tagline: "For bigger venues, events and city blocks.",
@@ -30,7 +30,7 @@ const PLANS = [
   },
   {
     key: "pro",
-    name: "Intro Pro",
+    name: "IntroYu Pro",
     price: "$12.99 / month",
     radius: "250m – 500m max",
     tagline: "For campuses, festivals, conferences and large social spaces.",
@@ -91,7 +91,7 @@ export default function PlansScreen() {
             <Ionicons name="chevron-back" size={26} color={colors.text} />
           </Pressable>
         )}
-        <Text style={styles.title}>{next === "setup" ? "Choose your Intro plan" : "Intro Plans"}</Text>
+        <Text style={styles.title}>{next === "setup" ? "Choose your IntroYu plan" : "IntroYu Plans"}</Text>
       </View>
       <Text style={styles.sub}>
         {next === "setup" ? "Pick your discovery radius to get started." : "Choose your discovery radius."}

@@ -53,7 +53,7 @@ export default function WaitlistScreen() {
         <Text style={styles.doneText}>{STRINGS.waitlistThanks}</Text>
         {ambassador && (
           <Text style={styles.doneText}>
-            {"We'll also reach out about becoming an Intro ambassador in "}{city}.
+            {"We'll also reach out about becoming an IntroYu ambassador in "}{city}.
           </Text>
         )}
         <PrimaryButton testID="waitlist-done" title="Done" onPress={() => router.back()} style={{ alignSelf: "stretch", marginTop: spacing.xl }} />
@@ -77,7 +77,7 @@ export default function WaitlistScreen() {
           <Text style={styles.title}>Join the Waitlist</Text>
         </View>
         <Text style={styles.sub}>
-          {"Intro isn't live in your city yet. Join the waitlist and be first to know when it launches near you."}
+          {"IntroYu isn't live in your city yet. Join the waitlist and be first to know when it launches near you."}
         </Text>
 
         <Text style={styles.label}>Name</Text>
@@ -92,7 +92,7 @@ export default function WaitlistScreen() {
         <View style={styles.ambRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.ambTitle}>Become an ambassador</Text>
-            <Text style={styles.ambText}>Help launch Intro in your city and host 100m social experiments.</Text>
+            <Text style={styles.ambText}>Help launch IntroYu in your city and host 100m social experiments.</Text>
           </View>
           <Switch testID="waitlist-ambassador-switch" value={ambassador} onValueChange={setAmbassador} trackColor={{ true: colors.teal }} />
         </View>

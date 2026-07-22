@@ -55,7 +55,7 @@ export default function EtiquetteScreen() {
       <View style={styles.note}>
         <Ionicons name="shield-checkmark" size={15} color={colors.orange} />
         <Text style={styles.noteText}>
-          INTRO is designed for respectful real-life introductions, not tracking.
+          IntroYu is designed for respectful real-life introductions, not tracking.
         </Text>
       </View>
 

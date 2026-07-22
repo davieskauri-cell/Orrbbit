@@ -302,7 +302,7 @@ export default function RadarScreen() {
                   onPress={() =>
                     showAlert(
                       "Why limit?",
-                      "INTRO limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
+                      "IntroYu limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
                     )
                   }
                   hitSlop={6}
@@ -371,7 +371,7 @@ export default function RadarScreen() {
               <View style={styles.emptyWrap} testID="radar-empty">
                 <Text style={styles.emptyTitle}>No one nearby right now</Text>
                 <Text style={styles.emptyText}>
-                  INTRO works best when people are close by. Try increasing your radius,
+                  IntroYu works best when people are close by. Try increasing your radius,
                   changing your vibe, or inviting people nearby.
                 </Text>
                 <View style={styles.emptyBtns}>

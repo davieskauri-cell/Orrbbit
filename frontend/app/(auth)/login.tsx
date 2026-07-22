@@ -109,7 +109,7 @@ export default function Login() {
           color={colors.teal}
           style={{ marginTop: spacing.md, borderColor: colors.teal }}
         />
-        <Text style={styles.demoHint}>No account needed — explore INTRO with realistic sample data.</Text>
+        <Text style={styles.demoHint}>No account needed — explore IntroYu with realistic sample data.</Text>
 
         <Pressable onPress={() => router.replace("/(auth)/register")} style={styles.linkRow}>
           <Text style={styles.linkText}>New here? </Text>

@@ -46,8 +46,11 @@ export default function Welcome() {
     >
       <View style={styles.center}>
         <LogoMark size={84} />
-        <Text style={styles.brand}>INTRO</Text>
-        <Text style={styles.tagline}>Real people. Real moments.</Text>
+        <Text style={styles.brand}>
+          <Text style={{ color: colors.text }}>Intro</Text>
+          <Text style={{ color: colors.teal }}>Yu</Text>
+        </Text>
+        <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
       </View>
 
       <Text style={styles.headline}>Connect with the right people nearby.</Text>
@@ -84,7 +87,7 @@ export default function Welcome() {
       </Text>
 
       <View style={styles.howCard}>
-        <Text style={styles.howTitle}>How Intro works</Text>
+        <Text style={styles.howTitle}>How IntroYu works</Text>
         {STEPS.map((s) => (
           <View key={s.text} style={styles.stepRow}>
             <View style={[styles.stepIcon, { backgroundColor: s.bg }]}>
@@ -114,7 +117,7 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
   center: { alignItems: "center", marginBottom: spacing.xxl },
-  brand: { color: colors.text, fontSize: 34, fontWeight: "800", letterSpacing: 4, marginTop: spacing.md },
+  brand: { fontSize: 34, fontWeight: "800", letterSpacing: 0.3, marginTop: spacing.md },
   tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: spacing.xs },
   headline: { ...type.title, maxWidth: 320 },
   sub: { ...type.body, marginTop: spacing.md, maxWidth: 340 },

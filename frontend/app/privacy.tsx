@@ -45,15 +45,15 @@ export default function PrivacyScreen() {
   const [busy, setBusy] = useState(false);
 
   const maxR = user?.max_radius || 50;
-  const planName = user?.plan === "pro" ? "Intro Pro" : user?.plan === "plus" ? "Intro Plus" : "Free";
+  const planName = user?.plan === "pro" ? "IntroYu Pro" : user?.plan === "plus" ? "IntroYu Plus" : "Free";
 
   const onLockedRadius = (r: number) => {
     const needsPlus = r <= 100;
     showAlert(
-      needsPlus ? "Unlock 100m with Intro Plus" : "Unlock extended discovery with Intro Pro",
+      needsPlus ? "Unlock 100m with IntroYu Plus" : "Unlock extended discovery with IntroYu Pro",
       needsPlus
         ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-        : "Intro Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+        : "IntroYu Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
       [
         { text: "Maybe later", style: "cancel" },
         { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
@@ -123,7 +123,7 @@ export default function PrivacyScreen() {
         {maxR < 500 && (
           <Pressable testID="privacy-see-plans" onPress={() => router.push("/plans")} style={styles.plansLink}>
             <Ionicons name="diamond-outline" size={13} color={colors.orange} />
-            <Text style={styles.plansLinkText}>Unlock a bigger radius with Intro Plus or Pro</Text>
+            <Text style={styles.plansLinkText}>Unlock a bigger radius with IntroYu Plus or Pro</Text>
             <Ionicons name="chevron-forward" size={13} color={colors.orange} />
           </Pressable>
         )}
