@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Dimensions, Animated as RNAnimated, PanResponder } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput, Dimensions, FlatList, Animated as RNAnimated, PanResponder } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { api } from "@/src/lib/api";
@@ -18,6 +18,7 @@ import HorizontalCategoryChipList from "@/src/components/HorizontalCategoryChipL
 import SegmentedControl from "@/src/components/SegmentedControl";
 import ProfessionalFilterSheet from "@/src/components/professional/ProfessionalFilterSheet";
 import ProfessionalPreviewSheet from "@/src/components/professional/ProfessionalPreviewSheet";
+import ProCarouselCard, { CARD_WIDTH, CARD_GAP, categoryIcon } from "@/src/components/professional/ProCarouselCard";
 import { ProFilters, getProFilters, setProFilters, activeFilterCount, proFiltersToQuery } from "@/src/state/proFilters";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
@@ -96,6 +97,13 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
   const [pendingSent, setPendingSent] = useState(0);
   const [preview, setPreview] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [quick, setQuick] = useState<{ online: boolean; availableNow: boolean; verified: boolean; topRated: boolean; category: string | null }>({
+    online: false,
+    availableNow: false,
+    verified: false,
+    topRated: false,
+    category: null,
+  });
   const active = requests.find((r) => r.status === "active" || r.status === "paused");
 
   useEffect(() => {
@@ -170,6 +178,16 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
 
   const availState = (p: any) =>
     p.active_now && p.availability === "Available now" ? "available" : !p.active_now ? "offline" : "busy";
+
+  // instant quick-filters for the nearby carousel
+  const carouselShown = shown.filter(
+    (p: any) =>
+      (!quick.online || p.active_now) &&
+      (!quick.availableNow || (p.active_now && p.availability === "Available now")) &&
+      (!quick.verified || p.verified_by_intro) &&
+      (!quick.topRated || p.top_rated) &&
+      (!quick.category || p.primary_category === quick.category)
+  );
 
   const sheetLabel = [
     `${shown.length} professional${shown.length === 1 ? "" : "s"} nearby`,
@@ -300,41 +318,63 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
           </>
         )}
 
-        <SectionHeader title="Verified professionals nearby" />
-        {shown.length === 0 && (
+        <View style={styles.nearbyHeader}>
+          <Text style={styles.nearbyTitle}>Nearby Professionals</Text>
+          <Text style={styles.nearbyCount} testID="nearby-count">
+            {carouselShown.length} professional{carouselShown.length === 1 ? "" : "s"} nearby
+          </Text>
+        </View>
+
+        {/* quick filters — instant */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.quickScroll}
+          contentContainerStyle={styles.quickRow}
+        >
+          <QuickChip testID="qf-online" icon="ellipse" iconColor={colors.success} label="Online" active={quick.online} onPress={() => setQuick({ ...quick, online: !quick.online })} />
+          <QuickChip testID="qf-available" icon="flash" iconColor={colors.warning} label="Available Now" active={quick.availableNow} onPress={() => setQuick({ ...quick, availableNow: !quick.availableNow })} />
+          <QuickChip testID="qf-verified" icon="shield-checkmark" iconColor={colors.teal} label="Verified" active={quick.verified} onPress={() => setQuick({ ...quick, verified: !quick.verified })} />
+          <QuickChip testID="qf-top-rated" icon="star" iconColor={colors.purple} label="Top Rated" active={quick.topRated} onPress={() => setQuick({ ...quick, topRated: !quick.topRated })} />
+          {categories.slice(0, 8).map((c: string) => (
+            <QuickChip
+              key={c}
+              testID={`qf-cat-${c.replace(/[^a-zA-Z0-9]+/g, "-")}`}
+              icon={categoryIcon(c)}
+              iconColor={colors.textSecondary}
+              label={c}
+              active={quick.category === c}
+              onPress={() => setQuick({ ...quick, category: quick.category === c ? null : c })}
+            />
+          ))}
+        </ScrollView>
+
+        {carouselShown.length === 0 ? (
           <View style={[styles.card, { alignItems: "center" }]} testID="no-pros-empty">
-            <Text style={styles.cardTitle}>No verified professionals found nearby</Text>
-            <Text style={[styles.cardMeta, { textAlign: "center" }]}>Try increasing your distance or selecting another category.</Text>
+            <Text style={styles.cardTitle}>No professionals match</Text>
+            <Text style={[styles.cardMeta, { textAlign: "center" }]}>Try clearing a quick filter or increasing your radius.</Text>
           </View>
+        ) : (
+          <FlatList
+            testID="pro-carousel"
+            horizontal
+            data={carouselShown}
+            keyExtractor={(p: any) => p.user_id}
+            renderItem={({ item }) => (
+              <ProCarouselCard
+                p={item}
+                onPress={() => setPreview(item)}
+                onConnect={() => router.push(`/professional/connect/${item.user_id}`)}
+              />
+            )}
+            ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
+            snapToInterval={CARD_WIDTH + CARD_GAP}
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}
+          />
         )}
-        {shown.map((p: any) => (
-          <Pressable key={p.user_id} testID={`pro-row-${p.user_id}`} style={[styles.card, shadow.card]} onPress={() => setPreview(p)}>
-            <View style={styles.proRow}>
-              <Avatar uri={p.photo_url} name={p.name} size={46} ringColor={colors.teal} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Text style={styles.proName}>{p.name}</Text>
-                  {p.top_rated && (
-                    <View style={styles.topRatedChip}>
-                      <Ionicons name="star" size={8} color="#FFF" />
-                      <Text style={styles.topRatedChipText}>Top Rated</Text>
-                    </View>
-                  )}
-                </View>
-                {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="Orrbbit Verified" />}
-                <Text style={styles.cardMeta}>{p.profession} · {p.primary_category}{p.distance != null ? ` · ${distLabel(p.distance)}` : ""}</Text>
-                <Text style={styles.ratingLine}>
-                  {p.rating != null ? `★ ${p.rating} (${p.review_count})` : "No reviews yet"}
-                </Text>
-                {!!p.specialties?.length && <Text style={styles.verCats} numberOfLines={1}>✓ {p.specialties.join(" · ")}</Text>}
-                <Text style={styles.cardMeta}>
-                  {[p.availability, p.response_time, p.years_experience ? `${p.years_experience} yrs experience` : null].filter(Boolean).join(" · ")}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-            </View>
-          </Pressable>
-        ))}
         <View style={styles.privacyNote}>
           <Ionicons name="shield-checkmark" size={14} color={colors.teal} />
           <Text style={styles.privacyText}>Approximate locations only. Exact locations are never shared.</Text>
@@ -539,6 +579,31 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
   );
 }
 
+function QuickChip({ icon, iconColor, label, active, onPress, testID }: any) {
+  return (
+    <Pressable testID={testID} style={[qcStyles.chip, active && qcStyles.chipActive]} onPress={onPress}>
+      <Ionicons name={icon} size={12} color={active ? "#FFF" : iconColor} />
+      <Text style={[qcStyles.text, active && { color: "#FFF" }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const qcStyles = StyleSheet.create({
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    minHeight: 40,
+  },
+  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  text: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
+});
+
 function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, setRefreshing }: any) {
   const [expanded, setExpanded] = useState(false);
   const H = Math.round(Dimensions.get("window").height * 0.52);
@@ -568,7 +633,7 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
       {expanded && (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.lg }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? (
@@ -590,6 +655,13 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
 const styles = StyleSheet.create({
   searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.xl, backgroundColor: colors.card, borderRadius: 999, paddingHorizontal: spacing.lg, minHeight: 44, marginBottom: spacing.md },
   topRatedChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.purple, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
+  nearbyHeader: { gap: 2, marginTop: spacing.xs },
+  nearbyTitle: { color: colors.text, fontSize: font.lg, fontWeight: "600" },
+  nearbyCount: { color: colors.textSecondary, fontSize: font.sm },
+  quickScroll: { flexGrow: 0, marginHorizontal: -spacing.lg },
+  quickRow: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  carousel: { flexGrow: 0, marginHorizontal: -spacing.lg },
+  carouselContent: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
   topRatedChipText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
   ratingLine: { color: colors.warning, fontSize: font.sm, fontWeight: "700" },
   searchInput: { flex: 1, color: colors.text, fontSize: font.base, paddingVertical: 8 },
