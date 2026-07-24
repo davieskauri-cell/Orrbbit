@@ -1,4 +1,3 @@
-import React from "react";
 import { StyleSheet, Text, TextStyle } from "react-native";
 
 // Poppins hierarchy: 700+→Bold, 600→SemiBold, 500→Medium, else Regular.
@@ -12,19 +11,28 @@ function familyFor(weight?: TextStyle["fontWeight"]): string {
 
 let applied = false;
 
-/** Apply Poppins globally by mapping each <Text> fontWeight to the matching Poppins file. */
+/**
+ * Apply Poppins globally by injecting a fontFamily into <Text> props BEFORE the
+ * original render runs — the style array then flows through the normal RN /
+ * RN-web style resolution (never touches raw DOM style, so no CSSStyleDeclaration
+ * crashes). Explicit fontFamily styles (e.g. icon fonts) are left untouched.
+ */
 export function applyGlobalFont() {
   if (applied) return;
   applied = true;
   const TextAny = Text as any;
   const origRender = TextAny.render;
   if (typeof origRender !== "function") return;
-  TextAny.render = function (...args: any[]) {
-    const el = origRender.apply(this, args);
-    if (!el) return el;
-    const flat = StyleSheet.flatten(el.props?.style) as TextStyle | undefined;
-    if (flat?.fontFamily) return el; // explicit families win
-    const fontFamily = familyFor(flat?.fontWeight);
-    return React.cloneElement(el, { style: [el.props.style, { fontFamily }] });
+  TextAny.render = function (props: any, ref: any) {
+    let nextProps = props;
+    try {
+      const flat = (StyleSheet.flatten(props?.style) || {}) as TextStyle;
+      if (!flat.fontFamily) {
+        nextProps = { ...props, style: [props?.style, { fontFamily: familyFor(flat.fontWeight) }] };
+      }
+    } catch {
+      nextProps = props;
+    }
+    return origRender.call(this, nextProps, ref);
   };
 }
