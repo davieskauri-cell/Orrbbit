@@ -95,12 +95,16 @@ export default function Login() {
           </Text>
         )}
 
+        <Pressable testID="forgot-password-link" onPress={() => router.push("/(auth)/forgot-password")} style={styles.forgotRow}>
+          <Text style={styles.forgotText}>Forgot your password?</Text>
+        </Pressable>
+
         <PrimaryButton
           testID="login-submit"
           title="Log In"
           onPress={submit}
           loading={busy}
-          style={{ marginTop: spacing.xl }}
+          style={{ marginTop: spacing.md }}
         />
         <SecondaryButton
           testID="login-demo"
@@ -109,7 +113,7 @@ export default function Login() {
           color={colors.teal}
           style={{ marginTop: spacing.md, borderColor: colors.teal }}
         />
-        <Text style={styles.demoHint}>No account needed — explore IntroU with realistic sample data.</Text>
+        <Text style={styles.demoHint}>No account needed — explore Orrbbit with realistic sample data.</Text>
 
         <Pressable onPress={() => router.replace("/(auth)/register")} style={styles.linkRow}>
           <Text style={styles.linkText}>New here? </Text>
@@ -128,6 +132,8 @@ const styles = StyleSheet.create({
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs, marginBottom: spacing.xl, textAlign: "center" },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.lg },
   demoHint: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: spacing.sm },
+  forgotRow: { alignSelf: "flex-end", paddingVertical: spacing.sm, marginTop: spacing.xs },
+  forgotText: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   linkRow: { flexDirection: "row", justifyContent: "center", marginTop: spacing.xl, paddingVertical: spacing.md },
   linkText: { color: colors.textSecondary, fontSize: font.base },
 });

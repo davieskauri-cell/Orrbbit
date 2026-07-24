@@ -249,7 +249,7 @@ async def feature_gate(flag: str):
     m = await db.feature_flags.find_one({"key": "maintenance_mode"})
     if m and m.get("enabled"):
         msg_doc = await db.app_config.find_one({"key": "maintenance_message"})
-        raise HTTPException(status_code=503, detail=(msg_doc or {}).get("value") or "IntroU is briefly down for maintenance. Please try again soon.")
+        raise HTTPException(status_code=503, detail=(msg_doc or {}).get("value") or "Orrbbit is briefly down for maintenance. Please try again soon.")
     f = await db.feature_flags.find_one({"key": flag})
     if f and f.get("enabled") is False:
         raise HTTPException(status_code=503, detail="This feature is temporarily unavailable")
@@ -404,7 +404,7 @@ def _build_radar_demo():
 RADAR_DEMO_USERS, RADAR_DEMO_DETAILS = _build_radar_demo()
 
 DEMO_ACCOUNTS = [
-    {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building IntroU and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5, "verified": True},
+    {"email": "kauri@intro.demo", "name": "Kauri", "age": 28, "vibe": "networking", "bio": "Building Orrbbit and open to meeting ambitious people nearby.", "interests": ["Business", "Startups", "Fitness", "Golf", "HR"], "photo_url": "https://randomuser.me/api/portraits/men/11.jpg", "dist": 20, "bearing": 10, "minutes_ago": 5, "verified": True},
     {"email": "james@intro.demo", "name": "James", "age": 31, "vibe": "networking", "bio": "Startup founder in fintech. Always open to meeting new people and sharing ideas.", "interests": ["Startups", "Finance", "Tech", "Investing"], "photo_url": "https://randomuser.me/api/portraits/men/32.jpg", "dist": 32, "bearing": 40, "minutes_ago": 120, "verified": True},
     {"email": "sarah@intro.demo", "name": "Sarah", "age": 24, "vibe": "need_advice", "bio": "Feeling a bit stuck in my career. Would love some guidance from someone with experience.", "interests": ["Career", "Mindset", "Life Advice"], "photo_url": "https://randomuser.me/api/portraits/women/44.jpg", "dist": 25, "bearing": 210, "minutes_ago": 3, "verified": False},
     {"email": "olivia@intro.demo", "name": "Olivia", "age": 28, "vibe": "networking", "bio": "Marketing manager who loves meeting ambitious people and sharing ideas over coffee.", "interests": ["Marketing", "Business", "Coffee"], "photo_url": "https://randomuser.me/api/portraits/women/65.jpg", "dist": 41, "bearing": 120, "minutes_ago": 90, "verified": True},
@@ -419,8 +419,8 @@ DEMO_ACCOUNTS = [
 DEMO_VIBE_DETAILS = {
     "kauri@intro.demo": {
         "intent": "Offering Career Advice", "advice_role": "Offering Advice",
-        "context": "HR professional and founder building IntroU.",
-        "background": "HR professional and founder building IntroU", "industry": "HR",
+        "context": "HR professional and founder building Orrbbit.",
+        "background": "HR professional and founder building Orrbbit", "industry": "HR",
         "experience_level": "3-5 years", "professional_identity": "Founder",
         "looking_for": ["Business contacts", "App feedback", "Early testers"],
         "can_help_with": ["HR", "Career direction", "Interviews", "Confidence", "Marketing"],
@@ -500,14 +500,14 @@ DEMO_VIBE_DETAILS = {
 # ----------------------------- Auth routes -----------------------------
 @api_router.get("/")
 async def root():
-    return {"message": "IntroU API", "tagline": "Real people. Real moments. Right nearby."}
+    return {"message": "Orrbbit API", "tagline": "Real people. Real moments. Right nearby."}
 
 
 @api_router.post("/auth/register")
 async def register(body: RegisterIn):
     await feature_gate("registration")
     if body.age < 18:
-        raise HTTPException(status_code=400, detail="You must be 18 or older to use IntroU")
+        raise HTTPException(status_code=400, detail="You must be 18 or older to use Orrbbit")
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -654,7 +654,7 @@ async def update_vibe_details(body: VibeDetailsIn, user: dict = Depends(get_curr
     if any(t in text for t in BANNED_OPPORTUNITY_TERMS):
         raise HTTPException(
             status_code=400,
-            detail="This opportunity isn't allowed on IntroU. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.",
+            detail="This opportunity isn't allowed on Orrbbit. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.",
         )
     await db.users.update_one({"id": user["id"]}, {"$set": {"vibe_details": details}})
     user = await db.users.find_one({"id": user["id"]})
@@ -1440,7 +1440,7 @@ async def dismissal_feedback(body: DismissFeedbackIn, user: dict = Depends(get_c
 
 # ----------------------------- Event codes -----------------------------
 EVENT_CODES = {
-    "INTRO100": "IntroU 100m Social",
+    "INTRO100": "Orrbbit 100m Social",
     "FOUNDERNIGHT": "Founder Night",
     "CAMPUSCHAT": "Campus Chat",
     "MELBOURNEBETA": "Melbourne Beta",
@@ -1604,7 +1604,7 @@ TRIAL_EVENT = {
     "pings_created": 28,
     "mutual_accepts": 12,
     "conversations_confirmed": 6,
-    "invite_link": "introu.app/southbank-trial",
+    "invite_link": "orrbbit.app/southbank-trial",
 }
 
 
@@ -1980,7 +1980,7 @@ class VerificationDecisionIn(BaseModel):
 def _check_banned(*texts: str):
     joined = " ".join(t or "" for t in texts).lower()
     if any(t in joined for t in BANNED_OPPORTUNITY_TERMS):
-        raise HTTPException(status_code=400, detail="This content isn't allowed on IntroU. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.")
+        raise HTTPException(status_code=400, detail="This content isn't allowed on Orrbbit. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.")
 
 
 def _hr_expires_at(expiry: str) -> str:
@@ -2913,6 +2913,10 @@ import professional_flow as _pro_flow  # noqa: E402
 _pro_flow.bind(_sys.modules[__name__])
 app.include_router(_pro_flow.pro_flow_router)
 
+import password_reset as _pwd_reset  # noqa: E402
+_pwd_reset.bind(_sys.modules[__name__])
+app.include_router(_pwd_reset.reset_router)
+
 
 @app.on_event("startup")
 async def startup_control_center():
@@ -2995,7 +2999,7 @@ async def seed_demo_accounts():
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
         doc = {
             "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
-            "bio": f"{name} is exploring IntroU in {city}.", "interests": ["Coffee", "Travel"],
+            "bio": f"{name} is exploring Orrbbit in {city}.", "interests": ["Coffee", "Travel"],
             "photo_url": f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
             "photos": [
                 f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",

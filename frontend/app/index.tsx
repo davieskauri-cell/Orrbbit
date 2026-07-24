@@ -1,6 +1,6 @@
 import { Redirect } from "expo-router";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { LogoMark, BRAND_NAVY, BRAND_TEAL } from "@/src/components/Logo";
+import { LogoMark, BRAND_NAVY } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 import { colors, spacing } from "@/src/theme";
 
@@ -12,8 +12,7 @@ export default function Index() {
       <View style={styles.center} testID="app-loading">
         <LogoMark size={64} />
         <Text style={styles.brand}>
-          <Text style={{ color: BRAND_NAVY }}>Intro</Text>
-          <Text style={{ color: BRAND_TEAL }}>U</Text>
+          <Text style={{ color: BRAND_NAVY }}>Orrbbit</Text>
         </Text>
         <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
         <ActivityIndicator color={colors.teal} size="small" style={{ marginTop: spacing.xl }} />

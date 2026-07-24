@@ -87,7 +87,7 @@ export default function Marketing() {
         <Card style={{ flexGrow: 1, flexBasis: 340, marginBottom: 0 }}>
           <SectionTitle>Referral Campaigns</SectionTitle>
           <Input placeholder="Campaign name" value={rName} onChangeText={setRName} />
-          <Input placeholder="Reward (e.g. 1 month IntroU Plus)" value={rReward} onChangeText={setRReward} style={{ marginTop: 8 }} />
+          <Input placeholder="Reward (e.g. 1 month Orrbbit Plus)" value={rReward} onChangeText={setRReward} style={{ marginTop: 8 }} />
           <View style={{ marginTop: 10, alignItems: 'flex-start' }}>
             <Btn small title="Create campaign" disabled={busy || !rName || !rReward} onPress={() => { post('/marketing/referrals', { name: rName, reward: rReward }); setRName(''); setRReward(''); }} />
           </View>

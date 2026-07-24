@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LogoMark, BRAND_NAVY, BRAND_TEAL } from "@/src/components/Logo";
+import { LogoMark, BRAND_NAVY } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font, shadow, type } from "@/src/theme";
 
@@ -47,8 +47,7 @@ export default function Welcome() {
       <View style={styles.center}>
         <LogoMark size={84} />
         <Text style={styles.brand}>
-          <Text style={{ color: BRAND_NAVY }}>Intro</Text>
-          <Text style={{ color: BRAND_TEAL }}>U</Text>
+          <Text style={{ color: BRAND_NAVY }}>Orrbbit</Text>
         </Text>
         <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
       </View>
@@ -87,7 +86,7 @@ export default function Welcome() {
       </Text>
 
       <View style={styles.howCard}>
-        <Text style={styles.howTitle}>How IntroU works</Text>
+        <Text style={styles.howTitle}>How Orrbbit works</Text>
         {STEPS.map((s) => (
           <View key={s.text} style={styles.stepRow}>
             <View style={[styles.stepIcon, { backgroundColor: s.bg }]}>

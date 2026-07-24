@@ -123,7 +123,7 @@ export default function DemoAccountsScreen() {
         <Text style={styles.title}>Demo Accounts</Text>
       </View>
       <Text style={styles.sub}>
-        Tap an account to experience IntroU from their perspective. Password for all: Intro123!
+        Tap an account to experience Orrbbit from their perspective. Password for all: Intro123!
       </Text>
 
       <View style={styles.filterBlock}>

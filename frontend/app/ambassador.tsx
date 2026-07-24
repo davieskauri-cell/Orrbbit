@@ -36,7 +36,7 @@ export default function AmbassadorScreen() {
         <Text style={styles.title}>Ambassador Hub</Text>
       </View>
       <Text style={styles.sub}>
-        Ambassadors launch IntroU city by city — inviting people, hosting 100m social
+        Ambassadors launch Orrbbit city by city — inviting people, hosting 100m social
         experiments and confirming real conversations.
       </Text>
 

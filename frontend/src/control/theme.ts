@@ -1,4 +1,4 @@
-// IntroU Control Centre design tokens — white interface, navy headings, teal highlights, orange primary
+// Orrbbit Control Centre design tokens — white interface, navy headings, teal highlights, orange primary
 export const CC = {
   bg: '#F6F8FB',
   surface: '#FFFFFF',

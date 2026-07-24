@@ -1,4 +1,4 @@
-"""IntroU Control Centre — Phase 2 modules.
+"""Orrbbit Control Centre — Phase 2 modules.
 
 Connections, Chats moderation, Radar insights, Notifications composer,
 Analytics, Feature Flags, App Config, Emergency Controls, System Health.
@@ -370,7 +370,7 @@ CONFIG_DEFS = [
     {"key": "plus_plan_radius", "label": "Plus plan max radius (m)", "default": "100"},
     {"key": "pro_plan_radius", "label": "Pro plan max radius (m)", "default": "500"},
     {"key": "min_age", "label": "Minimum registration age", "default": "18"},
-    {"key": "maintenance_message", "label": "Maintenance mode message", "default": "IntroU is briefly down for maintenance. Please try again soon."},
+    {"key": "maintenance_message", "label": "Maintenance mode message", "default": "Orrbbit is briefly down for maintenance. Please try again soon."},
 ]
 
 

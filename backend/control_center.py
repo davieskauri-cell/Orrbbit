@@ -1,4 +1,4 @@
-"""IntroU Control Centre — admin portal backend (Phase 1).
+"""Orrbbit Control Centre — admin portal backend (Phase 1).
 
 Separate admin auth domain (JWT token_type=control_access), role-based permissions,
 LIVE/DEMO data isolation, full audit logging. Mounted under /api/control.

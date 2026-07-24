@@ -33,7 +33,7 @@ export default function CampusScreen() {
         <Pressable testID="campus-back" onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>IntroU Campus</Text>
+        <Text style={styles.title}>Orrbbit Campus</Text>
       </View>
       <Text style={styles.sub}>
         See who on campus is open to coffee, study, advice, gym, networking or a chat.
@@ -65,7 +65,7 @@ export default function CampusScreen() {
       <View style={styles.note}>
         <Ionicons name="shield-checkmark" size={16} color={colors.teal} />
         <Text style={styles.noteText}>
-          IntroU only shows approximate distance and never shows exact location before mutual
+          Orrbbit only shows approximate distance and never shows exact location before mutual
           acceptance.
         </Text>
       </View>

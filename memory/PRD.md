@@ -321,3 +321,8 @@ No logic/branding changes — pure consistency polish across the mobile app.
 
 ## IntroYu → IntroU rename (June 2026) ✅
 - All "IntroYu"→"IntroU", "introyu"→"introu" across frontend/backend/app.json/+html title. Wordmark split "Intro"+"U" with brand hexes exported from Logo.tsx (BRAND_NAVY #081A35, BRAND_TEAL #16B6B0) used in Logo, onboarding, loading screen. Splash asset regenerated (/tmp script gone; see /tmp/gen_splash_introu.py pattern). App icon/mark unchanged.
+
+## IntroU → Orrbbit rebrand + Forgot Password (June 2026) ✅
+- All branding now "Orrbbit" (exact spelling): app copy, header, app.json name, web title, invite link (orrbbit.app), export filenames (orrbbit-*), backend copy. Tagline unchanged.
+- Approved orbit logo (user-uploaded PNG) used everywhere: /app/frontend/assets/images/logo.png (transparent, used by LogoMark via expo-image), icon.png, adaptive-icon.png, favicon.png, splash-image.png (logo + navy "Orrbbit" + tagline, white bg). Logo.tsx no longer uses SVG.
+- Password reset: /app/backend/password_reset.py — POST /api/auth/forgot-password (6-digit code emailed via Emergent-managed Resend, EMERGENT_EMAIL_KEY + EMAIL_FROM_NAME=Orrbbit in backend/.env, no enumeration, 3 req/hr, 15-min expiry, hashed codes) + POST /api/auth/reset-password (5 attempts max). Frontend: /(auth)/forgot-password 3-step screen; "Forgot your password?" link on login. E2E verified with delivered@resend.dev (email sent, reset worked, old password rejected). Demo accounts silently skip email.

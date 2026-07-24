@@ -45,10 +45,10 @@ export default function CitiesScreen() {
         </Pressable>
         <Text style={styles.title}>City Launch Mode</Text>
       </View>
-      <Text style={styles.bigTitle}>Launch IntroU in your city</Text>
+      <Text style={styles.bigTitle}>Launch Orrbbit in your city</Text>
       <Text style={styles.sub}>
-        IntroU works best when people nearby use it at the same time. Join or start a local
-        IntroU launch.
+        Orrbbit works best when people nearby use it at the same time. Join or start a local
+        Orrbbit launch.
       </Text>
 
       {mel && (
@@ -120,7 +120,7 @@ export default function CitiesScreen() {
       />
       <SecondaryButton
         testID="request-city"
-        title="Request IntroU in my city"
+        title="Request Orrbbit in my city"
         onPress={() => router.push("/waitlist")}
         style={{ marginTop: spacing.sm }}
       />

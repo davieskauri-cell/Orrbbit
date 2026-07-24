@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const LINK = "introu.app/southbank-trial";
+const LINK = "orrbbit.app/southbank-trial";
 
 export default function InviteScreen() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function InviteScreen() {
         <Text style={styles.title}>Invite people nearby</Text>
       </View>
       <Text style={styles.sub}>
-        IntroU works best when more people are nearby at the same time.
+        Orrbbit works best when more people are nearby at the same time.
       </Text>
 
       <View style={styles.qrWrap}>

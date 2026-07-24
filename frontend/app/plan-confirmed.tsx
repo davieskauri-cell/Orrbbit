@@ -15,11 +15,11 @@ const PLAN_COPY: Record<string, { title: string; text: string }> = {
     text: "Start exploring and meet new people nearby.",
   },
   plus: {
-    title: "You're on IntroU Plus up to 100m.",
+    title: "You're on Orrbbit Plus up to 100m.",
     text: "You can discover more people in bigger venues, events and city blocks.",
   },
   pro: {
-    title: "You're on IntroU Pro up to 500m.",
+    title: "You're on Orrbbit Pro up to 500m.",
     text: "You can use extended discovery for campuses, festivals, conferences and larger social spaces.",
   },
 };

@@ -33,12 +33,12 @@ export default function ControlLogin() {
         <View style={s.brandRow}>
           <View style={s.mark}><Text style={{ color: '#fff', fontWeight: '900' }}>IN</Text></View>
           <View>
-            <Text style={s.brand}>IntroU Control Centre</Text>
+            <Text style={s.brand}>Orrbbit Control Centre</Text>
             <Text style={s.sub}>Administrator access only</Text>
           </View>
         </View>
         <Text style={s.label}>Email</Text>
-        <Input placeholder="admin@introu.app" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+        <Input placeholder="admin@orrbbit.app" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
         <Text style={s.label}>Password</Text>
         <Input placeholder="••••••••••" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
         {error ? <Text style={s.error}>{error}</Text> : null}

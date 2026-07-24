@@ -42,7 +42,7 @@ export default function ProProfileScreen() {
 
   const badgeInfo = () =>
     showAlert(
-      "Verified by IntroU",
+      "Verified by Orrbbit",
       `• Identity verified\n• Qualification/licence reviewed\n• Profession confirmed${p.verification?.verified_at ? `\n• Verified ${new Date(p.verification.verified_at).toLocaleDateString()}` : ""}`
     );
 
@@ -70,7 +70,7 @@ export default function ProProfileScreen() {
           {p.verified_by_intro && (
             <Pressable testID="verified-badge" style={styles.badge} onPress={badgeInfo}>
               <Ionicons name="shield-checkmark" size={13} color={colors.teal} />
-              <Text style={styles.badgeText}>Verified by IntroU</Text>
+              <Text style={styles.badgeText}>Verified by Orrbbit</Text>
             </Pressable>
           )}
           <Text style={styles.profession}>{p.profession} · {p.primary_category}</Text>
@@ -105,7 +105,7 @@ export default function ProProfileScreen() {
                 Valid until {new Date(p.valid_until).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
               </Text>
             )}
-            <Text style={styles.verBy}>Verified by IntroU</Text>
+            <Text style={styles.verBy}>Verified by Orrbbit</Text>
           </View>
         )}
 

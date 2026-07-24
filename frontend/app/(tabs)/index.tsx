@@ -302,7 +302,7 @@ export default function RadarScreen() {
                   onPress={() =>
                     showAlert(
                       "Why limit?",
-                      "IntroU limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
+                      "Orrbbit limits visible people so the map stays clear, safe and relevant. Use filters to refine who you see."
                     )
                   }
                   hitSlop={6}
@@ -371,7 +371,7 @@ export default function RadarScreen() {
               <View style={styles.emptyWrap} testID="radar-empty">
                 <Text style={styles.emptyTitle}>No one nearby right now</Text>
                 <Text style={styles.emptyText}>
-                  IntroU works best when people are close by. Try increasing your radius,
+                  Orrbbit works best when people are close by. Try increasing your radius,
                   changing your vibe, or inviting people nearby.
                 </Text>
                 <View style={styles.emptyBtns}>

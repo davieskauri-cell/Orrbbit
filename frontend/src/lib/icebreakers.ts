@@ -1,13 +1,13 @@
 // Approach Confidence System — vibe-based openers shown after mutual acceptance.
 export const ICEBREAKERS: Record<string, string[]> = {
   networking: [
-    "Hey, are you {name} from IntroU?",
+    "Hey, are you {name} from Orrbbit?",
     "Looks like we both chose Networking.",
     "What are you working on at the moment?",
     "Want to chat for two minutes?",
   ],
   open_to_chat: [
-    "Hey, are you {name} from IntroU?",
+    "Hey, are you {name} from Orrbbit?",
     "I saw you were open to chat.",
     "How's your day going?",
   ],
@@ -27,12 +27,12 @@ export const ICEBREAKERS: Record<string, string[]> = {
     "No pressure, just thought I'd introduce myself.",
   ],
   gym_buddy: [
-    "Hey, are you {name} from IntroU?",
+    "Hey, are you {name} from Orrbbit?",
     "Looks like we both want a training partner.",
     "What are you training today?",
   ],
   exploring: [
-    "Hey, are you {name} from IntroU?",
+    "Hey, are you {name} from Orrbbit?",
     "Up for exploring the area together?",
     "Found anything cool around here?",
   ],

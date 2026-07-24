@@ -140,7 +140,7 @@ export default function AdminScreen() {
               ))}
             </View>
             <Text style={styles.eventSummary}>
-              “{data.trial_metrics.conversations_confirmed} conversations started through IntroU tonight.”
+              “{data.trial_metrics.conversations_confirmed} conversations started through Orrbbit tonight.”
             </Text>
           </View>
 

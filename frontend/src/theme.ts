@@ -1,4 +1,4 @@
-// IntroU brand palette — clean white, orange & teal
+// Orrbbit brand palette — clean white, orange & teal
 export const colors = {
   surface: "#FFFFFF",
   card: "#F8FAFC",

@@ -45,15 +45,15 @@ export default function PrivacyScreen() {
   const [busy, setBusy] = useState(false);
 
   const maxR = user?.max_radius || 50;
-  const planName = user?.plan === "pro" ? "IntroU Pro" : user?.plan === "plus" ? "IntroU Plus" : "Free";
+  const planName = user?.plan === "pro" ? "Orrbbit Pro" : user?.plan === "plus" ? "Orrbbit Plus" : "Free";
 
   const onLockedRadius = (r: number) => {
     const needsPlus = r <= 100;
     showAlert(
-      needsPlus ? "Unlock 100m with IntroU Plus" : "Unlock extended discovery with IntroU Pro",
+      needsPlus ? "Unlock 100m with Orrbbit Plus" : "Unlock extended discovery with Orrbbit Pro",
       needsPlus
         ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-        : "IntroU Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+        : "Orrbbit Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
       [
         { text: "Maybe later", style: "cancel" },
         { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
@@ -123,7 +123,7 @@ export default function PrivacyScreen() {
         {maxR < 500 && (
           <Pressable testID="privacy-see-plans" onPress={() => router.push("/plans")} style={styles.plansLink}>
             <Ionicons name="diamond-outline" size={13} color={colors.orange} />
-            <Text style={styles.plansLinkText}>Unlock a bigger radius with IntroU Plus or Pro</Text>
+            <Text style={styles.plansLinkText}>Unlock a bigger radius with Orrbbit Plus or Pro</Text>
             <Ionicons name="chevron-forward" size={13} color={colors.orange} />
           </Pressable>
         )}

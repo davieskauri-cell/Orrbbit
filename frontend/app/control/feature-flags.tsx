@@ -37,7 +37,7 @@ export default function FeatureFlags() {
       {error ? <Text style={{ color: CC.red, marginBottom: 8 }}>{error}</Text> : null}
       <Card style={{ backgroundColor: CC.tealSoft, borderColor: CC.teal }}>
         <Text style={{ color: CC.navy, fontSize: 13 }}>
-          Flags take effect immediately across the IntroU app — Registration, Connections and Help Requests are
+          Flags take effect immediately across the Orrbbit app — Registration, Connections and Help Requests are
           enforced server-side right now. Every change is audited. Maintenance Mode and Registration require re-authentication.
         </Text>
       </Card>

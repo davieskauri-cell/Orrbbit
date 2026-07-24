@@ -52,7 +52,7 @@ export default function ProfessionalPreviewSheet({
                 )}
               </View>
               <Text style={styles.profession}>{p.profession}</Text>
-              {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="IntroU Verified" />}
+              {p.verified_by_intro && <StatusBadge icon="shield-checkmark" label="Orrbbit Verified" />}
             </View>
           </View>
 
