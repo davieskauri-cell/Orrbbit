@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LogoMark, BRAND_NAVY } from "@/src/components/Logo";
+import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font, shadow, type } from "@/src/theme";
 
@@ -46,9 +46,9 @@ export default function Welcome() {
     >
       <View style={styles.center}>
         <LogoMark size={84} />
-        <Text style={styles.brand}>
-          <Text style={{ color: BRAND_NAVY }}>Orrbbit</Text>
-        </Text>
+        <View style={{ marginTop: spacing.md }}>
+          <Wordmark height={40} />
+        </View>
         <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
       </View>
 
@@ -116,7 +116,6 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
   center: { alignItems: "center", marginBottom: spacing.xxl },
-  brand: { fontSize: 34, fontWeight: "800", letterSpacing: 0.3, marginTop: spacing.md },
   tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: spacing.xs },
   headline: { ...type.title, maxWidth: 320 },
   sub: { ...type.body, marginTop: spacing.md, maxWidth: 340 },

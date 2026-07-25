@@ -21,10 +21,10 @@ applyGlobalFont();
 export default function RootLayout() {
   const [loaded, error] = useIconFonts();
   const [fontsLoaded] = useFonts({
-    "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
-    "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
-    "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
-    "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
+    "Quicksand-Regular": require("../assets/fonts/Quicksand-Regular.ttf"),
+    "Quicksand-Medium": require("../assets/fonts/Quicksand-Medium.ttf"),
+    "Quicksand-SemiBold": require("../assets/fonts/Quicksand-SemiBold.ttf"),
+    "Quicksand-Bold": require("../assets/fonts/Quicksand-Bold.ttf"),
   });
 
   useEffect(() => {
