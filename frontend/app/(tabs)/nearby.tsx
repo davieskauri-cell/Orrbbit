@@ -8,7 +8,6 @@ import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/context/AuthContext";
 import UserRow from "@/src/components/UserRow";
 import EmptyState from "@/src/components/EmptyState";
-import BrandHeader from "@/src/components/BrandHeader";
 import { colors, spacing, font } from "@/src/theme";
 
 const FILTERS = [
@@ -78,7 +77,6 @@ export default function NearbyScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
-      <BrandHeader />
       <Text style={styles.title}>Nearby</Text>
       <Text style={styles.sub}>
         {nearby.length >= 100
@@ -225,7 +223,6 @@ function ProfessionalNearby({ role, coords, insetsTop }: { role?: string | null;
 
   return (
     <View style={[styles.container, { paddingTop: insetsTop + spacing.sm }]}>
-      <BrandHeader />
       <Text style={styles.title}>Nearby</Text>
       <Text style={styles.sub}>{canHelp ? "Help requests matching your verified categories" : "Verified professionals near you"}</Text>
       <FlatList

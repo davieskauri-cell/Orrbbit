@@ -9,7 +9,6 @@ import { api } from "@/src/lib/api";
 import { showAlert } from "@/src/lib/alert";
 import { useTestMode } from "@/src/lib/testMode";
 import Avatar from "@/src/components/Avatar";
-import BrandHeader from "@/src/components/BrandHeader";
 import VibePill from "@/src/components/VibePill";
 import DemoEnvironmentCard from "@/src/components/DemoEnvironmentCard";
 import InterestChip from "@/src/components/InterestChip";
@@ -117,7 +116,6 @@ export default function ProfileScreen() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: spacing.xxxl }}
       showsVerticalScrollIndicator={false}
     >
-      <BrandHeader />
       <Text style={styles.title}>Profile</Text>
 
       <View style={[styles.card, shadow.card]}>

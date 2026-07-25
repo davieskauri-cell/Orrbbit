@@ -31,14 +31,16 @@ export function Wordmark({ height = 24 }: { height?: number }) {
   );
 }
 
+// Full brand lockup: orbit icon + "Orrbbit" wordmark (radar page header).
 export default function Logo({ size = 34 }: { size?: number }) {
   return (
     <View style={styles.row}>
+      <LogoMark size={size * 1.15} />
       <Wordmark height={size * 0.72} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center" },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

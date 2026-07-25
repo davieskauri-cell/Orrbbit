@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
 import EmptyState from "@/src/components/EmptyState";
-import BrandHeader from "@/src/components/BrandHeader";
 import SessionCard from "@/src/components/professional/SessionCard";
 import { colors, spacing, font } from "@/src/theme";
 
@@ -33,7 +32,6 @@ export default function SessionsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID="pro-sessions-screen">
-      <BrandHeader />
       <Text style={styles.h1}>Sessions</Text>
       <Text style={styles.sub}>Conversations unlock here after a professional accepts a request.</Text>
       <ScrollView

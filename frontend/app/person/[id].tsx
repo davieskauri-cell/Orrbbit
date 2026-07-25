@@ -13,7 +13,6 @@ import { trackProfileView, trackMatchCreated } from "@/src/services/analyticsSer
 import { api } from "@/src/lib/api";
 import { distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
-import { Wordmark } from "@/src/components/Logo";
 import VibePill from "@/src/components/VibePill";
 import VibeDetailsCard from "@/src/components/VibeDetailsCard";
 import InterestChip from "@/src/components/InterestChip";
@@ -129,9 +128,6 @@ export default function PersonPreview() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.brandBar, { paddingTop: insets.top + spacing.sm }]}>
-        <Wordmark height={22} />
-      </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={styles.photoWrap}>
           {user.photo_url ? (
@@ -144,7 +140,7 @@ export default function PersonPreview() {
           <Pressable
             testID="person-close"
             onPress={() => router.back()}
-            style={[styles.close, { top: spacing.md }]}
+            style={[styles.close, { top: insets.top + spacing.sm }]}
           >
             <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
@@ -272,7 +268,6 @@ export default function PersonPreview() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  brandBar: { paddingHorizontal: spacing.xl, paddingBottom: spacing.sm, backgroundColor: colors.surface },
   photoWrap: { width: "100%", height: 360 },
   photo: { width: "100%", height: "100%" },
   photoFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.card },

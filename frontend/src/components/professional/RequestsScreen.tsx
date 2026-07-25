@@ -6,7 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/lib/api";
 import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
-import BrandHeader from "@/src/components/BrandHeader";
 import EmptyState from "@/src/components/EmptyState";
 import ProfessionalRequestCard from "@/src/components/professional/ProfessionalRequestCard";
 import { timeAgo } from "@/src/lib/format";
@@ -68,7 +67,6 @@ export default function RequestsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID="pro-requests-screen">
-      <BrandHeader />
       <Text style={styles.h1}>Requests</Text>
       <Text style={styles.sub}>Structured connection requests. Messaging unlocks only after acceptance.</Text>
       <ScrollView

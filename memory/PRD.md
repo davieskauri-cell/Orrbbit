@@ -341,3 +341,7 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Full Professional flow re-verified: Explore Demo → Professional → I Need Help → sheet expand → nearby-count + qf-* chips (counter reactivity 13→9→7→1) → pro-carousel → PreviewSheet → connect form. BrandHeader visible on all 5 tabs. Forgot-password nav clean.
 - ROUTE MAP NOTE: /requests and /sessions are NOT top-level routes — they are the /pings and /encounters tabs relabelled when appMode=professional ((tabs)/_layout.tsx). Bare URLs 404 correctly; do not treat as a bug.
 - Optional backlog: ProfessionalHome.tsx is 728 lines (advisory limit 700) — extract CanHelp branch + QuickChip/MapSheet helpers when convenient.
+
+## BrandHeader revert + radar lockup (June 2026) ✅
+- User reverted "logo on every page": BrandHeader.tsx deleted, all injections removed (pings/profile/encounters/nearby/RequestsScreen/SessionsScreen/person/pro-profile restored to pre-BrandHeader state via git checkout of commit 2a33338~1).
+- Radar page ((tabs)/index.tsx) header now shows full brand lockup: orbit LogoMark + Orrbbit wordmark side by side (Logo.tsx default export updated), matching original INTRO-era header layout (icon + name + DEMO badge + settings gear).

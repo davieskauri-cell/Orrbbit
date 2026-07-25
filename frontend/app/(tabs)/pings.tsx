@@ -8,7 +8,6 @@ import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
-import BrandHeader from "@/src/components/BrandHeader";
 import RequestsScreen from "@/src/components/professional/RequestsScreen";
 import { colors, spacing, radius, font } from "@/src/theme";
 
@@ -98,7 +97,6 @@ function PeoplePingsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
-      <BrandHeader />
       <Text style={styles.title}>Pings</Text>
       <ScrollView
         contentContainerStyle={styles.body}
