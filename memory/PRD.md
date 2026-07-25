@@ -335,3 +335,9 @@ No logic/branding changes — pure consistency polish across the mobile app.
 ## Wordmark logo + Quicksand font (June 2026) ✅
 - User-uploaded "Orrbbit" wordmark (navy, teal dot on i) saved as /app/frontend/assets/images/wordmark.png (transparent, 490x110). Logo component now renders the wordmark image (Wordmark export, ratio 4.45). LogoMark = orbit icon still used on onboarding/loading/forgot screens + app icon.
 - Global font switched Poppins → Quicksand (4 static TTFs in assets/fonts from gstatic) matching the wordmark's rounded style; same weight-mapping patch in global-font.ts. Splash regenerated: orbit icon + wordmark image + tagline.
+
+## Iteration 25 Regression Re-Verification (June 2026) ✅
+- Re-tested via testing_agent (iteration_26.json): both critical regressions from iteration_25 CONFIRMED FIXED — 0 CSSStyleDeclaration errors on all routes (/pings, /encounters, /profile, /nearby, /, /person/*, /forgot-password, Professional Requests/Sessions views); Quicksand computed fontFamily verified on web (Bold/SemiBold/Regular per weight).
+- Full Professional flow re-verified: Explore Demo → Professional → I Need Help → sheet expand → nearby-count + qf-* chips (counter reactivity 13→9→7→1) → pro-carousel → PreviewSheet → connect form. BrandHeader visible on all 5 tabs. Forgot-password nav clean.
+- ROUTE MAP NOTE: /requests and /sessions are NOT top-level routes — they are the /pings and /encounters tabs relabelled when appMode=professional ((tabs)/_layout.tsx). Bare URLs 404 correctly; do not treat as a bug.
+- Optional backlog: ProfessionalHome.tsx is 728 lines (advisory limit 700) — extract CanHelp branch + QuickChip/MapSheet helpers when convenient.
