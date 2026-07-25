@@ -8,6 +8,7 @@ import { showAlert } from "@/src/lib/alert";
 import { requestConnection } from "@/src/services/matchingService";
 import { distLabel } from "@/src/lib/format";
 import Avatar from "@/src/components/Avatar";
+import { Wordmark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
@@ -61,9 +62,13 @@ export default function ProProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: 140, paddingHorizontal: spacing.xl }} testID="pro-profile-screen">
-        <Pressable testID="pp-back" onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </Pressable>
+        <View style={styles.brandRow}>
+          <Pressable testID="pp-back" onPress={() => router.back()} hitSlop={10}>
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          </Pressable>
+          <Wordmark height={22} />
+          <View style={{ width: 26 }} />
+        </View>
         <View style={styles.hero}>
           <Avatar uri={p.photo_url} name={p.name} size={72} ringColor={p.verified_by_intro ? colors.teal : colors.border} />
           <Text style={styles.name}>{p.name}</Text>
@@ -143,6 +148,7 @@ export default function ProProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
+  brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
   hero: { alignItems: "center", gap: 6, marginTop: spacing.md },
   name: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
   badge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 4, minHeight: 28 },

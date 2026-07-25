@@ -9,6 +9,7 @@ import Avatar from "@/src/components/Avatar";
 import VibePill from "@/src/components/VibePill";
 import EmptyState from "@/src/components/EmptyState";
 import SegmentedControl from "@/src/components/SegmentedControl";
+import BrandHeader from "@/src/components/BrandHeader";
 import SessionsScreen from "@/src/components/professional/SessionsScreen";
 import { colors, spacing, font } from "@/src/theme";
 
@@ -51,6 +52,7 @@ function PeopleEncountersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]}>
+      <BrandHeader />
       <Text style={styles.title}>Encounters</Text>
       <SegmentedControl
         options={[
