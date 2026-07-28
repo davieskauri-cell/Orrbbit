@@ -1,4 +1,4 @@
-"""Orrbbit password reset — email a 6-digit code via Emergent-managed Resend, then set a new password.
+"""Orrbbit password reset — email a 6-digit code via Resend, then set a new password.
 
 Security: no user enumeration (always returns ok), 15-min code expiry, hashed codes,
 max 5 verify attempts, rate limiting per email. Mounted from server.py.
@@ -16,8 +16,7 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 reset_router = APIRouter(prefix="/api/auth")
 
-# Emergent managed email proxy — constant by design (survives deployment).
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+RESEND_API_URL = "https://api.resend.com/emails"
 
 CODE_TTL_MIN = 15
 MAX_ATTEMPTS = 5
@@ -44,6 +43,7 @@ def _reset_email_html(code: str) -> str:
             <div style="display:inline-block;background:#E9F8F7;color:#0F766E;font-size:30px;font-weight:bold;letter-spacing:8px;padding:14px 26px;border-radius:10px;">{code}</div>
           </td></tr>
           <tr><td style="font-size:12px;color:#9CA3AF;line-height:18px;">If you didn't request this, you can safely ignore this email — your password won't change.</td></tr>
+          <tr><td style="font-size:12px;color:#9CA3AF;line-height:18px;padding-top:14px;border-top:1px solid #F3F4F6;">Need help? Contact <a href="mailto:{os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")}" style="color:#16B6B0;">{os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")}</a> · <a href="{os.environ.get("APP_URL", "https://orrbbit.com")}" style="color:#16B6B0;">orrbbit.com</a></td></tr>
         </table>
       </td></tr>
     </table>
@@ -51,16 +51,18 @@ def _reset_email_html(code: str) -> str:
 
 
 async def _send_reset_email(to_email: str, code: str):
+    from_email = os.environ["FROM_EMAIL"]
+    from_name = os.environ.get("FROM_NAME", "ORRBBIT")
     payload = {
+        "from": f"{from_name} <{from_email}>",
         "to": [to_email],
         "subject": "Reset your Orrbbit password",
         "html": _reset_email_html(code),
-        "from_name": os.environ["EMAIL_FROM_NAME"],
     }
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
-            f"{EMAIL_BASE_URL}/api/v1/email/send",
-            headers={"X-Email-Key": os.environ["EMERGENT_EMAIL_KEY"]},
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {os.environ['RESEND_API_KEY']}"},
             json=payload,
         )
     resp.raise_for_status()

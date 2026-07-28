@@ -345,3 +345,9 @@ No logic/branding changes — pure consistency polish across the mobile app.
 ## BrandHeader revert + radar lockup (June 2026) ✅
 - User reverted "logo on every page": BrandHeader.tsx deleted, all injections removed (pings/profile/encounters/nearby/RequestsScreen/SessionsScreen/person/pro-profile restored to pre-BrandHeader state via git checkout of commit 2a33338~1).
 - Radar page ((tabs)/index.tsx) header now shows full brand lockup: orbit LogoMark + Orrbbit wordmark side by side (Logo.tsx default export updated), matching original INTRO-era header layout (icon + name + DEMO badge + settings gear).
+
+## Custom Resend secrets (June 2026) ✅
+- backend/.env now has user-provided: RESEND_API_KEY, FROM_EMAIL=hello@orrbbit.com, FROM_NAME=ORRBBIT, APP_URL=https://orrbbit.com, SUPPORT_EMAIL=support@orrbbit.com.
+- password_reset.py switched from Emergent email proxy to direct Resend API (https://api.resend.com/emails, Bearer key, from "ORRBBIT <hello@orrbbit.com>"); email footer now includes SUPPORT_EMAIL + APP_URL links.
+- API key verified valid, BUT Resend returns 403: "orrbbit.com domain is not verified" — user must add/verify DNS records at https://resend.com/domains before reset emails deliver. Endpoint still returns generic ok (no enumeration) and logs the failure.
+- Legacy EMERGENT_EMAIL_KEY/EMAIL_FROM_NAME left in .env but no longer referenced in code.
