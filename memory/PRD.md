@@ -371,3 +371,10 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - email_scheduler.run_cycle now takes a Mongo lease (config key email_scheduler_lease) → no duplicate cycles across multiple backend instances; idempotency keys remain second safety layer.
 - testing_agent iteration_27.json: 7/7 pass, 403 gone, scheduler healthy, 56 templates, demo accounts still email-free.
 - PUBLIC_BASE_URL=preview URL locally; user must set PUBLIC_BASE_URL as a deployment secret (production backend origin) when publishing. If user later verifies apex orrbbit.com in Resend, FROM_EMAIL can revert to hello@orrbbit.com.
+
+## Email sender change + official logo in shared layout (June 2026) ✅
+- FROM_EMAIL=notifications@updates.orrbbit.com (env-only, no hardcoding). Live sender: "ORRBBIT <notifications@updates.orrbbit.com>", reply-to support@orrbbit.com. Domain unchanged (updates.orrbbit.com).
+- Official uploaded logo (teal orbit + orange centre + navy wordmark) saved as permanent asset /app/backend/static/email-assets/orrbbit-logo.png (420px retina, 49KB), served at GET /api/email-assets/{file} (immutable cache, traversal-safe). URL built from PUBLIC_BASE_URL, override via EMAIL_LOGO_URL env (preferred later: https://orrbbit.com/email-assets/orrbbit-logo.png).
+- render_layout() header: text wordmark replaced by <img> (max-width 210px, alt="ORRBBIT", links to APP_URL, block, left-aligned) — all 56 templates inherit. Plain-text header now "ORRBBIT".
+- LIVE VERIFIED to owner inbox: verify_email, welcome, password_reset, pro_approved, help_request_received, booking_confirmed — all delivered, new sender, logo present, no dup wordmark, no localhost/preview leaks beyond PUBLIC_BASE_URL asset link. testing_agent iteration_28: 19/19 pass incl. path traversal + API key non-exposure.
+- Note: preview-domain ingress strips the immutable Cache-Control on assets (origin header correct); confirm on production ingress.
