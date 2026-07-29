@@ -129,11 +129,12 @@ class EmailService:
             if idem and await self.db.email_events.find_one(
                     {"idempotency_key": idem, "status": {"$in": ["sent", "queued"]}}):
                 return {"status": "skipped", "reason": "duplicate (idempotency)"}
-            # cooldown
+            # cooldown (counts failed attempts too, so transient failures can't spam)
             if tpl["cooldown_min"]:
                 since = _iso(_now() - timedelta(minutes=tpl["cooldown_min"]))
                 if await self.db.email_events.find_one(
-                        {"template": key, "to_email": email, "status": "sent", "created_at": {"$gte": since}}):
+                        {"template": key, "to_email": email, "status": {"$in": ["sent", "failed"]},
+                         "created_at": {"$gte": since}}):
                     return {"status": "skipped", "reason": "cooldown active"}
             # rate limit (optional emails only)
             if tpl["category"]:

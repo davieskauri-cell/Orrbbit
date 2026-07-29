@@ -164,10 +164,43 @@ async def remove_suppression(email: str, request: Request, admin: dict = Depends
 
 
 # ------------------------------------------------ Resend webhook (bounces/complaints/delivery)
+import base64
+import hashlib
+import hmac as _hmac
+import os as _os
+
+RESEND_WEBHOOK_SECRET = _os.environ.get("RESEND_WEBHOOK_SECRET", "")
+
+
+def _verify_svix_signature(secret: str, raw_body: bytes, headers) -> bool:
+    """Verify Resend (svix) webhook signature: HMAC-SHA256 of '{id}.{timestamp}.{body}'."""
+    try:
+        msg_id = headers.get("svix-id", "")
+        timestamp = headers.get("svix-timestamp", "")
+        signatures = headers.get("svix-signature", "")
+        if not (msg_id and timestamp and signatures):
+            return False
+        key = base64.b64decode(secret.split("_", 1)[1] if secret.startswith("whsec_") else secret)
+        signed = f"{msg_id}.{timestamp}.{raw_body.decode()}".encode()
+        expected = base64.b64encode(_hmac.new(key, signed, hashlib.sha256).digest()).decode()
+        return any(_hmac.compare_digest(expected, s.split(",", 1)[-1]) for s in signatures.split(" "))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 @resend_webhook_router.post("/resend")
-async def resend_webhook(payload: dict):
+async def resend_webhook(request: Request):
     """Resend event webhook. Handles delivered / bounced / complained.
-    Configure in Resend dashboard → Webhooks → point at this endpoint."""
+    Configure in Resend dashboard → Webhooks; set RESEND_WEBHOOK_SECRET in backend/.env
+    (whsec_...) to enforce signature verification."""
+    raw = await request.body()
+    if RESEND_WEBHOOK_SECRET and not _verify_svix_signature(RESEND_WEBHOOK_SECRET, raw, request.headers):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    import json as _json
+    try:
+        payload = _json.loads(raw or b"{}")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
     etype = str(payload.get("type", ""))
     data = payload.get("data") or {}
     emails = data.get("to") or []
