@@ -364,3 +364,10 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Dormant templates (registered, no trigger yet — by design): email change, account_deletion_requested, booking_confirmed/rescheduled, missed_session, appeal_received/outcome, support_reply/resolved, privacy_security_notice, engagement set.
 - TESTED: iteration_26.json — backend 25/25 pass, frontend 100% (prefs screen + all 3 admin tabs). Tests: /app/backend/tests/test_iter26_email_system.py.
 - ⚠️ BLOCKER FOR DELIVERY: orrbbit.com still unverified in Resend → all sends fail HTTP 403 (events logged as failed). User must verify DNS at resend.com/domains; system works automatically after.
+
+## Live Resend Production Verification (June 2026) ✅
+- ROOT CAUSE of persistent 403: verified Resend domain is the SUBDOMAIN updates.orrbbit.com (apex orrbbit.com NOT verified in workspace). Config fix: FROM_EMAIL=hello@updates.orrbbit.com in backend/.env. Sender = "ORRBBIT <hello@updates.orrbbit.com>", reply-to support@orrbbit.com, APP_URL unchanged (https://orrbbit.com).
+- LIVE VERIFIED (owner inbox k97davies@icloud.com): welcome (test + signup, exactly 1 from signup), verify_email (+ link completes → email_verified), password_reset (+ full reset), password_changed, unsubscribe link (marketing pref flipped), pro_approved, help_request_received, booking_confirmed — ALL Resend last_event=delivered. Owner app account created: k97davies@icloud.com / OwnerLive2026#2 (in test_credentials.md).
+- email_scheduler.run_cycle now takes a Mongo lease (config key email_scheduler_lease) → no duplicate cycles across multiple backend instances; idempotency keys remain second safety layer.
+- testing_agent iteration_27.json: 7/7 pass, 403 gone, scheduler healthy, 56 templates, demo accounts still email-free.
+- PUBLIC_BASE_URL=preview URL locally; user must set PUBLIC_BASE_URL as a deployment secret (production backend origin) when publishing. If user later verifies apex orrbbit.com in Resend, FROM_EMAIL can revert to hello@orrbbit.com.
