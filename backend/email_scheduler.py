@@ -133,7 +133,29 @@ async def process_credential_expiry(db, svc):
                        idempotency_key=f"credential_expired:{sub['id']}")
 
 
+async def _acquire_lease(db) -> bool:
+    """Cross-instance lease so only one backend runs a cycle at a time.
+    (Duplicate emails are additionally prevented by EmailService idempotency keys.)"""
+    now = _now()
+    res = await db.config.update_one(
+        {"key": "email_scheduler_lease",
+         "$or": [{"lease_until": {"$lt": _iso(now)}}, {"lease_until": None}]},
+        {"$set": {"lease_until": _iso(now + timedelta(seconds=CYCLE_SECONDS - 30))}},
+    )
+    if res.modified_count:
+        return True
+    if not await db.config.find_one({"key": "email_scheduler_lease"}):
+        await db.config.update_one(
+            {"key": "email_scheduler_lease"},
+            {"$setOnInsert": {"lease_until": _iso(now + timedelta(seconds=CYCLE_SECONDS - 30))}},
+            upsert=True)
+        return True
+    return False
+
+
 async def run_cycle(db, svc):
+    if not await _acquire_lease(db):
+        return  # another instance holds the lease
     for job in (process_unread_messages, process_unread_requests,
                 process_session_reminders, process_credential_expiry):
         try:

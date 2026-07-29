@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 27 (backend-only) — Independent verification of the Resend 403 fix. FROM_EMAIL was corrected from hello@orrbbit.com (apex, unverified) to hello@updates.orrbbit.com (verified subdomain). Ran 7/7 pytest cases in /app/backend/tests/test_iter26b_resend_fix.py — all PASS. Sent exactly 4 live emails (budget respected): control test-send welcome→delivered@resend.dev (status=sent, resend_id=250526e5), register TEST_livemail_30be19eb@gmail.com triggered verify_email (resend_id=bd35d4a2) + welcome (resend_id=98e15117), forgot-password triggered password_reset (resend_id=70b0e788). All 4 status='sent'. GET /api/control/email/stats now shows counts.sent=12, failed=4 (the 4 failed rows are all pre-fix 04:15–04:17 UTC — none new). scheduler_last_run=2026-07-29T13:58:38+00:00 (very recent — Mongo lease lock did NOT break the scheduler after restart). Regression: /api/control/email/templates returns 56 templates, POST /api/auth/demo-login works, demo kauri@intro.demo produces zero email events. NO 403 failures observed in this run. The 403 bug is confirmed fixed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [], "react_native_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter26b_resend_fix.py",
+    "/app/test_reports/pytest/pytest_iter26b.xml"
+  ],
+  "action_items": [
+    "Optional cleanup: prune TEST_livemail_30be19eb@gmail.com user + related db.email_events / db.users / db.password_resets rows after audit window.",
+    "Optional: consider aging out or archiving the 4 historical failed rows (04:15–04:17 UTC 2026-07-29) so the Control Centre Failures & Bounces tab no longer shows the pre-fix 403 noise.",
+    "Pre-existing note from iter26 still stands (not re-verified here): POST /api/webhooks/resend is unauthenticated — recommend Resend signing-secret verification before production."
+  ],
+  "critical_code_review_comments": [
+    "backend/.env FROM_EMAIL=hello@updates.orrbbit.com, FROM_NAME=ORRBBIT — matches the verified Resend subdomain. Reply-to (support@orrbbit.com) still on the apex is fine for Resend (reply-to isn't domain-verified).",
+    "email_scheduler.py now uses a Mongo lease lock in run_cycle so multi-instance deployments won't double-fire scheduled sends. Verified in-band: scheduler_last_run updated 13:58 UTC after backend restart, no dead lock symptoms.",
+    "control test-send correctly persists status='sent' + resend_id — no code changes needed there."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter26b_resend_fix.py (new — 7 focused tests for the fix)"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "1 real user created: TEST_livemail_30be19eb@gmail.com (register flow, produced verify_email + welcome + password_reset live sends). No other TEST_ rows created in this iteration.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Resend live send path is HEALTHY as of 2026-07-29T14:02 UTC. To re-verify quickly, hit POST /api/control/email/templates/welcome/test with {to_email:'delivered@resend.dev'} using QA admin (qa-admin@intro.control / QaControl!2026x) and assert status='sent' + resend_id present. Historical failures (4 rows) live in db.email_events dated 04:15–04:17 UTC 2026-07-29 — expected, do not treat as regressions.",
+  "rca_of_issue": "N/A — the 403 fix (FROM_EMAIL=hello@updates.orrbbit.com) is verified working end-to-end. No new critical issues found."
+}
