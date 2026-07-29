@@ -21,15 +21,13 @@ from pydantic import BaseModel
 
 from email_templates import (
     TEMPLATES, PREF_CATEGORIES, PREF_DEFAULTS, build_email, code_box, APP_URL, SUPPORT_EMAIL,
+    PUBLIC_BASE_URL,
 )
 
 logger = logging.getLogger(__name__)
 
 RESEND_URL = "https://api.resend.com/emails"
 JWT_SECRET = os.environ["JWT_SECRET"]
-# Base for backend-served links (unsubscribe/verify). Falls back to APP_URL once
-# the orrbbit.com domain points at the deployed app.
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", APP_URL).rstrip("/")
 RATE_LIMIT_PER_HOUR = 10          # optional emails per recipient per hour
 SUPPRESSION_BOUNCE_THRESHOLD = 2  # hard bounces before suppression
 
@@ -233,6 +231,21 @@ def fire(coro):
 # User-facing routes: preferences, unsubscribe, email verification
 # =====================================================================
 email_user_router = APIRouter(prefix="/api")
+
+_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "static", "email-assets")
+
+
+@email_user_router.get("/email-assets/{filename}")
+async def email_asset(filename: str):
+    """Permanent public email assets (logo etc.). No path traversal, long cache."""
+    from fastapi.responses import FileResponse
+    safe = os.path.basename(filename)
+    path = os.path.join(_ASSETS_DIR, safe)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Asset not found")
+    return FileResponse(path, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
 
 _PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Orrbbit</title></head><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#F6F7F9;margin:0;padding:48px 16px;">

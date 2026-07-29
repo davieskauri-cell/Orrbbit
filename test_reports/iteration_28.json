@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 27 — Orrbbit transactional email sender + shared-layout logo — all 19 backend tests PASS. Verified: logo asset served correctly (200, image/png, 50351 bytes) with immutable Cache-Control at the origin; path traversal blocked (encoded and plain); shared email layout in all 3 spot-checked templates (welcome, password_reset, pro_approved) contains /api/email-assets/orrbbit-logo.png + alt=\"ORRBBIT\", NO old 'Orrbb<span' wordmark, plain-text starts with 'ORRBBIT'; ONE live send to delivered+iter27_<uuid>@resend.dev via /api/control/email/templates/welcome/test succeeded with resend_id, and Resend API cross-check confirms from='ORRBBIT <notifications@updates.orrbbit.com>', reply_to=['support@orrbbit.com'], html contains logo URL; fresh user registration logs BOTH verify_email + welcome events as status=sent; /api/control/email/templates returns 56 templates; demo-login works; /api/users/me/email-preferences works; RESEND_API_KEY 're_V4' snippet never appears in /email/stats, /email/events, template previews, or a failed-send response body. Live sends kept to minimum (1 explicit + 2 from a single fresh registration, all to Resend's delivered@resend.dev test address).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/email-assets/orrbbit-logo.png",
+        "issue": "Backend correctly emits Cache-Control: public, max-age=31536000, immutable (verified via localhost:8001) but the Cloudflare/K8s ingress rewrites it to 'no-store, no-cache, must-revalidate' on the preview domain. Not an app bug — mail clients typically hit the deployed backend URL (PUBLIC_BASE_URL/orrbbit.com) directly, where CF cache rules may differ. Worth confirming the header passes through in the production ingress so email clients cache the logo aggressively."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter27_email_logo.py",
+    "/app/test_reports/pytest/pytest_iter27.xml"
+  ],
+  "action_items": [
+    "(Optional) Confirm the production ingress preserves the app-level Cache-Control: public, max-age=31536000, immutable header on /api/email-assets/*; the preview ingress rewrites it to no-store which would defeat mail-client caching."
+  ],
+  "critical_code_review_comments": [
+    "email_service.EmailService.email_asset() correctly uses os.path.basename(filename) to strip traversal — path-traversal tests confirm 404 for '..%2F..%2F.env' and '../server.py'.",
+    "EmailService._deliver() correctly redacts the API key from failure messages (body.replace(self._api_key, '***')); confirmed no 're_V4' leakage anywhere.",
+    "email_templates.render_layout() renders a single <img src=EMAIL_LOGO_URL width=210 alt=\"ORRBBIT\"> inside the shared layout — all 56 templates inherit it (spot-checked 3 including a mandatory + a preference-gated + a professional template).",
+    "Plain-text version starts with 'ORRBBIT\\n\\n' as expected (was the old text wordmark before).",
+    "email_service.EmailService uses os.environ['FROM_EMAIL'] / FROM_NAME / SUPPORT_EMAIL — no hardcoded senders; Resend delivery from='ORRBBIT <notifications@updates.orrbbit.com>' and reply_to=['support@orrbbit.com'] confirmed on live send."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter27_email_logo.py (new)"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "not tested (backend-only scope)"},
+  "seed_data_creation": "One fresh user delivered+iter27_<uuid>@resend.dev created for regression check. Teardown attempts hard-delete via /api/control/users — best-effort. Total live sends: 3 to Resend's delivered@resend.dev test address (1 explicit welcome test + verify_email + welcome from registration). No emails sent to k97davies@icloud.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter27 covers the logo asset + shared-layout migration. Reusable regression: test_iter27_email_logo.py — needs EXPO_PUBLIC_BACKEND_URL env. Note the '+' in email addresses is treated as a regex quantifier by /api/control/email/events?email=<x> — test queries via template filter and client-side filters instead. Preview domain rewrites Cache-Control to no-store; check backend directly on localhost:8001 to see app-level header.",
+  "rca_of_issue": "N/A — all review items verified as working. The only observation is an environment-level Cache-Control header override by the ingress/CF on the preview domain that does not affect production behaviour."
+}

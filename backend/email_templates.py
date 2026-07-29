@@ -15,6 +15,12 @@ load_dotenv(Path(__file__).parent / ".env")
 
 APP_URL = os.environ.get("APP_URL", "https://orrbbit.com").rstrip("/")
 SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")
+# Base for backend-served links & assets (unsubscribe/verify/logo). In production
+# this is the deployed backend origin (PUBLIC_BASE_URL deployment secret).
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", APP_URL).rstrip("/")
+# Official Orrbbit logo for email headers. Override with EMAIL_LOGO_URL once the
+# main website hosts it (preferred: https://orrbbit.com/email-assets/orrbbit-logo.png).
+EMAIL_LOGO_URL = os.environ.get("EMAIL_LOGO_URL") or f"{PUBLIC_BASE_URL}/api/email-assets/orrbbit-logo.png"
 
 NAVY = "#081A35"
 TEAL = "#16B6B0"
@@ -88,8 +94,11 @@ def render_layout(*, preheader: str, heading: str, body_html: str, cta_label: st
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
              style="max-width:480px;background:#FFFFFF;border-radius:16px;padding:36px 32px;
                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-        <tr><td style="padding-bottom:18px;">
-          <span style="font-size:24px;font-weight:800;color:{NAVY};letter-spacing:0.5px;">Orrbb<span style="color:{TEAL};">i</span>t</span>
+        <tr><td style="padding-bottom:28px;">
+          <a href="{APP_URL}" target="_blank" style="text-decoration:none;border:0;outline:none;display:block;">
+            <img src="{EMAIL_LOGO_URL}" width="210" alt="ORRBBIT"
+                 style="max-width:210px;width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;color:{NAVY};font-size:20px;font-weight:800;" />
+          </a>
         </td></tr>
         <tr><td style="font-size:19px;font-weight:bold;color:{NAVY};padding-bottom:10px;">{heading}</td></tr>
         <tr><td style="font-size:14px;color:{GREY};line-height:22px;">{body_html}</td></tr>
@@ -106,7 +115,7 @@ def render_layout(*, preheader: str, heading: str, body_html: str, cta_label: st
     </td></tr>
   </table>
 </body></html>"""
-    text = f"Orrbbit\n\n{heading}\n\n{_strip_html(body_html)}\n"
+    text = f"ORRBBIT\n\n{heading}\n\n{_strip_html(body_html)}\n"
     if cta_label and cta_url:
         text += f"\n{cta_label}: {cta_url}\n"
     text += f"\nNeed help? {SUPPORT_EMAIL}\nPrivacy: {APP_URL}/privacy · Terms: {APP_URL}/terms"
