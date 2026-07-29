@@ -21,6 +21,7 @@ const MENU = [
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
   { icon: "diamond-outline", label: "Orrbbit Plans", route: "/plans", testID: "menu-plans" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
+  { icon: "mail-outline", label: "Email Preferences", route: "/email-preferences", testID: "menu-email-prefs" },
   { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
   { icon: "qr-code-outline", label: "Invite People", route: "/invite", testID: "menu-invite" },

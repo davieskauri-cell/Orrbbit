@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -13,6 +13,9 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
+
+from email_service import fire as _es_fire
+from email_triggers import login_security as _login_security
 
 
 ROOT_DIR = Path(__file__).parent
@@ -540,14 +543,22 @@ async def register(body: RegisterIn):
         "last_active": now_iso(),
     }
     await db.users.insert_one(user)
+    _es_fire(email_service.send("verify_email", user=user, entity_id=user["id"],
+                                ctx={"name": user["name"]}))
+    _es_fire(email_service.send("welcome", user=user, entity_id=user["id"],
+                                ctx={"name": user["name"]}))
     return {"access_token": create_token(user["id"]), "user": public_user(user)}
 
 
 @api_router.post("/auth/login")
-async def login(body: LoginIn):
+async def login(body: LoginIn, request: Request):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not pwd_context.verify(body.password, user["hashed_password"]):
+        await db.login_failures.insert_one({"email": body.email.lower(), "created_at": now_iso()})
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "") or "").split(",")[0].strip()
+    ua = request.headers.get("user-agent", "")
+    _es_fire(_login_security(db, email_service, user, ip, ua))
     return {"access_token": create_token(user["id"]), "user": public_user(user)}
 
 
@@ -581,6 +592,8 @@ async def delete_account(user: dict = Depends(get_current_user)):
     await db.blocks.delete_many({"$or": [{"blocker_id": uid}, {"blocked_id": uid}]})
     await db.hides.delete_many({"$or": [{"hider_id": uid}, {"hidden_id": uid}]})
     # Reports are retained (anonymously) as safety/moderation records.
+    _es_fire(email_service.send("account_deletion_completed",
+                                to_email=user.get("email"), ctx={"name": user.get("name")}))
     return {"ok": True, "message": "Your account and personal data have been deleted"}
 
 
@@ -1414,6 +1427,7 @@ async def report_user(body: ReportIn, user: dict = Depends(get_current_user)):
     # reporter never sees this person again
     if not await db.hides.find_one({"hider_id": user["id"], "hidden_id": body.user_id}):
         await db.hides.insert_one({"id": str(uuid.uuid4()), "hider_id": user["id"], "hidden_id": body.user_id, "created_at": now_iso()})
+    _es_fire(email_service.send("report_received", user=user))
     return {"ok": True, "risk": risk, "message": "Thanks. We'll review this report. You will no longer see this person."}
 
 
@@ -1591,6 +1605,22 @@ async def admin_report_action(report_id: str, body: AdminActionIn, user: dict = 
         "id": str(uuid.uuid4()), "report_id": report_id, "action": action,
         "admin_id": user["id"], "created_at": now_iso(),
     })
+
+    async def _mod_mail(template, uid, ctx=None, ent=None):
+        u = await db.users.find_one({"id": uid})
+        if u:
+            _es_fire(email_service.send(template, user=u, ctx=ctx or {}, entity_id=ent))
+
+    if action == "warn":
+        await _mod_mail("guidelines_warning", report["reported_id"],
+                        {"note": "Your recent activity was flagged and reviewed by our moderation team."},
+                        f"{report_id}:warn")
+    elif action == "hide":
+        await _mod_mail("account_restricted", report["reported_id"], None, f"{report_id}:hide")
+    elif action == "ban":
+        await _mod_mail("account_suspended", report["reported_id"], None, f"{report_id}:ban")
+    if action in ("warn", "hide", "ban", "dismiss") and report.get("reporter_id"):
+        await _mod_mail("report_outcome", report["reporter_id"], None, f"{report_id}:outcome")
     return {"ok": True, "status": updates["status"]}
 
 
@@ -1619,6 +1649,7 @@ async def submit_feedback(body: FeedbackIn, user: dict = Depends(get_current_use
         "id": str(uuid.uuid4()), "user_id": user["id"], "spoke": body.spoke,
         "experience": body.experience, "comments": body.comments or "", "created_at": now_iso(),
     })
+    _es_fire(email_service.send("feedback_received", user=user))
     return {"ok": True}
 
 
@@ -2414,6 +2445,8 @@ async def submit_verification(body: VerificationV2In, user: dict = Depends(get_c
         await db.verification_documents.insert_many([dict(f) for f in doc_files])
     await notify(user["id"], "verification_submitted", "Verification submitted",
                  f"Your {body.profession} verification is with the review team.")
+    _es_fire(email_service.send("pro_application_received", user=user, entity_id=sub_id,
+                                ctx={"profession": body.profession}))
     return {"ok": True, "status": "Pending Review", "submission_id": sub_id}
 
 
@@ -2494,6 +2527,8 @@ async def admin_verification_decision(sub_id: str, body: VerificationDecisionIn,
         {"$set": upd, "$push": {"history": {"action": body.action, "by": user["id"], "note": body.note or "", "at": now_iso()}}},
     )
     await notify(sub["user_id"], f"verification_{body.action}", n_title, (body.note or n_body))
+    from control_center import send_verification_decision_email as _sv_email
+    await _sv_email(sub, body.action, body.note or "")
     return {"ok": True, "status": new_status}
 
 
@@ -2916,6 +2951,23 @@ app.include_router(_pro_flow.pro_flow_router)
 import password_reset as _pwd_reset  # noqa: E402
 _pwd_reset.bind(_sys.modules[__name__])
 app.include_router(_pwd_reset.reset_router)
+
+# ----------------------------- Transactional email system -----------------------------
+import email_service as _email_mod  # noqa: E402
+import email_scheduler as _email_sched  # noqa: E402
+import control_email as _control_email  # noqa: E402
+email_service = _email_mod.EmailService(db)
+_email_mod.bind(_sys.modules[__name__], email_service)
+_control_email.set_service(email_service)
+app.include_router(_email_mod.email_user_router)
+app.include_router(_control_email.control_email_router)
+app.include_router(_control_email.resend_webhook_router)
+
+
+@app.on_event("startup")
+async def startup_email_system():
+    await email_service.ensure_indexes()
+    _email_sched.start(db, email_service)
 
 
 @app.on_event("startup")

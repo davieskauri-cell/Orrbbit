@@ -28,6 +28,18 @@ LOCK_MINUTES = 15
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer(auto_error=False)
 
+from email_service import fire as _es_fire  # noqa: E402
+
+
+async def _email_user(template: str, user_id: str, ctx: dict | None = None, entity_id: str | None = None):
+    """Send a moderation/verification email via the central EmailService (fire-and-forget)."""
+    import control_email as _ce
+    if _ce._svc is None:
+        return
+    u = await db.users.find_one({"id": user_id})
+    if u:
+        _es_fire(_ce._svc.send(template, user=u, ctx=ctx or {}, entity_id=entity_id))
+
 control_router = APIRouter(prefix="/api/control")
 
 ROLES = ["super_admin", "operations", "verification", "support", "moderation", "marketing", "finance", "analytics"]
@@ -547,10 +559,13 @@ async def control_user_action(user_id: str, body: UserActionIn, request: Request
 
     if body.action == "suspend":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": "hidden_pending_review"}})
+        await _email_user("account_restricted", user_id)
     elif body.action == "unsuspend" or body.action == "unban":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": None}})
+        await _email_user("account_restored", user_id)
     elif body.action == "ban":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": "banned", "visible": False}})
+        await _email_user("account_suspended", user_id)
     elif body.action == "delete":
         await db.users.delete_one({"id": user_id})
         for coll in ("pings", "matches", "saved", "blocks", "hides", "help_requests", "professional_profiles", "verification_submissions", "notifications"):
@@ -617,6 +632,25 @@ _DECISION_MAP = {
     "revoke": ("Rejected", "Verification removed", "Your verification badge was removed by the review team."),
 }
 
+# decision action → transactional email template
+DECISION_EMAIL = {
+    "approve": "pro_approved", "renew": "pro_approved",
+    "reject": "pro_declined", "revoke": "pro_declined",
+    "more_info": "pro_more_info", "suspend": "pro_restricted",
+    "mark_expired": "credential_expired",
+}
+
+
+async def send_verification_decision_email(sub: dict, action: str, note: str = ""):
+    template = DECISION_EMAIL.get(action)
+    if not template:
+        return
+    if action == "renew" and sub.get("status") == "Suspended":
+        template = "pro_restored"
+    await _email_user(template, sub["user_id"], entity_id=f"{sub['id']}:{action}",
+                      ctx={"profession": sub.get("profession") or "professional",
+                           "note": (note or "No additional details provided.")[:400]})
+
 
 @control_router.get("/verifications")
 async def control_verifications(status: Optional[str] = None, admin: dict = Depends(require_perm("verifications")), mode: str = Depends(get_mode)):
@@ -661,6 +695,7 @@ async def control_verification_decision(sub_id: str, body: DecisionIn, request: 
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()), "user_id": sub["user_id"], "type": f"verification_{body.action}",
         "title": n_title, "body": (body.note or n_body), "read": False, "created_at": now_iso()})
+    await send_verification_decision_email(sub, body.action, body.note or "")
     ip, _ = _client_info(request)
     await audit(admin, f"verification_{body.action}", "verification", sub_id,
                 old_value={"status": sub.get("status")}, new_value={"status": new_status, "note": body.note}, ip=ip, mode=mode)
@@ -746,18 +781,26 @@ async def control_report_action(report_id: str, body: ReportActionIn, request: R
             "title": "Community guidelines warning", "body": body.reason or "Your recent activity was flagged. Please review the community guidelines.",
             "read": False, "created_at": now_iso()})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "warn"}})
+        await _email_user("guidelines_warning", target_id, entity_id=f"{report_id}:warn",
+                          ctx={"note": (body.reason or "Your recent activity was flagged by our moderation team.")[:400]})
     elif body.action == "suspend":
         _check_recent_reauth(fresh)
         await db.users.update_one({"id": target_id}, {"$set": {"admin_status": "hidden_pending_review"}})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "suspend"}})
+        await _email_user("account_restricted", target_id, entity_id=f"{report_id}:suspend")
     elif body.action == "ban":
         _check_recent_reauth(fresh)
         await db.users.update_one({"id": target_id}, {"$set": {"admin_status": "banned", "visible": False}})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "ban"}})
+        await _email_user("account_suspended", target_id, entity_id=f"{report_id}:ban")
     elif body.action == "dismiss":
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "dismissed", "action_taken": "dismiss"}})
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
+    # outcome email to the reporter (no confidential details shared)
+    reporter_id = rep.get("reporter_id")
+    if reporter_id and body.action in ("warn", "suspend", "ban", "dismiss"):
+        await _email_user("report_outcome", reporter_id, entity_id=f"{report_id}:outcome")
     await audit(admin, f"report_{body.action}", "report", report_id,
                 old_value={"status": rep.get("status")}, new_value={"action": body.action, "reason": body.reason, "target_user": target_id}, ip=ip, mode=mode)
     return {"ok": True}

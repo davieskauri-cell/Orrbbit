@@ -12,6 +12,8 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
 
+from email_service import fire as _es_fire
+
 pro_flow_router = APIRouter(prefix="/api/professional")
 
 REQUEST_STATUSES = ["pending", "accepted", "declined", "cancelled"]
@@ -129,6 +131,13 @@ def bind(server):
         await db.pro_requests.insert_one(dict(req))
         await notify(body.professional_user_id, "pro_request_received", "New connection request",
                      f"{user.get('name')} needs help with {body.category}.")
+        pro_user = await db.users.find_one({"id": body.professional_user_id})
+        if pro_user:
+            _es_fire(server.email_service.send(
+                "help_request_received", user=pro_user, entity_id=req["id"],
+                ctx={"other_name": user.get("name"), "category": body.category,
+                     "category_part": f" about {body.category}" if body.category else "",
+                     "message": (body.message or "").strip()[:200]}))
         return {"status": "pending", "request_id": req["id"]}
 
     @pro_flow_router.get("/connect/requests")
@@ -194,6 +203,12 @@ def bind(server):
         await db.pro_requests.update_one({"id": req_id}, {"$set": {"status": "accepted", "responded_at": _now_iso()}})
         await notify(r["from_user_id"], "pro_request_accepted", "Request accepted",
                      f"{user.get('name')} accepted your request. You can now start the conversation.")
+        requester = await db.users.find_one({"id": r["from_user_id"]})
+        if requester:
+            _es_fire(server.email_service.send(
+                "help_request_accepted", user=requester, entity_id=session["id"],
+                ctx={"other_name": user.get("name"), "category": r.get("category") or "your",
+                     "session_id": session["id"]}))
         session.pop("_id", None)
         return {"ok": True, "session": session}
 
@@ -284,6 +299,25 @@ def bind(server):
         if body.status in ("completed", "cancelled"):
             await notify(other_id, f"pro_session_{body.status}", f"Session {body.status}",
                          f"{user.get('name')} marked your session as {body.status.replace('_', ' ')}.")
+            other = await db.users.find_one({"id": other_id})
+            if body.status == "completed":
+                if other:
+                    _es_fire(server.email_service.send(
+                        "session_completed", user=other, entity_id=session_id,
+                        idempotency_key=f"session_completed:{other_id}:{session_id}",
+                        ctx={"other_name": user.get("name"), "session_id": session_id}))
+                requester = user if s["requester_id"] == user["id"] else other
+                pro_user = other if s["requester_id"] == user["id"] else user
+                if requester and pro_user:
+                    _es_fire(server.email_service.send(
+                        "leave_review", user=requester, entity_id=session_id,
+                        idempotency_key=f"leave_review:{session_id}",
+                        ctx={"other_name": pro_user.get("name"), "session_id": session_id}))
+            elif other:
+                _es_fire(server.email_service.send(
+                    "request_cancelled", user=other, entity_id=session_id,
+                    idempotency_key=f"request_cancelled:{other_id}:{session_id}",
+                    ctx={"other_name": user.get("name"), "category": s.get("category") or "connection"}))
         return {"ok": True, "status": body.status}
 
     # --------------------------- messaging (unlocks after acceptance only) ---------------------------
@@ -354,6 +388,13 @@ def bind(server):
         await db.pro_reviews.insert_one(dict(doc))
         await notify(s["professional_id"], "pro_review_received", "New review",
                      f"{user.get('name')} rated your session {body.rating}/5.")
+        pro_user = await db.users.find_one({"id": s["professional_id"]})
+        if pro_user:
+            review_txt = (body.review or "").strip()
+            _es_fire(server.email_service.send(
+                "review_received", user=pro_user, entity_id=doc["id"],
+                ctx={"other_name": user.get("name"), "rating": body.rating,
+                     "review_part": f': "{review_txt[:140]}"' if review_txt else "."}))
         doc.pop("_id", None)
         return doc
 

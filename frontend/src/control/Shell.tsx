@@ -19,6 +19,7 @@ const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Chats', path: '/control/chats', icon: 'chatbubbles-outline' },
   { label: 'Reports', path: '/control/reports', icon: 'flag-outline' },
   { label: 'Notifications', path: '/control/notifications', icon: 'notifications-outline' },
+  { label: 'Emails', path: '/control/emails', icon: 'mail-outline' },
   { label: 'Analytics', path: '/control/analytics', icon: 'bar-chart-outline' },
   { label: 'AI Insights', path: '/control/ai-insights', icon: 'sparkles-outline' },
   { label: 'Marketing', path: '/control/marketing', icon: 'megaphone-outline' },

@@ -3,20 +3,19 @@
 Security: no user enumeration (always returns ok), 15-min code expiry, hashed codes,
 max 5 verify attempts, rate limiting per email. Mounted from server.py.
 """
-import os
 import hashlib
 import logging
 import random
 from datetime import datetime, timezone, timedelta
 
-import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from email_templates import code_box as _code_box
+from email_service import fire as _es_fire
+
 logger = logging.getLogger(__name__)
 reset_router = APIRouter(prefix="/api/auth")
-
-RESEND_API_URL = "https://api.resend.com/emails"
 
 CODE_TTL_MIN = 15
 MAX_ATTEMPTS = 5
@@ -31,41 +30,12 @@ def _hash_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
 
 
-def _reset_email_html(code: str) -> str:
-    return f"""
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F7F9;padding:32px 0;">
-      <tr><td align="center">
-        <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:14px;padding:36px;font-family:Arial,Helvetica,sans-serif;">
-          <tr><td style="font-size:22px;font-weight:bold;color:#081A35;padding-bottom:6px;">Orrbbit</td></tr>
-          <tr><td style="font-size:16px;color:#081A35;font-weight:bold;padding:14px 0 4px;">Reset your Orrbbit password</td></tr>
-          <tr><td style="font-size:14px;color:#4B5563;line-height:20px;">Use the code below to reset your password. It expires in {CODE_TTL_MIN} minutes.</td></tr>
-          <tr><td align="center" style="padding:22px 0;">
-            <div style="display:inline-block;background:#E9F8F7;color:#0F766E;font-size:30px;font-weight:bold;letter-spacing:8px;padding:14px 26px;border-radius:10px;">{code}</div>
-          </td></tr>
-          <tr><td style="font-size:12px;color:#9CA3AF;line-height:18px;">If you didn't request this, you can safely ignore this email — your password won't change.</td></tr>
-          <tr><td style="font-size:12px;color:#9CA3AF;line-height:18px;padding-top:14px;border-top:1px solid #F3F4F6;">Need help? Contact <a href="mailto:{os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")}" style="color:#16B6B0;">{os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")}</a> · <a href="{os.environ.get("APP_URL", "https://orrbbit.com")}" style="color:#16B6B0;">orrbbit.com</a></td></tr>
-        </table>
-      </td></tr>
-    </table>
-    """
-
-
-async def _send_reset_email(to_email: str, code: str):
-    from_email = os.environ["FROM_EMAIL"]
-    from_name = os.environ.get("FROM_NAME", "ORRBBIT")
-    payload = {
-        "from": f"{from_name} <{from_email}>",
-        "to": [to_email],
-        "subject": "Reset your Orrbbit password",
-        "html": _reset_email_html(code),
-    }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            RESEND_API_URL,
-            headers={"Authorization": f"Bearer {os.environ['RESEND_API_KEY']}"},
-            json=payload,
-        )
-    resp.raise_for_status()
+async def _send_reset_email(server, user: dict, code: str):
+    await server.email_service.send(
+        "password_reset", user=user,
+        ctx={"name": user.get("name"), "ttl_min": CODE_TTL_MIN, "code_box": _code_box(code)},
+        force=True,
+    )
 
 
 class ForgotIn(BaseModel):
@@ -107,7 +77,7 @@ def bind(server):
             "created_at": _now().isoformat(),
         })
         try:
-            await _send_reset_email(email, code)
+            await _send_reset_email(server, user, code)
         except Exception as e:
             logger.error(f"Password reset email failed for {email}: {e}")
         return generic
@@ -137,4 +107,5 @@ def bind(server):
             {"$set": {"hashed_password": server.pwd_context.hash(body.new_password)}},
         )
         await db.password_resets.delete_many({"email": email})
+        _es_fire(server.email_service.send("password_changed", user=user))
         return {"ok": True, "message": "Password updated. You can now sign in."}
