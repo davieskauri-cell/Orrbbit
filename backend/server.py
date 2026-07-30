@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # ----------------------------- Models -----------------------------
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=128)
     name: str
     age: int
     bio: Optional[str] = ""
@@ -71,7 +71,7 @@ class ProfileUpdate(BaseModel):
 
 
 class PhotoIn(BaseModel):
-    photo: str
+    photo_url: str
 
 
 class VibeDetailsIn(BaseModel):
@@ -633,7 +633,7 @@ async def add_photo(body: PhotoIn, user: dict = Depends(get_current_user)):
     photos = list(user.get("photos") or [])
     if len(photos) >= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_PHOTOS} photos")
-    photos.append(body.photo)
+    photos.append(body.photo_url)
     await db.users.update_one({"id": user["id"]}, {"$set": {"photos": photos, "photo_url": photos[0]}})
     user = await db.users.find_one({"id": user["id"]})
     return public_user(user)
@@ -657,6 +657,7 @@ BANNED_OPPORTUNITY_TERMS = [
     "weapon", "gun", "firearm", "ammunition", "drugs", "cocaine", "heroin", "meth", "mdma",
     "escort", "adult service", "sexual service", "gambling", "casino", "betting ring",
     "investment scheme", "guaranteed returns", "pyramid scheme", "cure for", "miracle cure",
+    "viagra", "onlyfans", "get rich quick", "crypto pump", "bitcoin investment",
 ]
 
 
@@ -1090,7 +1091,9 @@ async def list_pings(user: dict = Depends(get_current_user)):
 
 @api_router.post("/pings/{ping_id}/dismiss")
 async def dismiss_ping(ping_id: str, user: dict = Depends(get_current_user)):
-    await db.pings.update_one({"id": ping_id, "to_user_id": user["id"]}, {"$set": {"status": "dismissed"}})
+    res = await db.pings.update_one({"id": ping_id, "to_user_id": user["id"]}, {"$set": {"status": "dismissed"}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ping not found")
     return {"ok": True}
 
 

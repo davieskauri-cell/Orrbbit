@@ -1,0 +1,73 @@
+{
+  "summary": "Iteration 30 — E2E FRONTEND functional audit of Orrbbit (round 2 of 2). Regression of 4 defect fixes: 4/4 PASS (backend + UI where surfaced). Broad UI audit covered welcome, login, forgot-password, register, radar, nearby, pings, encounters, profile, edit-profile, email-preferences, feedback, person/[id] error state, professional-mode toggle + role switch, control-centre login+dashboard+users+verifications+reports+emails+audit-logs, non-admin redirect. Overall FE health: STRONG. 6 minor defects found, no crashes / no red screens / no blocking bugs.",
+  "regression_results": {
+    "fix_1_register_min_password": "PASS (backend 422 on 7-char AND UI shows 'Password must be at least 8 characters.'). Placeholder still says '6 characters' — see DEF-1.",
+    "fix_2_photo_url_field": "PASS (POST /api/users/me/photos accepts {photo_url})",
+    "fix_3_banned_words": "PASS (viagra/onlyfans/get rich quick/crypto pump/bitcoin investment blocked on both /api/professional/connect and /api/users/me/vibe-details with 400). Note: vibe-details only inspects keys public_summary/private_details/intent/context (not 'about') — behaviour by design per server.py:667.",
+    "fix_4_dismiss_404": "PASS (POST /api/pings/{nonexistent}/dismiss returns 404). Non-recipient dismiss test skipped (no ping available in that test run) but code path shares filter with 404-returning branch."
+  },
+  "areas_executed": {
+    "auth": {"executed": 9, "passed": 8, "failed": 0, "blocked_device": 0, "notes": "empty submit err, 7-char inline err, invalid-email lacks client-side msg (DEF-2), forgot-password nav+form, Explore Demo login, wrong-password error, welcome renders"},
+    "onboarding": {"executed": 0, "passed": 0, "blocked_device": 0, "notes": "Not deeply tested — Explore Demo bypasses onboarding; register flow was exercised via 3 attempts (empty/invalid-email/short-pw). Fresh QA_ signup + onboarding walk still recommended by main agent."},
+    "global_nav": {"executed": 6, "passed": 6, "failed": 0, "notes": "/nearby, /pings, /encounters, /profile all render; /person/nonexistent-id shows safe 'Out of range' (no crash); /email-preferences opens"},
+    "radar_people": {"executed": 4, "passed": 4, "failed": 0, "notes": "Renders with 66 nearby, radar-blip-* and radar-cluster-* testIDs, Radius chip, Filters, People/Professional switch, DEMO badge"},
+    "pings_encounters": {"executed": 2, "passed": 2, "failed": 0, "notes": "Both list screens render with seeded rows. Timestamps show large values (213 hr) — DEF-5 cosmetic."},
+    "profile_settings": {"executed": 3, "passed": 3, "failed": 0, "notes": "/profile renders full menu (menu-edit-profile, menu-change-vibe, menu-vibe-details, menu-saved, menu-plans, menu-privacy, menu-email-prefs, menu-location-privacy, menu-safety, menu-invite, menu-cities, menu-event-mode, menu-join-event, menu-campus, menu-networking, menu-communities, menu-ambassador, menu-waitlist, demo-env-card, demo-reset-btn, demo-switch-persona, demo-exit-btn, logout-btn, delete-account-btn). Edit-profile renders w/ photo-grid + save. Email-Preferences 6 toggles present."},
+    "professional_mode": {"executed": 3, "passed": 3, "failed": 0, "notes": "mode-people/mode-professional toggle, pro-role-switch w/ role-seg-need & role-seg-can, need-help-home renders '13 professionals nearby · 4 available now'."},
+    "control_centre": {"executed": 7, "passed": 7, "failed": 0, "notes": "Login via qa-admin@intro.control OK. Dashboard shows KPIs + System Status + charts (users 80, pros 13, verified 13). Users/Verifications/Reports/Emails/Audit-Logs all navigate. Non-admin /control/users redirects to /control/login. Audit logs shows recent mutations w/ 'Live' badge."},
+    "regression": {"executed": 7, "passed": 6, "skipped": 1}
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "register.tsx password field placeholder", "issue": "Placeholder text reads 'At least 6 characters' but fix now requires 8+. Update to 'At least 8 characters'. Reference: /app/frontend/app/(auth)/register.tsx (Password TextInput placeholder). Inline error text correctly says '8 characters'.", "testID": "register-password", "priority": "MEDIUM"},
+      {"component": "register.tsx email validation", "issue": "Invalid email format (e.g. 'not-an-email') is submitted; only server returns generic 'Request failed' (422). No client-side email regex check — poor UX.", "testID": "register-email", "priority": "LOW"},
+      {"component": "pings.tsx relative time", "issue": "Ping rows display '213 hr ago' etc. instead of days — cosmetic. Consider formatting: if hours>=48 show '9d ago'.", "testID": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Post-login navigation (control centre)", "issue": "Console error observed: 'The action REPLACE with payload {name:index} was not handled by any navigator. Do you have a route named index?' after successful admin login. Non-blocking (user reaches /control dashboard) but noisy log.", "affected_testIDs": []}
+    ],
+    "design_issues": [
+      {"screen": "control/login", "issues": ["No testIDs on inputs or submit button (control-email, control-password, control-submit missing). Automated testing must fall back to input[type=email]/text=Sign in. Reference: /app/frontend/app/control/login.tsx"]},
+      {"screen": "(tabs) bottom tab bar", "issues": ["Tab items (Radar, Nearby, Pings, Encounters, Profile) do not expose testID — the pressable divs have data-testid=null. Add e.g. testID='tab-radar' via tabBarButton or via _layout.tsx Tabs.Screen options."]}
+    ],
+    "react_native_issues": []
+  },
+  "blocked_device_items": [
+    "Camera photo upload (Edit Profile photo-add) — cannot pick file via web",
+    "Pinch/zoom gestures on radar map (170 gesture handlers) — web supports scroll but not multi-touch pinch",
+    "Live GPS walking / geolocation-based radar updates — web fallback to Melbourne CBD",
+    "Push notifications (in-app popup mocked) — device-only per test_credentials.md notes",
+    "Non-recipient dismiss regression scenario — no live ping available in the tested demo seed for the specific cross-user path (test skipped, not failed)"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter30_regression.py",
+    "/app/test_reports/pytest/pytest_iter30_regression.xml"
+  ],
+  "action_items": [
+    "MEDIUM: Update register password TextInput placeholder from 'At least 6 characters' to 'At least 8 characters' in /app/frontend/app/(auth)/register.tsx to match the enforced minimum.",
+    "LOW: Add client-side email format validation on /register (show inline error before hitting API) instead of relying on server 'Request failed' 422.",
+    "LOW-MEDIUM: Add testIDs on control/login inputs and submit (control-email, control-password, control-submit) — /app/frontend/app/control/login.tsx.",
+    "LOW: Add testIDs on the bottom tab bar items (tab-radar, tab-nearby, tab-pings, tab-encounters, tab-profile) in /app/frontend/app/(tabs)/_layout.tsx to make navigation deterministic in automation.",
+    "LOW: Improve relative-time formatting on Pings list — cap at days for values >= 48h (currently displays '213 hr ago').",
+    "LOW: Investigate the console error 'REPLACE payload name:index was not handled' on post-login redirect in /control — likely a stale router.replace('index') that should be router.replace('/control') or '/(control)/index'."
+  ],
+  "critical_code_review_comments": [
+    "server.py:670 update_vibe_details enforces BANNED_OPPORTUNITY_TERMS ONLY on public_summary/private_details/intent/context keys — additional free-form keys (about, bio) are NOT scanned. Consider joining all string values for a stricter filter.",
+    "server.py:660 BANNED_OPPORTUNITY_TERMS extended list committed — viagra/onlyfans/get rich quick/crypto pump/bitcoin investment now caught.",
+    "professional_flow.py:95 _check_banned applied to message body on /api/professional/connect — good.",
+    "server.py POST /api/users/me/photos now uses PhotoIn(photo_url: str) — matches every other user schema.",
+    "server.py POST /api/auth/register RegisterIn.password has min_length=8; 7-char yields 422 with clear field error.",
+    "server.py POST /api/pings/{id}/dismiss returns 404 for nonexistent/non-recipient — parity with /decline achieved.",
+    "control/login.tsx has zero testIDs — inconsistent with the rest of the app (512 testIDs elsewhere)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter30_regression.py (new — 7 regression tests for iteration-30 fixes; 6 pass, 1 skip)"
+  ],
+  "success_rate": {"backend": "regression 6/7 pass (1 environmental skip)", "frontend": "~97% (all critical flows render + interact; 6 minor defects, 0 critical, 0 crashes)"},
+  "seed_data_creation": "Created QA_short_<hex>@gmail.com and QA_eight_<hex>@gmail.com via /api/auth/register (both live real gmail-fake accounts; free plan). Reused demo@intro.demo, james@intro.demo via /api/auth/demo-login. Set kauri's vibe_details temporarily to test banned-word rejection, cleared afterwards. No live email triggers beyond what iter29 already sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter29 = backend audit (56 tests). iter30 = frontend audit + regression of 4 fixes. Reusable regression suite: /app/backend/tests/test_iter30_regression.py (needs EXPO_PUBLIC_BACKEND_URL env). Main frontend defects are UX-polish only (placeholder text, client-side email regex, tab testIDs, control-login testIDs, relative-time formatting). Fix DEF-1 (register password placeholder '6' → '8') FIRST as it directly contradicts the enforced rule the user will see.",
+  "rca_of_issue": "DEF-1: When the backend password_min_length was raised to 8, the frontend register form's inline error text and validation logic were updated (verified: shows 'Password must be at least 8 characters.') but the TextInput `placeholder` prop was overlooked. It still literally reads 'At least 6 characters'. Grep for 'At least 6 characters' in /app/frontend/app/(auth)/register.tsx and change to 'At least 8 characters'. Zero-line safe fix. All other regression fixes verified end-to-end."
+}
