@@ -9,18 +9,27 @@ import os
 import re
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 load_dotenv(Path(__file__).parent / ".env")
+# The platform injects its own APP_URL (preview host) into the process env,
+# which would silently win over .env. For email branding config, the .env
+# file is the source of truth.
+_FILE_ENV = dotenv_values(Path(__file__).parent / ".env")
 
-APP_URL = os.environ.get("APP_URL", "https://orrbbit.com").rstrip("/")
-SUPPORT_EMAIL = os.environ.get("SUPPORT_EMAIL", "support@orrbbit.com")
+
+def env_cfg(key: str, default: str = "") -> str:
+    return _FILE_ENV.get(key) or os.environ.get(key) or default
+
+
+APP_URL = env_cfg("APP_URL", "https://orrbbit.com").rstrip("/")
+SUPPORT_EMAIL = env_cfg("SUPPORT_EMAIL", "support@orrbbit.com")
 # Base for backend-served links & assets (unsubscribe/verify/logo). In production
 # this is the deployed backend origin (PUBLIC_BASE_URL deployment secret).
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", APP_URL).rstrip("/")
+PUBLIC_BASE_URL = env_cfg("PUBLIC_BASE_URL", APP_URL).rstrip("/")
 # Official Orrbbit logo for email headers. Override with EMAIL_LOGO_URL once the
 # main website hosts it (preferred: https://orrbbit.com/email-assets/orrbbit-logo.png).
-EMAIL_LOGO_URL = os.environ.get("EMAIL_LOGO_URL") or f"{PUBLIC_BASE_URL}/api/email-assets/orrbbit-logo.png"
+EMAIL_LOGO_URL = env_cfg("EMAIL_LOGO_URL") or f"{PUBLIC_BASE_URL}/api/email-assets/orrbbit-logo.png"
 
 NAVY = "#081A35"
 TEAL = "#16B6B0"
@@ -79,7 +88,7 @@ def render_layout(*, preheader: str, heading: str, body_html: str, cta_label: st
                font-weight:bold;text-decoration:none;padding:14px 34px;border-radius:999px;">{cta_label}</a>
           </td></tr>
           <tr><td align="center" style="font-size:12px;color:{LIGHT};padding-bottom:6px;">
-            Button not working? Open <a href="{APP_URL}" style="color:{TEAL};">{APP_URL.replace("https://", "")}</a>
+            Button not working? <a href="{cta_url}" style="color:{TEAL};">Open this securely in your browser.</a>
           </td></tr>"""
     unsub_block = ""
     if unsub_url:

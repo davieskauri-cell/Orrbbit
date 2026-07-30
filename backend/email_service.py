@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from email_templates import (
     TEMPLATES, PREF_CATEGORIES, PREF_DEFAULTS, build_email, code_box, APP_URL, SUPPORT_EMAIL,
-    PUBLIC_BASE_URL,
+    PUBLIC_BASE_URL, env_cfg,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,9 +52,9 @@ def is_demo_email(email: str) -> bool:
 class EmailService:
     def __init__(self, db):
         self.db = db
-        self.from_addr = f'{os.environ.get("FROM_NAME", "ORRBBIT")} <{os.environ["FROM_EMAIL"]}>'
+        self.from_addr = f'{env_cfg("FROM_NAME", "ORRBBIT")} <{env_cfg("FROM_EMAIL")}>'
         self.reply_to = SUPPORT_EMAIL
-        self._api_key = os.environ["RESEND_API_KEY"]
+        self._api_key = env_cfg("RESEND_API_KEY")
         self._settings_cache: dict = {}
         self._settings_cache_at = 0.0
 
@@ -150,7 +150,7 @@ class EmailService:
         uid = (user or {}).get("id")
         if tpl["category"] and uid:
             unsub_url = f"{PUBLIC_BASE_URL}/api/email/unsubscribe?token={self.unsub_token(uid, tpl['category'])}"
-            prefs_url = f"{APP_URL}/email-preferences"
+            prefs_url = f"{PUBLIC_BASE_URL}/email-preferences"
         if key == "verify_email" and uid:
             verify_url = f"{PUBLIC_BASE_URL}/api/email/verify?token={self.verify_token(uid)}"
 

@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 33 — Independent verification of Orrbbit production email cutover (dotenv_values env_cfg fix). 13/13 pytest tests pass. Preview endpoints for welcome, help_request_received, booking_confirmed, and password_reset all render clean HTML: logo pinned to nearby-connect-93.emergent.host/api/email-assets/orrbbit-logo.png, privacy/terms use https://orrbbit.com (APP_URL), NO preview.emergentagent or localhost anywhere, friendly 'Open this securely in your browser.' fallback present on CTA emails and correctly ABSENT on password_reset (no CTA). ONE live send to delivered@resend.dev — Resend API confirms from='ORRBBIT <notifications@updates.orrbbit.com>', reply_to=['support@orrbbit.com'], no raw '>https://' anchor text, prod logo URL embedded. Prod endpoints live: logo asset 200 image/png (~50KB), /api/email/verify?token=bad and /api/email/unsubscribe?token=bad both 200 with branded Orrbbit HTML over HTTPS. Regression: QA user register → forgot-password creates password_reset email_event, GET /api/users/me/email-preferences works, GET /api/vibes 200. QA user cleaned up via DELETE /api/users/me.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_email_prod_cutover.py", "/app/test_reports/pytest/pytest_iter33.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "email_templates.env_cfg() correctly prefers .env FILE via dotenv_values over os.environ — this is the right pattern for platform-injected APP_URL override, verified working end-to-end.",
+    "email_service.py line 55: from_addr composed from env_cfg('FROM_NAME'), env_cfg('FROM_EMAIL') — Resend API returned exactly the configured 'ORRBBIT <notifications@updates.orrbbit.com>', confirming the env_cfg wiring is applied at service init.",
+    "prefs_url now uses PUBLIC_BASE_URL/email-preferences (email_service.py:153) — consistent with backend-served URL pattern; APP_URL reserved for orrbbit.com marketing links only. Correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_email_prod_cutover.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "skipped (backend-only per request)"},
+  "seed_data_creation": "One QA user created via /api/auth/register (QA_prodmail_<uuid>@gmail.com) and cleaned up via DELETE /api/users/me at teardown. One live email sent to delivered@resend.dev (Resend safe address). No writes to production. No emails to k97davies@icloud.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cutover fix is verified on the preview backend. Prod deployment at nearby-connect-93.emergent.host still runs the OLD code until owner redeploys — do NOT trigger prod email sends, only the static/HTML endpoints listed here. Live send caps: max 2 per run, only to delivered@resend.dev, NEVER to k97davies@icloud.com. Do not print RESEND_API_KEY, TEST_MODE_CODE, or qa-admin password.",
+  "rca_of_issue": "Original bug: platform injects APP_URL=<preview host> into process env; python-dotenv's load_dotenv() by design does NOT override existing env vars, so backend/.env's APP_URL=https://orrbbit.com was silently ignored → emails contained preview URLs. Fix: email_templates.env_cfg() uses dotenv_values(...) to read the .env FILE directly and prefers file values over os.environ for APP_URL/SUPPORT_EMAIL/PUBLIC_BASE_URL/EMAIL_LOGO_URL/FROM_NAME/FROM_EMAIL/RESEND_API_KEY. Verified: rendered HTML now has orrbbit.com in APP_URL positions and emergent.host in logo/unsub positions, no preview URLs anywhere, and Resend API confirms the live delivered message matches."
+}
