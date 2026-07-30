@@ -57,6 +57,20 @@ class LoginIn(BaseModel):
     password: str
 
 
+class TestModeUnlockIn(BaseModel):
+    code: str
+
+
+@api_router.post("/test-mode/unlock")
+async def test_mode_unlock(body: TestModeUnlockIn):
+    """QA gate: Test Mode (demo/trial tools) requires this server-verified code."""
+    import hmac as _hmac_mod
+    expected = os.environ.get("TEST_MODE_CODE", "")
+    if not expected or not _hmac_mod.compare_digest(body.code.strip(), expected):
+        raise HTTPException(status_code=403, detail="Invalid QA code")
+    return {"ok": True}
+
+
 class DemoLoginIn(BaseModel):
     email: Optional[EmailStr] = None
 

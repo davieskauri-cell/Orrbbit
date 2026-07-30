@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,6 +41,7 @@ const GLOBAL_MENU = [
 const DEMO_MENU = [
   { icon: "shield-checkmark-outline", label: "Verification Queue", route: "/admin-verifications", testID: "menu-admin-verifications" },
   { icon: "people-circle-outline", label: "Demo Accounts", route: "/demo-accounts", testID: "menu-demo-accounts" },
+  { icon: "pulse-outline", label: "Device Diagnostics", route: "/diagnostics", testID: "menu-diagnostics" },
   { icon: "flag-outline", label: "Trial Mode", route: "/trial", testID: "menu-trial" },
   { icon: "shield-half-outline", label: "Admin Dashboard", route: "/admin", testID: "menu-admin" },
   { icon: "bar-chart-outline", label: "Test Metrics", route: "/metrics", testID: "menu-metrics" },
@@ -59,14 +60,27 @@ export default function ProfileScreen() {
   const versionTaps = React.useRef(0);
   const [deleting, setDeleting] = React.useState(false);
   const [demoResetting, setDemoResetting] = React.useState(false);
+  const [qaPromptVisible, setQaPromptVisible] = React.useState(false);
+  const [qaCode, setQaCode] = React.useState("");
 
   const onVersionTap = () => {
     if (testMode) return;
     versionTaps.current += 1;
     if (versionTaps.current >= 7) {
       versionTaps.current = 0;
+      setQaPromptVisible(true);
+    }
+  };
+
+  const submitQaCode = async () => {
+    try {
+      await api("/test-mode/unlock", { method: "POST", body: { code: qaCode.trim() } });
+      setQaPromptVisible(false);
+      setQaCode("");
       setTestModeOn(true);
       showAlert("Test mode enabled", "Demo accounts and trial tools are now visible. Tap the version again to disable.");
+    } catch {
+      showAlert("Invalid code", "That QA code is not correct.");
     }
   };
 
@@ -294,6 +308,33 @@ export default function ProfileScreen() {
       <Pressable testID="app-version" onPress={onVersionTap} style={styles.versionRow} hitSlop={10}>
         <Text style={styles.versionText}>Orrbbit v1.0.0{testMode ? " · Test mode" : ""}</Text>
       </Pressable>
+
+      <Modal visible={qaPromptVisible} transparent animationType="fade" onRequestClose={() => setQaPromptVisible(false)}>
+        <View style={styles.qaOverlay}>
+          <View style={styles.qaCard}>
+            <Text style={styles.qaTitle}>QA access code</Text>
+            <Text style={styles.qaSub}>Test Mode is restricted to authorised testers.</Text>
+            <TextInput
+              testID="qa-code-input"
+              style={styles.qaInput}
+              placeholder="Enter QA code"
+              placeholderTextColor={colors.textTertiary}
+              value={qaCode}
+              onChangeText={setQaCode}
+              autoCapitalize="characters"
+              onSubmitEditing={submitQaCode}
+            />
+            <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.md }}>
+              <Pressable testID="qa-code-cancel" style={styles.qaCancel} onPress={() => { setQaPromptVisible(false); setQaCode(""); }}>
+                <Text style={styles.qaCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable testID="qa-code-submit" style={styles.qaSubmit} onPress={submitQaCode}>
+                <Text style={styles.qaSubmitText}>Unlock</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -384,5 +425,14 @@ const styles = StyleSheet.create({
   },
   deleteText: { color: colors.textTertiary, fontSize: font.base, fontWeight: "600" },
   versionRow: { alignItems: "center", marginTop: spacing.md, paddingVertical: spacing.sm },
+  qaOverlay: { flex: 1, backgroundColor: "rgba(8,26,53,0.45)", alignItems: "center", justifyContent: "center", padding: spacing.xl },
+  qaCard: { backgroundColor: "#FFF", borderRadius: radius.card, padding: spacing.xl, width: "100%", maxWidth: 360 },
+  qaTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  qaSub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4, marginBottom: spacing.md },
+  qaInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.input ?? 12, paddingHorizontal: spacing.md, paddingVertical: 12, color: colors.text, fontSize: font.base },
+  qaCancel: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 999, backgroundColor: colors.card },
+  qaCancelText: { color: colors.textSecondary, fontWeight: "600" },
+  qaSubmit: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 999, backgroundColor: colors.teal },
+  qaSubmitText: { color: "#FFF", fontWeight: "700" },
   versionText: { color: colors.textTertiary, fontSize: font.sm },
 });

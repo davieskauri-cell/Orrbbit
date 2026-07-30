@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 32 — Focused verification of Test Mode QA gate + Device Diagnostics + qa-admin password rotation. Backend: 10/10 pytest pass (POST /api/test-mode/unlock wrong=403, correct=200 {ok:true}, empty/missing=422, whitespace=403, code trimmed correctly; OLD qa-admin QaControl!2026x → 401; rotated password from test_credentials.md → 200; regression /api/vibes 200, demo-login 200). Frontend (390x844, Explore Demo): all 5 review flows PASS — 7-tap on app-version opens QA modal (qa-code-input/submit/cancel), wrong code → 'Invalid code' alert + Test Mode NOT enabled, correct code → 'Test mode enabled' + version row shows ' · Test mode' + all DEMO_MENU rows including menu-diagnostics + disable-test-mode become visible. /diagnostics renders 10 non-sensitive rows (app version 'Orrbbit v1.0.0', build profile=development, Expo SDK 54, URL scheme, deep-link base, backend connectivity OK 134ms, location permission, photo library permission granted, camera capture, push notifications). SECURITY scan of full page source: NO leaks of 're_V4', 'Bearer ', 'sk-emergent', 'EMERGENT_LLM_KEY', the rotated qa-admin password, or the TEST_MODE_CODE. diag-rerun works. Regression: profile menu rows still render, logout-btn visible, back navigation works, disable-test-mode button flips version row back to 'Orrbbit v1.0.0'. eas.json present at /app/frontend/eas.json with development/preview/production profiles. Only 1 console error observed and it was the expected 403 on our own wrong-code probe. NO red screens, NO crashes, NO deprecated packages introduced. One minor UX inconsistency found — see action items (spec/alert say 'tap version again to disable' but code path guards with `if (testMode) return;`, so single-tap disable does not work; the Disable Test Mode button does work).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Profile app-version tap-to-disable",
+        "issue": "When Test Mode is ON, tapping testID=app-version has NO effect. onVersionTap early-returns at profile.tsx:67 (`if (testMode) return;`). This contradicts the confirmation alert copy 'Tap the version again to disable' (profile.tsx:81) and the review-request expectation 'tap version once → test mode disables'. Workaround: the Disable Test Mode button (testID=disable-test-mode) does correctly turn it off.",
+        "testID": "app-version",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter32_qa_gate.py",
+    "/app/test_reports/pytest/pytest_iter32.xml",
+    "/app/test_reports/iteration_31.json"
+  ],
+  "action_items": [
+    "(Optional/LOW) Reconcile the version-tap disable behavior on Profile: EITHER remove the `if (testMode) return;` guard in profile.tsx onVersionTap so a single tap toggles off (matching the alert copy and the review-request line 'tap version once → test mode disables'), OR update the alert copy in submitQaCode to say 'Use the Disable Test Mode button below' instead of 'Tap the version again to disable'. Functionality-wise Disable Test Mode button works, so this is UX-only.",
+    "(Nice-to-have) diag-location-permission currently reads 'undetermined' when web geolocation was never requested — consider adding a hint row explaining that GPS accuracy requires opening Radar first (the code already has this path but Location.getForegroundPermissionsAsync() returns 'undetermined' on web preview)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/server.py:64-71 — POST /api/test-mode/unlock uses hmac.compare_digest against strip()'d input, returns 403 on mismatch/empty-expected. Correct constant-time comparison. Endpoint reads TEST_MODE_CODE from env at request time; missing env would cause all codes to fail closed (403), which is the right default.",
+    "/app/frontend/app/diagnostics.tsx — Gate at line 26 `const allowed = __DEV__ || testMode;` is correct. Never renders keys, tokens or credentials. Backend probe uses public /vibes route (no auth header echoed in DOM). Photo perm uses ImagePicker.getMediaLibraryPermissionsAsync — reasonable non-sensitive read. testID pattern `diag-${slug}` renders correctly and is unique per row.",
+    "/app/frontend/app/(tabs)/profile.tsx:66-73 — onVersionTap counts 7 taps then opens the QA modal; correctly does NOT enable Test Mode directly. However the same handler guards with `if (testMode) return;` which blocks the 'tap once to disable' UX advertised in submitQaCode's success alert. See action_items.",
+    "/app/frontend/app/(tabs)/profile.tsx:75-85 — submitQaCode POSTs {code} to /api/test-mode/unlock and only flips setTestModeOn(true) on 2xx. Correct — no client-side bypass.",
+    "/app/frontend/eas.json — dev/preview/production profiles present with EXPO_PUBLIC_BUILD_PROFILE env; preview builds APK for Android. No secrets committed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter32_qa_gate.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% on the 5 review flows + regression; 1 low-priority UX inconsistency logged"},
+  "seed_data_creation": "None. No new accounts. No emails triggered. Only Explore Demo (demo@intro.demo) was used.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All changes from this focused round verified. Reusable regression path: (1) run `pytest /app/backend/tests/test_iter32_qa_gate.py` to re-verify QA gate + password rotation. (2) On the mobile web preview, Explore Demo → Profile tab → scroll to bottom → 7 taps on data-testid=app-version → QA modal with data-testid qa-code-input/submit/cancel. Correct code lives in /app/backend/.env as TEST_MODE_CODE (do not print). (3) After unlock, data-testid=menu-diagnostics navigates to /diagnostics which shows ~10 diag-* rows and a diag-rerun button; never grep 're_V4', 'Bearer ', 'sk-emergent' or the TEST_MODE_CODE literal in page.content(). (4) The 'disable via version tap' UX is currently broken by design (code returns early when testMode on) — either the copy or the code needs adjusting; disable-test-mode button DOES work.",
+  "rca_of_issue": "N/A — no unresolved bugs blocking the release. The single low-priority finding (version-tap-to-disable no-op) is a UX/copy mismatch in profile.tsx (line 67 guard vs line 81 alert copy vs review-request wording); resolved trivially by either removing the guard or changing the alert copy."
+}
