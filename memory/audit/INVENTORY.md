@@ -1,0 +1,278 @@
+# ORRBBIT Full App Inventory & Test Matrix (Phase 1)
+
+## Totals
+- Screens (expo-router routes): **92**
+- Backend API routes: **163**
+- Pressable/Touchable (buttons, links, icon buttons): **233**
+- testID-tagged elements: **512**
+- TextInput (form/search fields): **41**
+- Switch (toggles): **7**
+- Modal components: **18**
+- FlatList/ScrollView (lists, pagination, pull-to-refresh): **26**
+- RefreshControl (pull-to-refresh): **27**
+- Gesture handlers (pan/pinch/swipe/long-press): **170**
+
+## Screens
+### User app — auth (8):
+- /(auth)/choose-vibe.tsx
+- /(auth)/forgot-password.tsx
+- /(auth)/how-location-works.tsx
+- /(auth)/intent.tsx
+- /(auth)/login.tsx
+- /(auth)/onboarding.tsx
+- /(auth)/profile-setup.tsx
+- /(auth)/register.tsx
+- /(tabs)/encounters.tsx
+- /(tabs)/index.tsx
+- /(tabs)/nearby.tsx
+- /(tabs)/pings.tsx
+- /(tabs)/profile.tsx
+- /admin-verifications.tsx
+- /admin.tsx
+- /ambassador.tsx
+- /campus.tsx
+- /cities.tsx
+- /city/[name].tsx
+- /communities.tsx
+- /control/[module].tsx
+- /control/admins.tsx
+- /control/ai-insights.tsx
+- /control/analytics.tsx
+- /control/audit-logs.tsx
+- /control/backups.tsx
+- /control/categories.tsx
+- /control/change-password.tsx
+- /control/chats.tsx
+- /control/command-centre.tsx
+- /control/connections.tsx
+- /control/content-management.tsx
+- /control/database-viewer.tsx
+- /control/emails.tsx
+- /control/emergency-controls.tsx
+- /control/exports.tsx
+- /control/feature-flags.tsx
+- /control/help-requests.tsx
+- /control/index.tsx
+- /control/login.tsx
+- /control/marketing.tsx
+- /control/notifications.tsx
+- /control/payments.tsx
+- /control/people-radar.tsx
+- /control/professional-radar.tsx
+- /control/professionals.tsx
+- /control/reports.tsx
+- /control/settings.tsx
+- /control/subscriptions.tsx
+- /control/system-health.tsx
+- /control/user/[id].tsx
+- /control/users.tsx
+- /control/verifications.tsx
+- /demo-accounts.tsx
+- /edit-profile.tsx
+- /email-preferences.tsx
+- /etiquette.tsx
+- /event-mode.tsx
+- /feedback.tsx
+- /index.tsx
+- /invite.tsx
+- /join-event.tsx
+- /launch-checklist.tsx
+- /location-privacy.tsx
+- /match.tsx
+- /meetup-point.tsx
+- /meetup.tsx
+- /metrics.tsx
+- /networking.tsx
+- /opportunity-details.tsx
+- /opportunity/[id].tsx
+- /person/[id].tsx
+- /plan-confirmed.tsx
+- /plans.tsx
+- /privacy.tsx
+- /professional/can-help.tsx
+- /professional/connect/[userId].tsx
+- /professional/need-help.tsx
+- /professional/profile/[userId].tsx
+- /professional/request/[id].tsx
+- /professional/session/[id].tsx
+- /professional/verification.tsx
+- /report.tsx
+- /review-setup.tsx
+- /safety-confirm.tsx
+- /safety.tsx
+- /saved.tsx
+- /trial-report.tsx
+- /trial.tsx
+- /vibe-details.tsx
+- /vibe.tsx
+- /waitlist.tsx
+
+## Backend API routes
+- DELETE /api/control/email/suppressions/{email}
+- DELETE /api/help-requests/{req_id}
+- DELETE /api/saved/{user_id}
+- DELETE /api/users/me
+- DELETE /api/users/me/photos/{index}
+- GET /api/
+- GET /api/admin/dashboard
+- GET /api/admin/verifications
+- GET /api/admin/verifications/{sub_id}/documents/{doc_id}
+- GET /api/ambassador
+- GET /api/auth/me
+- GET /api/campus
+- GET /api/cities
+- GET /api/communities
+- GET /api/config
+- GET /api/connect/requests
+- GET /api/control/action-required
+- GET /api/control/activity
+- GET /api/control/admins
+- GET /api/control/ai/insights
+- GET /api/control/ai/insights/{report_id}/export
+- GET /api/control/analytics
+- GET /api/control/app-config
+- GET /api/control/audit-logs
+- GET /api/control/auth/me
+- GET /api/control/backups
+- GET /api/control/backups/{backup_id}/log
+- GET /api/control/billing/integration
+- GET /api/control/billing/overview
+- GET /api/control/categories
+- GET /api/control/chats
+- GET /api/control/chats/{match_id}/messages
+- GET /api/control/connections
+- GET /api/control/content/pages
+- GET /api/control/dashboard
+- GET /api/control/db/collections
+- GET /api/control/db/{coll}
+- GET /api/control/email/events
+- GET /api/control/email/stats
+- GET /api/control/email/suppressions
+- GET /api/control/email/templates
+- GET /api/control/email/templates/{key}/preview
+- GET /api/control/exports/{entity}
+- GET /api/control/feature-flags
+- GET /api/control/help-requests
+- GET /api/control/marketing
+- GET /api/control/notifications
+- GET /api/control/professionals
+- GET /api/control/radar-insights
+- GET /api/control/reports
+- GET /api/control/search
+- GET /api/control/system-health
+- GET /api/control/users
+- GET /api/control/users/{user_id}
+- GET /api/control/users/{user_id}/timeline
+- GET /api/control/verifications
+- GET /api/demo-accounts
+- GET /api/email-assets/{filename}
+- GET /api/email/unsubscribe
+- GET /api/email/verify
+- GET /api/encounters
+- GET /api/events/demo
+- GET /api/help-requests/mine
+- GET /api/help-requests/{req_id}
+- GET /api/help-requests/{req_id}/offers
+- GET /api/meetups/active
+- GET /api/metrics
+- GET /api/modes
+- GET /api/nearby
+- GET /api/north-star
+- GET /api/notifications
+- GET /api/opportunity/{user_id}
+- GET /api/pings
+- GET /api/professional/connect/requests
+- GET /api/professional/profile/me
+- GET /api/professional/profile/{user_id}
+- GET /api/professional/requests
+- GET /api/professional/sessions
+- GET /api/professional/sessions/{session_id}
+- GET /api/professional/sessions/{session_id}/messages
+- GET /api/professionals
+- GET /api/saved
+- GET /api/trial
+- GET /api/trial-report
+- GET /api/users/me/completion
+- GET /api/users/me/email-preferences
+- GET /api/verification/status
+- GET /api/vibes
+- POST /api/admin/reports/{report_id}/action
+- POST /api/admin/verifications/{sub_id}/decision
+- POST /api/analytics
+- POST /api/auth/demo-login
+- POST /api/auth/forgot-password
+- POST /api/auth/login
+- POST /api/auth/register
+- POST /api/auth/reset-password
+- POST /api/blocks
+- POST /api/connect/request
+- POST /api/control/admins
+- POST /api/control/ai/insights/generate
+- POST /api/control/auth/change-password
+- POST /api/control/auth/login
+- POST /api/control/auth/logout
+- POST /api/control/auth/reauth
+- POST /api/control/backups/run
+- POST /api/control/backups/{backup_id}/restore
+- POST /api/control/billing/payments/{payment_id}/refund
+- POST /api/control/categories
+- POST /api/control/email/events/{event_id}/retry
+- POST /api/control/email/templates/{key}/test
+- POST /api/control/help-requests/{req_id}/action
+- POST /api/control/impersonate/exit
+- POST /api/control/marketing/banners
+- POST /api/control/marketing/feature-professional/{user_id}
+- POST /api/control/marketing/promo-codes
+- POST /api/control/marketing/referrals
+- POST /api/control/marketing/{kind}/{item_id}/toggle
+- POST /api/control/notifications
+- POST /api/control/reports/{report_id}/action
+- POST /api/control/users/{user_id}/action
+- POST /api/control/users/{user_id}/impersonate
+- POST /api/control/verifications/{sub_id}/decision
+- POST /api/demo/reset
+- POST /api/dismissal-feedback
+- POST /api/email/resend-verification
+- POST /api/events/join-code
+- POST /api/events/leave
+- POST /api/feedback
+- POST /api/help-requests
+- POST /api/hide
+- POST /api/matches
+- POST /api/meetups
+- POST /api/meetups/{meetup_id}/cancel
+- POST /api/meetups/{meetup_id}/end
+- POST /api/pings/generate
+- POST /api/pings/{ping_id}/accept
+- POST /api/pings/{ping_id}/decline
+- POST /api/pings/{ping_id}/dismiss
+- POST /api/professional/connect
+- POST /api/professional/connect/requests/{req_id}/accept
+- POST /api/professional/connect/requests/{req_id}/decline
+- POST /api/professional/profile
+- POST /api/professional/sessions/{session_id}/messages
+- POST /api/professional/sessions/{session_id}/review
+- POST /api/reports
+- POST /api/saved
+- POST /api/users/me/photos
+- POST /api/verification/submit
+- POST /api/waitlist
+- POST /api/webhooks/payments
+- POST /api/webhooks/resend
+- PUT /api/control/ai/settings
+- PUT /api/control/app-config
+- PUT /api/control/content/pages/{key}
+- PUT /api/control/email/templates/{key}/settings
+- PUT /api/control/feature-flags/{key}
+- PUT /api/help-requests/{req_id}
+- PUT /api/professional/sessions/{session_id}
+- PUT /api/users/me
+- PUT /api/users/me/email-preferences
+- PUT /api/users/me/mode
+- PUT /api/users/me/state
+- PUT /api/users/me/vibe-details
+
+## Test matrix legend
+Each screen/element is tested for: render, primary action, API result, DB state, error/empty state.
+Status values: PASS / FAIL(defect id) / BLOCKED(reason) / N-A.
+Execution + statuses recorded in /app/test_reports/iteration_29.json (backend) and iteration_30.json (frontend).

@@ -1,0 +1,132 @@
+{
+  "summary": "Iteration 29 — Full E2E backend functional audit (round 1 of 2) of Orrbbit across all 9 areas requested. 54/56 tests PASS, 2 skipped (intentional: high-risk admin action lacked a live QA_ target; password_resets collection is not exposed via the DB viewer whitelist — good). Overall backend health: EXCELLENT (96%+). Live email sends kept at 1 (forgot-password to delivered@resend.dev). Only material defect found: registration has NO server-side minimum password length — accepts '1'.",
+  "areas": {
+    "1_auth": {"executed": 16, "passed": 16, "failed": 0, "blocked": 0},
+    "2_people_mode": {"executed": 13, "passed": 13, "failed": 0, "blocked": 0},
+    "3_professional_mode": {"executed": 5, "passed": 5, "failed": 0, "blocked": 0},
+    "4_connections_chat": {"executed": 3, "passed": 3, "failed": 0, "blocked": 0},
+    "5_sessions_reviews": {"executed": 2, "passed": 2, "failed": 0, "blocked": 0},
+    "6_blocking_reporting": {"executed": 2, "passed": 2, "failed": 0, "blocked": 0},
+    "7_admin_control": {"executed": 7, "passed": 6, "failed": 0, "blocked": 1},
+    "8_error_handling": {"executed": 4, "passed": 4, "failed": 0, "blocked": 0},
+    "9_data_consistency": {"executed": 3, "passed": 2, "failed": 0, "blocked": 1},
+    "cleanup": {"executed": 1, "passed": 1, "failed": 0, "blocked": 0}
+  },
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/register",
+        "issue": "MEDIUM — RegisterIn Pydantic model does not enforce a minimum password length. Server accepts passwords as short as '1' and hashes them via bcrypt. Login then works fine. Reference: /app/backend/server.py:509-550 (register endpoint), and the RegisterIn model near the top of the file. Reset flow correctly enforces min 8 (password_reset.py:48). Recommend adding min_length=8 to RegisterIn.password.",
+        "priority": "MEDIUM"
+      },
+      {
+        "endpoint": "POST /api/users/me/photos",
+        "issue": "LOW — Field-name inconsistency: this endpoint expects {photo: url} while every other place uses {photo_url: url}. Documented actual behaviour: 422 'Field required' when photo_url is sent. Reference: /app/backend/server.py:631-641 (PhotoIn model).",
+        "priority": "LOW"
+      },
+      {
+        "endpoint": "POST /api/professional/connect (message)",
+        "issue": "LOW/INFO — Message body containing spammy/scam terms ('buy viagra crypto scam bitcoin') was accepted (200). _check_banned may not include these. If banned-word filter is intended to catch such payloads, expand the list. Reference: server.py:_check_banned (~line 2011).",
+        "priority": "LOW"
+      },
+      {
+        "endpoint": "POST /api/pings/{id}/dismiss",
+        "issue": "LOW — Uses update_one with filter {id, to_user_id: caller}; silently no-ops (returns ok:true) if caller isn't the recipient rather than 404. Not a security hole (can't modify others' pings) but inconsistent with dismiss/decline which return 404. Reference: server.py:1091-1094.",
+        "priority": "LOW"
+      },
+      {
+        "endpoint": "GET /api/nearby",
+        "issue": "INFO — Response contains 'distance' (rounded to whole meters) and 'bearing' but never raw lat/lng of other users. Distance is exact-to-meter (not further fuzzed). Code does NOT claim fuzzing, so behaviour matches design. No leak.",
+        "priority": "INFO"
+      },
+      {
+        "endpoint": "GET /api/control/db/users",
+        "issue": "INFO — Admin database viewer correctly redacts sensitive values: hashed_password value is replaced with '•••redacted•••'. No bcrypt hashes, no plaintext passwords, no reset codes leak. Field key still visible; harmless.",
+        "priority": "INFO"
+      },
+      {
+        "endpoint": "GET /api/control/db/password_resets",
+        "issue": "INFO — Not exposed via the DB viewer collection whitelist (returns 400). This is a positive security choice — password reset codes/hashes are not browsable through the control centre.",
+        "priority": "INFO"
+      }
+    ]
+  },
+  "security_findings": [
+    {
+      "check": "Non-admin token on /api/control/*",
+      "result": "PASS — regular user JWT returns 401/403 on /api/control/users."
+    },
+    {
+      "check": "Non-participant reading professional session messages",
+      "result": "PASS — GET /api/professional/sessions/{id}/messages returns 403 for non-participant."
+    },
+    {
+      "check": "Admin login rejects wrong credentials",
+      "result": "PASS — 401 returned; no user enumeration."
+    },
+    {
+      "check": "Forgot-password does not enumerate users",
+      "result": "PASS — identical response for existing and nonexistent emails."
+    },
+    {
+      "check": "Auth endpoints leak no stack traces",
+      "result": "PASS — checked /api/auth/login and /api/auth/register error paths for 'traceback', 'file \"', 'line N', 'at 0x'. All clean."
+    },
+    {
+      "check": "verify-email + unsubscribe with invalid tokens",
+      "result": "PASS — return 200 HTML page with 'Link expired' / 'invalid' messaging (no 500, no stack)."
+    },
+    {
+      "check": "hashed_password / bcrypt hash exposure",
+      "result": "PASS — no bcrypt hash ($2b$ / $2a$) appears in /api/control/db/users response."
+    },
+    {
+      "check": "Public /api/nearby response",
+      "result": "PASS — no lat/lng of other users; only distance (meters) and bearing (deg)."
+    },
+    {
+      "check": "email_events ctx has no API key",
+      "result": "PASS — 're_V4' substring absent from /api/control/email/events."
+    },
+    {
+      "check": "Demo accounts cannot be deleted",
+      "result": "PASS — DELETE /api/users/me on a demo returns 403."
+    }
+  ],
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter29_full_audit.py",
+    "/app/test_reports/pytest/pytest_iter29.xml"
+  ],
+  "action_items": [
+    "MEDIUM: Add password strength minimum (min_length=8) to RegisterIn.password in /app/backend/server.py (line ~509 area). Currently only reset-password enforces this — meaning any client hitting the API directly can create accounts with 1-char passwords.",
+    "LOW: Normalise the photo add endpoint to accept 'photo_url' (or update the docs/frontend) — /app/backend/server.py:631 (PhotoIn currently expects {photo: str}) is inconsistent with every other user-facing schema.",
+    "LOW: Consider extending _check_banned wordlist to catch obvious spam/scam terms (viagra, bitcoin, crypto, scam) if that's the intent of the filter — currently only user-supplied test payload with these words was accepted.",
+    "LOW: Make POST /api/pings/{id}/dismiss return 404 when the ping is not the caller's (parity with /decline). Not a security hole, just inconsistent.",
+    "INFO: The 'user_id' passed to POST /api/connect/request when it's a completely non-existent UUID correctly returns 404. Same for /api/professional/connect. Both good."
+  ],
+  "critical_code_review_comments": [
+    "server.py:187 public_user() — correctly strips hashed_password before returning. Verified on register/login/demo-login/me responses.",
+    "server.py:897, 1215, 1232 — every db.users.find*() call that returns users to callers explicitly projects out {hashed_password: 0}. Consistent pattern.",
+    "professional_flow.py:57 _user_brief() — also projects out hashed_password. Good.",
+    "server.py:579-597 delete_account() — comprehensive cleanup: user + pings + matches + meetups + saved + blocks + hides; reports intentionally retained anonymously. Correct.",
+    "password_reset.py:29-30 _hash_code() — SHA-256 hash of the 6-digit code; only code_hash stored in db.password_resets. Correct.",
+    "server.py:_validate_connect_target — correctly rejects self, hidden/banned, paused/ghost, blocked. Same helper used by both /connect/request and legacy /matches.",
+    "professional_flow.py:64 _assert_participant() — enforces requester_id or professional_id membership on every session-scoped endpoint. Non-participant access verified to return 403."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter29_full_audit.py (new — 56 tests, 9 areas)"
+  ],
+  "success_rate": {"backend": "96% (54/56 pass, 2 intentional skips)", "frontend": "not tested (backend-only scope)"},
+  "seed_data_creation": "Several QA_<hex>@gmail.com accounts created during tests (register/login/photo/delete/verification-submit). Cleanup class deletes any QA_ user it can log into. Any residual QA_ users are on the free plan, empty city='Melbourne', invisible after some tests, and marked non-demo — safe to leave; main agent may run a periodic sweep. NO demo (@intro.demo / @radar.intro.demo) data mutated except benign block by kauri→james (persistent) and one pending connect olivia→mia (persistent). Live email sends: 1 (forgot-password to delivered@resend.dev). No emails to k97davies@icloud.com.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter29 (this) is round 1 = backend audit. Frontend audit is round 2 (iteration_30). Reusable regression suite: /app/backend/tests/test_iter29_full_audit.py — requires EXPO_PUBLIC_BACKEND_URL env. Two suggested follow-ups: (a) after main agent adds min_length=8 to RegisterIn.password, adjust test_register_weak_password to expect 422; (b) unblock the kauri→james block left over from test_block_hides_from_nearby if you need clean radar demos (POST /api/control/db not exposed; use direct db.blocks.delete_many via a script or an unblock endpoint).",
+  "rca_of_issue": "Registration password minimum: RegisterIn (Pydantic model in server.py) does not include min_length on the password field, so Pydantic accepts any string >= 0 chars. bcrypt happily hashes '1'. LoginIn is symmetric (no min), so short passwords also succeed on login. Fix: add Field(min_length=8, max_length=128) to RegisterIn.password (mirror the ResetIn constraint in password_reset.py:48). No data migration needed."
+}
