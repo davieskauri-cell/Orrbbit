@@ -25,7 +25,8 @@ function timeAgo(iso: string) {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins} min ago`;
-  return `${Math.round(mins / 60)} hr ago`;
+  if (mins < 60 * 48) return `${Math.round(mins / 60)} hr ago`;
+  return `${Math.round(mins / 1440)} days ago`;
 }
 
 export default function PingsTab() {

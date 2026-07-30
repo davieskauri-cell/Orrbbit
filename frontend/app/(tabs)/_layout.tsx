@@ -53,6 +53,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Radar",
+          tabBarButtonTestID: "tab-radar",
           tabBarIcon: ({ color, size }) => <Ionicons name="radio" size={size} color={color} />,
         }}
       />
@@ -60,6 +61,7 @@ export default function TabsLayout() {
         name="nearby"
         options={{
           title: "Nearby",
+          tabBarButtonTestID: "tab-nearby",
           tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
         }}
       />
@@ -67,6 +69,7 @@ export default function TabsLayout() {
         name="pings"
         options={{
           title: pro ? "Requests" : "Pings",
+          tabBarButtonTestID: "tab-pings",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name={pro ? "file-tray-full" : "notifications"} size={size} color={color} />
           ),
@@ -78,6 +81,7 @@ export default function TabsLayout() {
         name="encounters"
         options={{
           title: pro ? "Sessions" : "Encounters",
+          tabBarButtonTestID: "tab-encounters",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name={pro ? "briefcase" : "footsteps"} size={size} color={color} />
           ),
@@ -89,6 +93,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
+          tabBarButtonTestID: "tab-profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle" size={size} color={color} />
           ),

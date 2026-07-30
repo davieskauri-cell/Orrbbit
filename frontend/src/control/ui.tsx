@@ -35,8 +35,8 @@ export function Badge({ status, label }: { status?: string; label?: string }) {
 }
 
 export function Btn({
-  title, onPress, variant = 'primary', small, disabled,
-}: { title: string; onPress: () => void; variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'teal'; small?: boolean; disabled?: boolean }) {
+  title, onPress, variant = 'primary', small, disabled, testID,
+}: { title: string; onPress: () => void; variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'teal'; small?: boolean; disabled?: boolean; testID?: string }) {
   const base: any = [s.btn, small && s.btnSmall, disabled && { opacity: 0.5 }];
   const txt: any = [s.btnText, small && { fontSize: 12 }];
   if (variant === 'primary') base.push({ backgroundColor: CC.orange });
@@ -51,7 +51,7 @@ export function Btn({
     txt.push({ color: CC.teal });
   }
   return (
-    <Pressable style={({ pressed }) => [...base, pressed && { opacity: 0.85 }]} onPress={onPress} disabled={disabled}>
+    <Pressable testID={testID} style={({ pressed }) => [...base, pressed && { opacity: 0.85 }]} onPress={onPress} disabled={disabled}>
       <Text style={txt}>{title}</Text>
     </Pressable>
   );

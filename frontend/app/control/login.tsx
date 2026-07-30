@@ -31,19 +31,19 @@ export default function ControlLogin() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.root}>
       <View style={s.card}>
         <View style={s.brandRow}>
-          <View style={s.mark}><Text style={{ color: '#fff', fontWeight: '900' }}>IN</Text></View>
+          <View style={s.mark}><Text style={{ color: '#fff', fontWeight: '900' }}>OR</Text></View>
           <View>
             <Text style={s.brand}>Orrbbit Control Centre</Text>
             <Text style={s.sub}>Administrator access only</Text>
           </View>
         </View>
         <Text style={s.label}>Email</Text>
-        <Input placeholder="admin@orrbbit.app" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+        <Input testID="control-login-email" placeholder="admin@orrbbit.app" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
         <Text style={s.label}>Password</Text>
-        <Input placeholder="••••••••••" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
-        {error ? <Text style={s.error}>{error}</Text> : null}
+        <Input testID="control-login-password" placeholder="••••••••••" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
+        {error ? <Text testID="control-login-error" style={s.error}>{error}</Text> : null}
         <View style={{ marginTop: 20 }}>
-          <Btn title={busy ? 'Signing in…' : 'Sign in'} onPress={submit} disabled={busy} />
+          <Btn testID="control-login-submit" title={busy ? 'Signing in…' : 'Sign in'} onPress={submit} disabled={busy} />
         </View>
         <Text style={s.foot}>All admin activity is logged and audited.</Text>
       </View>

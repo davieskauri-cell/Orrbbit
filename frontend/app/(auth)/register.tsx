@@ -29,6 +29,7 @@ export default function Register() {
     const ageNum = parseInt(age, 10);
     if (!name.trim()) return setError("Please enter your name.");
     if (!email.trim()) return setError("Please enter your email.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Please enter a valid email address.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
     if (!ageNum || ageNum < 18) return setError("Orrbbit is currently only available for users 18 and older.");
     if (!confirm18) return setError("Please confirm you are 18 or older.");
@@ -96,7 +97,7 @@ export default function Register() {
           testID="register-password"
           value={password}
           onChangeText={setPassword}
-          placeholder="At least 6 characters"
+          placeholder="At least 8 characters"
           placeholderTextColor={colors.textTertiary}
           secureTextEntry
           style={styles.input}
