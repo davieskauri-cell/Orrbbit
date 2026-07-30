@@ -378,3 +378,8 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - render_layout() header: text wordmark replaced by <img> (max-width 210px, alt="ORRBBIT", links to APP_URL, block, left-aligned) — all 56 templates inherit. Plain-text header now "ORRBBIT".
 - LIVE VERIFIED to owner inbox: verify_email, welcome, password_reset, pro_approved, help_request_received, booking_confirmed — all delivered, new sender, logo present, no dup wordmark, no localhost/preview leaks beyond PUBLIC_BASE_URL asset link. testing_agent iteration_28: 19/19 pass incl. path traversal + API key non-exposure.
 - Note: preview-domain ingress strips the immutable Cache-Control on assets (origin header correct); confirm on production ingress.
+
+## Full E2E Functional Audit (June 2026) ✅
+- Restore point: git c55d901 + mongodump /app/memory/audit/db_backup. Inventory (92 screens, 163 routes, 233 buttons): /app/memory/audit/INVENTORY.md. Full report: /app/memory/audit/FINAL_AUDIT_REPORT.md.
+- 3 testing rounds (iterations 29 backend 54/56, 30 frontend ~97%, 31 regression 6/6). ~175 tests executed. 10 defects found (0 crit/high, 2 med, 8 low); 9 FIXED: register min 8-char password (backend Field + frontend msg/placeholder/regex email validation), PhotoIn→photo_url, banned-words extended, ping dismiss 404, control login testIDs + IN→OR brand mark, tab testIDs (tabBarButtonTestID), pings days-ago formatting. 1 DEFERRED: DEF-6 console REPLACE warning (cosmetic).
+- Verdict: READY FOR INTERNAL DEVICE TESTING. Pre-store checklist: device GPS/permissions field test, push build, host orrbbit.com/privacy + /terms, PUBLIC_BASE_URL secret, remove qa-admin, verify Test Mode gate.
