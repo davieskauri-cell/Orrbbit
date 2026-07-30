@@ -78,7 +78,7 @@ export default function ProfileScreen() {
       setQaPromptVisible(false);
       setQaCode("");
       setTestModeOn(true);
-      showAlert("Test mode enabled", "Demo accounts and trial tools are now visible. Tap the version again to disable.");
+      showAlert("Test mode enabled", "Demo accounts and trial tools are now visible. Use the Disable Test Mode row below to turn it off.");
     } catch {
       showAlert("Invalid code", "That QA code is not correct.");
     }
