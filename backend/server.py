@@ -1471,7 +1471,7 @@ async def dismissal_feedback(body: DismissFeedbackIn, user: dict = Depends(get_c
 
 # ----------------------------- Event codes -----------------------------
 EVENT_CODES = {
-    "INTRO100": "Orrbbit 100m Social",
+    "ORB100": "Orrbbit 100m Social",
     "FOUNDERNIGHT": "Founder Night",
     "CAMPUSCHAT": "Campus Chat",
     "MELBOURNEBETA": "Melbourne Beta",

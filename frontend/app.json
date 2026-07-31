@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Orrbbit",
+    "name": "ORRBBIT",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "orrbbit",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -14,7 +14,7 @@
         "NSLocationWhenInUseUsageDescription": "See people open to connect near you",
         "NSPhotoLibraryUsageDescription": "Add profile photos from your gallery"
       },
-      "bundleIdentifier": "com.introapp.mobile"
+      "bundleIdentifier": "com.orrbbit.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +28,7 @@
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE"
       ],
-      "package": "com.introapp.mobile"
+      "package": "com.orrbbit.mobile"
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +41,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-image.png",
-          "imageWidth": 200,
+          "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
@@ -49,6 +49,10 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#16B6B0"
     }
   }
 }

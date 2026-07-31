@@ -7,7 +7,7 @@ export const BRAND_NAVY = "#081A35";
 export const BRAND_TEAL = "#16B6B0";
 export const BRAND_ORANGE = "#FF6A30";
 
-const WORDMARK_RATIO = 490 / 110; // trimmed wordmark asset dimensions
+const WORDMARK_RATIO = 1024 / 240; // trimmed wordmark asset dimensions
 
 // Orrbbit orbit icon — approved logo mark (assets/images/logo.png).
 export function LogoMark({ size = 44 }: { size?: number }) {

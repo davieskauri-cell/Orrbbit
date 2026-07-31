@@ -30,7 +30,7 @@ export default function Diagnostics() {
     out.push({ label: "App version", value: `Orrbbit v${Constants.expoConfig?.version || "1.0.0"}`, ok: true });
     out.push({ label: "Build profile", value: __DEV__ ? "development" : "internal/production build", ok: true });
     out.push({ label: "Expo SDK", value: String(Constants.expoConfig?.sdkVersion || "54"), ok: true });
-    out.push({ label: "URL scheme", value: String(Constants.expoConfig?.scheme || "frontend"), ok: true });
+    out.push({ label: "URL scheme", value: String(Constants.expoConfig?.scheme || "orrbbit"), ok: true });
     out.push({ label: "Deep link base", value: Linking.createURL("/"), ok: true });
 
     // Backend connectivity (no secrets — public health route)

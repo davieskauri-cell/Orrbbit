@@ -71,7 +71,7 @@ export default function JoinEventScreen() {
         style={styles.input}
         value={code}
         onChangeText={(t) => { setCode(t); setError(""); }}
-        placeholder="e.g. INTRO100"
+        placeholder="e.g. ORB100"
         placeholderTextColor={colors.textTertiary}
         autoCapitalize="characters"
       />
@@ -88,7 +88,7 @@ export default function JoinEventScreen() {
       {user?.is_demo && (
         <View style={styles.demoHint}>
           <Text style={styles.demoTitle}>Demo event codes</Text>
-          {["INTRO100", "FOUNDERNIGHT", "CAMPUSCHAT", "MELBOURNEBETA", "NETWORK100", "COFFEECHAT"].map((c) => (
+          {["ORB100", "FOUNDERNIGHT", "CAMPUSCHAT", "MELBOURNEBETA", "NETWORK100", "COFFEECHAT"].map((c) => (
             <Pressable key={c} testID={`demo-code-${c}`} onPress={() => setCode(c)}>
               <Text style={styles.demoCode}>{c}</Text>
             </Pressable>

@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 33/34 — Orrbbit final brand + native-identifier migration regression. Backend 22/22 passed via /app/backend/tests/test_iter33_orrbbit_branding.py (config sanity, asset validity via PIL, preview email-logo endpoint, ORB100 event codes, welcome-template preview, auth register/login/forgot-password/demo-login + QA user cleanup). ONE live email booking_confirmed → delivered@resend.dev delivered successfully (Resend confirmed from='ORRBBIT <notifications@updates.orrbbit.com>', reply_to=['support@orrbbit.com'], last_event=delivered). Frontend UI (390x844): /login renders new symbol logo + 'Explore Orrbbit' copy (no INTRO); Explore Demo→radar shows Orrbbit lockup + DEMO badge; People↔Professional switch works (testIDs mode-people / mode-professional); all 5 tabs mount without errors; /join-event header 'Join an Orrbbit event', placeholder 'e.g. ORB100', chips lead with ORB100, no INTRO100; Profile shows 'Orrbbit v1.0.0', 'Orrbbit Plans', 'ORRBBIT WORLDWIDE · MELBOURNE'. Zero console errors, zero image 404s. No user-facing 'INTRO' branding remains in frontend/app or frontend/src (only legacy data keys @intro.demo / @intro.control / verified_by_intro / intro_test_mode as explicitly permitted). Deprecated packages detected: none. SafeAreaView issues detected: none.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter33_orrbbit_branding.py",
+    "/app/test_reports/pytest/pytest_iter33_orrbbit.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "notification-icon.png (96x96) contains ~264 pure-dark pixels + ~242 mid-tone pixels alongside white — Android tints the icon using alpha channel only, so this is not a functional bug, but for a purest silhouette the source could be re-exported as pure-white + alpha only. Non-blocking.",
+    "EMAIL_LOGO_URL in backend/.env points to the prod host (https://nearby-connect-93.emergent.host/api/email-assets/orrbbit-logo-v2.png) which will 404 until owner redeploys — expected per review note. Preview host serves the asset correctly (verified 200 image/png, 41501 bytes)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None — QA user QA_iter33_<uuid>@example.com was created via /api/auth/register and deleted via DELETE /api/users/me in the same test class (cleanup verified).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Live email budget used: 1 send (booking_confirmed → delivered@resend.dev, resend_id 1d51d389-bfa9-4e40-a4ac-0ddd692f4501). Correct mode-switch testIDs are 'mode-people' / 'mode-professional' (NOT 'mode-seg-*'). Frontend tabs render as content swaps under '/' (Expo Router) — url does not change on tab press; verify by testID + resulting screen text. Welcome email preview endpoint is GET /api/control/email/templates/{key}/preview (returns {key, subject, html, ...}); test-send is POST /api/control/email/templates/{key}/test with {to_email}. TEST_MODE_CODE is stored in backend/.env — never print.",
+  "rca_of_issue": "N/A — pure regression pass. All migration items (name ORRBBIT, scheme orrbbit, bundle/package com.orrbbit.mobile, notification-icon, assets regenerated, email logo v2 + Orrbbit domain, ORB100 replacing INTRO100) verified end-to-end."
+}
