@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const LINK = "orrbbit.app/southbank-trial";
+const LINK = "www.orrbbit.com/southbank-trial";
 
 export default function InviteScreen() {
   const router = useRouter();

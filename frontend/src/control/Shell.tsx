@@ -35,6 +35,7 @@ const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Exports', path: '/control/exports', icon: 'download-outline' },
   { label: 'Backups', path: '/control/backups', icon: 'cloud-upload-outline' },
   { label: 'Emergency Controls', path: '/control/emergency-controls', icon: 'warning-outline' },
+  { label: 'Demo Mode', path: '/control/demo-mode', icon: 'flask-outline' },
   { label: 'Settings', path: '/control/settings', icon: 'settings-outline' },
 ];
 

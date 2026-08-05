@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
@@ -44,7 +45,7 @@ export default function Chats() {
               <View style={{ flexDirection: 'row' }}>
                 {c.participants.map((p: any, i: number) => (
                   p.photo_url
-                    ? <Image key={p.id} source={{ uri: p.photo_url }} style={[s.avatar, i > 0 && { marginLeft: -10 }]} />
+                    ? <Image key={p.id} source={{ uri: resolvePhotoUri(p.photo_url) }} style={[s.avatar, i > 0 && { marginLeft: -10 }]} />
                     : <View key={p.id} style={[s.avatar, { backgroundColor: CC.tealSoft }, i > 0 && { marginLeft: -10 }]} />
                 ))}
               </View>

@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Image, Text } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -44,7 +45,7 @@ export default function Users() {
               <Tr key={u.id} onPress={() => router.push(`/control/user/${u.id}` as any)}>
                 <Td flex={1.6}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {u.photo_url ? <Image source={{ uri: u.photo_url }} style={{ width: 28, height: 28, borderRadius: 14 }} /> : <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: CC.tealSoft }} />}
+                    {u.photo_url ? <Image source={{ uri: resolvePhotoUri(u.photo_url) }} style={{ width: 28, height: 28, borderRadius: 14 }} /> : <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: CC.tealSoft }} />}
                     <Text style={{ fontSize: 13, color: CC.text, fontWeight: '600' }} numberOfLines={1}>{u.name}</Text>
                     {u.verified ? <Text style={{ color: CC.teal, fontSize: 12 }}>✓</Text> : null}
                   </View>

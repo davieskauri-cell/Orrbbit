@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { showAlert } from "@/src/lib/alert";
@@ -131,7 +132,7 @@ export default function PersonPreview() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 140 }}>
         <View style={styles.photoWrap}>
           {user.photo_url ? (
-            <Image source={{ uri: user.photo_url }} style={styles.photo} contentFit="cover" />
+            <Image source={{ uri: resolvePhotoUri(user.photo_url) }} style={styles.photo} contentFit="cover" />
           ) : (
             <View style={[styles.photo, styles.photoFallback]}>
               <Avatar name={user.name} size={140} />

@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import Shell from '../../src/control/Shell';
@@ -54,7 +55,7 @@ export default function Verifications() {
       {!data ? <Loading /> : !data.items.length ? <Card><EmptyText>No submissions in this queue.</EmptyText></Card> : data.items.map((sub: any) => (
         <Card key={sub.id}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            {sub.user?.photo_url ? <Image source={{ uri: sub.user.photo_url }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
+            {sub.user?.photo_url ? <Image source={{ uri: resolvePhotoUri(sub.user.photo_url) }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
             <View style={{ flex: 1, minWidth: 200 }}>
               <Text style={s.name}>{sub.user?.name} — {sub.profession}</Text>
               <Text style={s.sub}>{sub.user?.email} · {(sub.categories || []).join(', ')}</Text>

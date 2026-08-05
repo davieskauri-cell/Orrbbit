@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -70,7 +71,7 @@ export default function UserDetail() {
       <View style={{ flexDirection: 'row', gap: 16, flexWrap: 'wrap' }}>
         <Card style={{ flexGrow: 1, flexBasis: 320 }}>
           <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 12 }}>
-            {u.photo_url ? <Image source={{ uri: u.photo_url }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
+            {u.photo_url ? <Image source={{ uri: resolvePhotoUri(u.photo_url) }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
             <View style={{ flex: 1 }}>
               <Text style={s.name}>{u.name}{u.age ? `, ${u.age}` : ''} {u.verified ? '✓' : ''}</Text>
               <Text style={s.sub}>{u.email}</Text>

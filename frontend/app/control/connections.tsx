@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Image } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -48,7 +49,7 @@ export default function Connections() {
               <Tr key={r.id} onPress={() => router.push(`/control/user/${r.from_user_id}` as any)}>
                 <Td flex={1.5}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {r.from_user?.photo_url ? <Image source={{ uri: r.from_user.photo_url }} style={{ width: 26, height: 26, borderRadius: 13 }} /> : <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: CC.tealSoft }} />}
+                    {r.from_user?.photo_url ? <Image source={{ uri: resolvePhotoUri(r.from_user.photo_url) }} style={{ width: 26, height: 26, borderRadius: 13 }} /> : <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: CC.tealSoft }} />}
                     <Text style={{ fontSize: 13, color: CC.text, fontWeight: '600' }} numberOfLines={1}>{r.from_user?.name || '—'}</Text>
                   </View>
                 </Td>

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
+import { resolvePhotoUri } from "@/src/lib/photo";
 import { colors, avatarSize, anim } from "@/src/theme";
 
 const GRADS = ["#FF5A1F", "#20B2AA", "#8B5CF6", "#FF2D55", "#F59E0B", "#22C55E"];
@@ -21,10 +22,11 @@ export default function Avatar({ uri, name, size = avatarSize.md, ringColor }: P
     .toUpperCase();
   const bg = GRADS[(name || "?").charCodeAt(0) % GRADS.length];
   const inner = ringColor ? size - 6 : size;
+  const resolved = resolvePhotoUri(uri);
 
-  const content = uri ? (
+  const content = resolved ? (
     <Image
-      source={{ uri }}
+      source={{ uri: resolved }}
       style={{ width: inner, height: inner, borderRadius: inner / 2 }}
       transition={anim.fast}
     />

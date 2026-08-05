@@ -1,3 +1,4 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useCC } from './ControlContext';
@@ -62,7 +63,7 @@ export default function RadarPanel({ kind }: { kind: 'people' | 'professional' }
         <SectionTitle>{kind === 'people' ? 'Recently Active Users' : 'Professionals on Radar'}</SectionTitle>
         {(data.sample || []).map((u: any) => (
           <View key={u.id || u.user_id} style={s.row}>
-            {u.photo_url ? <Image source={{ uri: u.photo_url }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
+            {u.photo_url ? <Image source={{ uri: resolvePhotoUri(u.photo_url) }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
             <View style={{ flex: 1 }}>
               <Text style={s.name}>{u.name}{u.profession ? ` — ${u.profession}` : ''}</Text>
               <Text style={s.sub}>{u.city || '—'}{u.vibe ? ` · ${String(u.vibe).replace(/_/g, ' ')}` : ''}{u.primary_category ? ` · ${u.primary_category}` : ''}</Text>

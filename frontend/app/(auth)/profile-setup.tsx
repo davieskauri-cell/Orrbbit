@@ -24,12 +24,6 @@ const INTERESTS = [
   "Sport", "Dating", "Study", "Career", "Golf", "Food", "Walking", "Tech",
 ];
 
-const SAMPLE_PHOTOS = [
-  "https://randomuser.me/api/portraits/men/45.jpg",
-  "https://picsum.photos/seed/intro-sample-a/400/400",
-  "https://picsum.photos/seed/intro-sample-b/400/400",
-];
-
 export default function ProfileSetup() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -81,9 +75,6 @@ export default function ProfileSetup() {
     } catch {}
   };
 
-  const useSamplePhotos = () =>
-    addPhotos(SAMPLE_PHOTOS.slice(0, Math.max(0, 3 - photos.length)));
-
   const next = async () => {
     if (photos.length < 3) {
       setError("Please add at least 3 photos.");
@@ -115,9 +106,6 @@ export default function ProfileSetup() {
 
         <Text style={styles.label}>Your photos (minimum 3)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
-        <Pressable testID="use-sample-photos" onPress={useSamplePhotos} disabled={uploading}>
-          <Text style={styles.sampleLink}>Use sample photos</Text>
-        </Pressable>
 
         <Text style={styles.label}>Short bio</Text>
         <TextInput
@@ -157,7 +145,6 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.display, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700", marginTop: spacing.xl, marginBottom: spacing.md, letterSpacing: 0.5 },
-  sampleLink: { color: colors.teal, fontSize: font.sm, fontWeight: "700", marginTop: spacing.sm, paddingVertical: 4 },
   error: { color: colors.pink, fontSize: font.sm, fontWeight: "600", marginTop: spacing.md },
   bioInput: {
     backgroundColor: colors.card,

@@ -8,8 +8,7 @@ import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font, shadow, type } from "@/src/theme";
 
-const HERO =
-  "https://images.unsplash.com/photo-1543269865-cbf427effbad?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
+const HERO = require("@/assets/images/onboarding-hero.jpg");
 
 const STEPS: { icon: string; tint: string; bg: string; text: string }[] = [
   { icon: "swap-horizontal", tint: colors.teal, bg: colors.tealSoft, text: "Choose People or Professional" },
@@ -58,7 +57,7 @@ export default function Welcome() {
       </Text>
 
       <View style={styles.heroCard}>
-        <Image source={{ uri: HERO }} style={styles.heroImg} contentFit="cover" transition={200} />
+        <Image source={HERO} style={styles.heroImg} contentFit="cover" transition={200} />
         <View style={styles.heroBadge}>
           <Ionicons name="location" size={14} color={colors.orange} />
           <Text style={styles.heroBadgeText}>Starts free within 50m</Text>

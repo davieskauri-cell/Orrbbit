@@ -20,6 +20,7 @@ from legal_consent import (parse_dob as _legal_parse_dob, is_at_least_18 as _leg
                            age_from_dob as _legal_age, build_signup_consent as _legal_signup_consent,
                            UNDERAGE_MESSAGE as _UNDERAGE_MESSAGE,
                            CONSENT_REQUIRED_MESSAGE as _CONSENT_REQUIRED_MESSAGE)
+import demo_mode as _demo_mode
 
 
 ROOT_DIR = Path(__file__).parent
@@ -676,6 +677,7 @@ async def get_vibes():
 async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
     if "photos" in fields:
+        fields["photos"] = [_validate_photo_url(p) for p in fields["photos"][:MAX_PHOTOS]]
         fields["photo_url"] = fields["photos"][0] if fields["photos"] else None
     if fields:
         await db.users.update_one({"id": user["id"]}, {"$set": fields})
@@ -684,6 +686,31 @@ async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_u
 
 
 MAX_PHOTOS = 6
+MAX_PHOTO_BYTES = 5 * 1024 * 1024
+_IMG_MAGIC = {b"\xff\xd8\xff": "jpeg", b"\x89PNG": "png"}
+
+
+def _validate_photo_url(value: str) -> str:
+    """Validate a profile photo value. Allowed: data:image JPEG/PNG (content-checked, <=5MB),
+    https:// URLs, or internal /api/ asset paths. Rejects local file/content URIs and executables."""
+    v = (value or "").strip()
+    if v.startswith("data:image/"):
+        header, _, payload = v.partition(",")
+        if ";base64" not in header or header.split("/")[1].split(";")[0] not in ("jpeg", "jpg", "png"):
+            raise HTTPException(status_code=400, detail="Photo must be a JPEG or PNG image")
+        import base64 as _b64
+        try:
+            raw = _b64.b64decode(payload[:24])
+        except Exception:
+            raise HTTPException(status_code=400, detail="Photo data is not valid")
+        if not any(raw.startswith(m) for m in _IMG_MAGIC):
+            raise HTTPException(status_code=400, detail="File is not a valid image")
+        if len(payload) > MAX_PHOTO_BYTES * 1.4:
+            raise HTTPException(status_code=400, detail="Photo is too large (max 5MB)")
+        return v
+    if v.startswith("https://") or v.startswith("/api/"):
+        return v
+    raise HTTPException(status_code=400, detail="Unsupported photo source — please pick the photo again")
 
 
 @api_router.post("/users/me/photos")
@@ -691,7 +718,7 @@ async def add_photo(body: PhotoIn, user: dict = Depends(get_current_user)):
     photos = list(user.get("photos") or [])
     if len(photos) >= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_PHOTOS} photos")
-    photos.append(body.photo_url)
+    photos.append(_validate_photo_url(body.photo_url))
     await db.users.update_one({"id": user["id"]}, {"$set": {"photos": photos, "photo_url": photos[0]}})
     user = await db.users.find_one({"id": user["id"]})
     return public_user(user)
@@ -957,6 +984,10 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     for o in others:
         if o["id"] in blocked:
             continue
+        # Demo isolation: demo and real accounts never see each other
+        # (real users only see demo profiles when Demo Mode is admin/env-enabled)
+        if _demo_mode.cross_realm_hidden(user, o):
+            continue
         # worldwide app, local radar: only people in the same city ever appear
         if o.get("city", "Melbourne") != user.get("city", "Melbourne"):
             continue
@@ -1089,6 +1120,8 @@ async def generate_ping(
 ):
     if not user.get("visible", True) or user.get("ghost_mode") or user.get("paused"):
         return {"ping": None}
+    if _demo_mode.STATE.get("store_screenshot_mode"):
+        return {"ping": None}  # stable screenshots: no random ping popups
     if user.get("quiet_mode"):
         return {"ping": None}
     # just-browsing users don't get urgent pings
@@ -1215,6 +1248,7 @@ async def _validate_connect_target(me: dict, target_id: str) -> dict:
     blocked = await get_blocked_ids(me["id"])
     if target_id in blocked:
         raise HTTPException(status_code=403, detail="You can't connect with this user")
+    _demo_mode.ensure_same_realm(me, target)
     return target
 
 
@@ -1717,7 +1751,8 @@ async def submit_feedback(body: FeedbackIn, user: dict = Depends(get_current_use
 @api_router.post("/analytics")
 async def track_event(body: AnalyticsIn, user: dict = Depends(get_current_user)):
     await db.analytics_events.insert_one({
-        "id": str(uuid.uuid4()), "user_id": user["id"], "event": body.event, "created_at": now_iso(),
+        "id": str(uuid.uuid4()), "user_id": user["id"], "event": body.event,
+        "demo": bool(user.get("is_demo")), "created_at": now_iso(),
     })
     return {"ok": True}
 
@@ -2989,6 +3024,8 @@ async def reset_demo(user: dict = Depends(get_current_user)):
     import professional_flow as _pf
     import sys as _s
     await _pf.seed_pro_flow_demo(_s.modules[__name__], force=True)
+    await demo_apply_photos()  # noqa: F821 — restore unique demo photos after reseed
+    await demo_seed_moderation_example()  # noqa: F821
     return {"ok": True, "counts": counts}
 
 
@@ -3016,6 +3053,9 @@ app.include_router(_pwd_reset.reset_router)
 import legal_consent as _legal_mod  # noqa: E402
 _legal_mod.bind(_sys.modules[__name__])
 app.include_router(_legal_mod.legal_router)
+
+_demo_mode.bind(_sys.modules[__name__])
+app.include_router(_demo_mode.demo_router)
 
 # ----------------------------- Transactional email system -----------------------------
 import email_service as _email_mod  # noqa: E402
@@ -3144,6 +3184,14 @@ async def seed_demo_accounts():
     await seed_professional_demo()
     await seed_demo_environment()
     await _pro_flow.seed_pro_flow_demo(_sys.modules[__name__])
+
+
+@app.on_event("startup")
+async def startup_demo_mode():
+    """Runs last: load Demo Mode flags + apply unique demo photos over seeded data."""
+    await demo_load_state()  # noqa: F821 — injected by demo_mode.bind
+    await demo_apply_photos()  # noqa: F821
+    await demo_seed_moderation_example()  # noqa: F821
 
 
 @app.on_event("shutdown")
