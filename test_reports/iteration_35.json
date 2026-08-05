@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 34 signup/consent/legal/blocks/reauth-delete verified. Backend 21/21 pytest pass (test_iter34_signup_consent.py) against https://nearby-connect-93.preview.emergentagent.com. Frontend 4-step register flow works end-to-end: progress bar Account/Age/Policies/Complete, Step 1 'Create your account', Step 2 DOB with 'You must be at least 18 years old to use Orrbbit.' subtitle, underage (2012 DOB) screen shows EXACT message and no account is created, Step 3 consent required (marketing optional/unticked), Step 4 shows 'Welcome to Orrbbit', 'Your account has been created successfully.' and 'Please verify your email address to finish setting up your account.' Continue routes to /location-privacy?next=setup. Profile tab exposes 'Legal & Safety' and 'Account & Data'. Legal & Safety renders all 14 policy rows + Safety Tips card + version footer ('Policies version 1.0 · Effective 2026-08-04'). Account & Data shows Download my data + Privacy/Location/Email/Blocked + Delete Account. Blocked Users screen renders. ProfessionalDisclaimerModal is mounted in tabs/index.tsx (testIDs pro-disclaimer-modal / pro-disclaimer-accept / pro-disclaimer-decline). One minor React-Native-Web deprecation warning: 'shadow*' style props are deprecated — use 'boxShadow' (not a deprecated Expo package).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PrimaryButton (Create account, step 3)", "issue": "The `disabled` prop on the PrimaryButton for testID=register-submit does NOT translate to the HTML `disabled` attribute in the web build — Playwright is_disabled() returns False both before and after ticking the consent checkbox. Visually the button is greyed (opacity 0.5) and pressing it while unticked does nothing (confirmed via UI flow) so behaviour is correct, but the DOM attribute is not synced. Consider forwarding `accessibilityState={disabled}` / role='button' aria-disabled=true so assistive tech and tests can detect the disabled state.", "testID": "register-submit", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Global styles (react-native-web)", "issue": "Runtime warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted on every screen load. Search StyleSheet.create for shadowColor/shadowOffset/shadowOpacity/shadowRadius and migrate to boxShadow (or use elevation only on Android). Reference: repeats across screens; console captured on onboarding + register."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter34_signup_consent.py",
+    "/app/test_reports/pytest/pytest_iter34.xml"
+  ],
+  "action_items": [
+    "Consider forwarding `disabled` prop on PrimaryButton to `accessibilityState={{disabled}}` / aria-disabled so DOM/a11y reflect the visual disabled state on web (LOW).",
+    "Migrate remaining shadow* style props to boxShadow to silence RN-Web deprecation warning (LOW)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~2000 lines — worth splitting further into feature modules (register/auth, radar, pings, admin) using the bind() pattern already used by legal_consent.py.",
+    "legal_consent.parse_dob raises HTTPException from a plain helper — cross-module coupling is fine but keeps the helper untestable outside FastAPI request scope.",
+    "Register endpoint stores raw `date_of_birth` on the user document AND on the consent record — acceptable but ensure /users/me and public_user() never leak DOB (verified: public_user does not expose it, data-export intentionally includes it in profile section)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter34_signup_consent.py (new)"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "Fresh registered users created and cleaned up via DELETE /users/me. Kauri demo account has one lingering block on james@intro.demo from block-flow test (not cleaned up automatically since the test asserts unblock returns 200 — verified block gone via 2nd DELETE returning 404, but the earlier UI screenshot happened to be taken during the transient window). Not a bug.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL: EXPO_PUBLIC_BACKEND_URL=https://nearby-connect-93.preview.emergentagent.com. Use example.com (NOT orrbbit.test — pydantic email-validator rejects .test as reserved). Fresh users need dob YYYY-MM-DD, accept_policies:true, plus platform/app_version/locale for full consent record. Demo accounts refuse DELETE /users/me (403). Auth flow shortcut for web: localStorage.setItem('auth_token', JSON.stringify(token)) then goto '/'.",
+  "rca_of_issue": "N/A — no functional bugs found. Two minor cosmetic/DX findings documented above."
+}
