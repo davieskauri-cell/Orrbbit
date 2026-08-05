@@ -16,6 +16,10 @@ from datetime import datetime, timezone, timedelta
 
 from email_service import fire as _es_fire
 from email_triggers import login_security as _login_security
+from legal_consent import (parse_dob as _legal_parse_dob, is_at_least_18 as _legal_is_18,
+                           age_from_dob as _legal_age, build_signup_consent as _legal_signup_consent,
+                           UNDERAGE_MESSAGE as _UNDERAGE_MESSAGE,
+                           CONSENT_REQUIRED_MESSAGE as _CONSENT_REQUIRED_MESSAGE)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -42,14 +46,24 @@ logger = logging.getLogger(__name__)
 # ----------------------------- Models -----------------------------
 class RegisterIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=8, max_length=72)
     name: str
-    age: int
+    date_of_birth: str  # YYYY-MM-DD — authoritative 18+ gate is server-side
+    accept_policies: bool = False
+    marketing_opt_in: bool = False
+    platform: Optional[str] = None
+    app_version: Optional[str] = None
+    locale: Optional[str] = None
     bio: Optional[str] = ""
     interests: Optional[List[str]] = []
     photo_url: Optional[str] = None
     city: Optional[str] = "Melbourne"
     country: Optional[str] = "Australia"
+
+
+class DeleteAccountIn(BaseModel):
+    password: str
+    confirmation: str  # must equal "DELETE"
 
 
 class LoginIn(BaseModel):
@@ -523,8 +537,16 @@ async def root():
 @api_router.post("/auth/register")
 async def register(body: RegisterIn):
     await feature_gate("registration")
-    if body.age < 18:
-        raise HTTPException(status_code=400, detail="You must be 18 or older to use Orrbbit")
+    dob = _legal_parse_dob(body.date_of_birth)
+    if not _legal_is_18(dob):
+        # Age gate failed: no account, no personal data stored (privacy-safe analytics only).
+        await db.analytics_events.insert_one({
+            "id": str(uuid.uuid4()), "user_id": None,
+            "event": "signup_age_gate_failed", "created_at": now_iso(),
+        })
+        raise HTTPException(status_code=403, detail=_UNDERAGE_MESSAGE)
+    if not body.accept_policies:
+        raise HTTPException(status_code=400, detail=_CONSENT_REQUIRED_MESSAGE)
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -533,7 +555,9 @@ async def register(body: RegisterIn):
         "email": body.email.lower(),
         "hashed_password": pwd_context.hash(body.password),
         "name": body.name,
-        "age": body.age,
+        "date_of_birth": dob.isoformat(),
+        "marketing_opt_in": bool(body.marketing_opt_in),
+        "age": _legal_age(dob),
         "bio": body.bio or "",
         "interests": body.interests or [],
         "photo_url": body.photo_url,
@@ -557,6 +581,11 @@ async def register(body: RegisterIn):
         "last_active": now_iso(),
     }
     await db.users.insert_one(user)
+    # Durable, versioned consent record — append-only, preserved across policy changes.
+    await db.consent_records.insert_one(_legal_signup_consent(
+        user["id"], dob, body.marketing_opt_in, body.platform, body.app_version, body.locale))
+    if body.marketing_opt_in:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"email_prefs.marketing": True}})
     _es_fire(email_service.send("verify_email", user=user, entity_id=user["id"],
                                 ctx={"name": user["name"]}))
     _es_fire(email_service.send("welcome", user=user, entity_id=user["id"],
@@ -591,12 +620,19 @@ async def me(user: dict = Depends(get_current_user)):
 
 
 @api_router.delete("/users/me")
-async def delete_account(user: dict = Depends(get_current_user)):
-    """Permanently delete the account and personal data (App Store / Play Store requirement)."""
+async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current_user)):
+    """Permanently delete the account and personal data (App Store / Play Store requirement).
+
+    Requires re-authentication (current password) + explicit "DELETE" confirmation.
+    """
     if user.get("_impersonated_by"):
         raise HTTPException(status_code=403, detail="Account deletion is blocked during admin impersonation")
     if user.get("is_demo"):
         raise HTTPException(status_code=403, detail="Demo accounts cannot be deleted")
+    if (body.confirmation or "").strip().upper() != "DELETE":
+        raise HTTPException(status_code=400, detail="Please type DELETE to confirm")
+    if not pwd_context.verify(body.password, user.get("hashed_password", "")):
+        raise HTTPException(status_code=401, detail="Incorrect password")
     uid = user["id"]
     await db.users.delete_one({"id": uid})
     await db.pings.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
@@ -606,6 +642,14 @@ async def delete_account(user: dict = Depends(get_current_user)):
     await db.blocks.delete_many({"$or": [{"blocker_id": uid}, {"blocked_id": uid}]})
     await db.hides.delete_many({"$or": [{"hider_id": uid}, {"hidden_id": uid}]})
     # Reports are retained (anonymously) as safety/moderation records.
+    # Consent records are retained (append-only) as legal compliance evidence.
+    await db.consent_records.insert_one({
+        "id": str(uuid.uuid4()), "user_id": uid, "event": "account_deleted",
+        "method": "in_app_reauthenticated", "created_at": now_iso(),
+    })
+    await db.analytics_events.insert_one({
+        "id": str(uuid.uuid4()), "user_id": None, "event": "account_deleted", "created_at": now_iso(),
+    })
     _es_fire(email_service.send("account_deletion_completed",
                                 to_email=user.get("email"), ctx={"name": user.get("name")}))
     return {"ok": True, "message": "Your account and personal data have been deleted"}
@@ -2968,6 +3012,10 @@ app.include_router(_pro_flow.pro_flow_router)
 import password_reset as _pwd_reset  # noqa: E402
 _pwd_reset.bind(_sys.modules[__name__])
 app.include_router(_pwd_reset.reset_router)
+
+import legal_consent as _legal_mod  # noqa: E402
+_legal_mod.bind(_sys.modules[__name__])
+app.include_router(_legal_mod.legal_router)
 
 # ----------------------------- Transactional email system -----------------------------
 import email_service as _email_mod  # noqa: E402

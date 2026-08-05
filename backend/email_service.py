@@ -285,8 +285,20 @@ def bind(server, svc: EmailService):
         changes = {k: v for k, v in body.dict().items() if v is not None}
         if changes:
             prefs = EmailService.user_prefs(user)
+            prev_marketing = bool(prefs.get("marketing"))
             prefs.update(changes)
             await db.users.update_one({"id": user["id"]}, {"$set": {"email_prefs": prefs}})
+            if "marketing" in changes and bool(changes["marketing"]) != prev_marketing:
+                # Append-only marketing consent / withdrawal record
+                now = datetime.now(timezone.utc).isoformat()
+                await db.consent_records.insert_one({
+                    "id": str(uuid.uuid4()), "user_id": user["id"],
+                    "event": "marketing_consent_changed",
+                    "marketing_opt_in": bool(changes["marketing"]),
+                    "marketing_consent_at": now if changes["marketing"] else None,
+                    "marketing_withdrawn_at": None if changes["marketing"] else now,
+                    "method": "email_preferences", "created_at": now,
+                })
             return {"ok": True, "preferences": prefs}
         return {"ok": True, "preferences": EmailService.user_prefs(user)}
 

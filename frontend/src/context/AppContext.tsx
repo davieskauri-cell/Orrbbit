@@ -15,7 +15,9 @@ import {
   DEMO_LOCATION,
   requestLocationPermission,
   getCurrentLocation,
+  getPermissionGranted,
 } from "@/src/services/locationService";
+import { showAlert } from "@/src/lib/alert";
 import { createPing, dismissPing as dismissPingApi } from "@/src/services/pingService";
 
 export type NearbyUser = {
@@ -146,6 +148,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const requestLocation = useCallback(async () => {
     try {
+      // Contextual pre-permission notice before the native prompt (shown once, native only)
+      if (Platform.OS !== "web") {
+        const alreadyGranted = await getPermissionGranted().catch(() => false);
+        if (!alreadyGranted) {
+          const seen = await AsyncStorage.getItem("orrbbit_loc_notice_v1").catch(() => null);
+          if (!seen) {
+            const proceed = await new Promise<boolean>((resolve) =>
+              showAlert(
+                "Allow location access?",
+                "Orrbbit uses your location to show people and professionals nearby. Others only ever see an approximate distance — never your exact location.",
+                [
+                  { text: "Not now", style: "cancel", onPress: () => resolve(false) },
+                  { text: "Continue", onPress: () => resolve(true) },
+                ]
+              )
+            );
+            AsyncStorage.setItem("orrbbit_loc_notice_v1", "1").catch(() => {});
+            if (!proceed) {
+              setCoords(DEMO_LOCATION);
+              setPermission("denied");
+              return;
+            }
+          }
+        }
+      }
       const perm = await requestLocationPermission();
       if (perm.granted) {
         const pos = await getCurrentLocation();

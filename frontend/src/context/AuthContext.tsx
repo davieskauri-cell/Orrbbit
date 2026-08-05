@@ -50,7 +50,12 @@ export type RegisterPayload = {
   email: string;
   password: string;
   name: string;
-  age: number;
+  date_of_birth: string; // YYYY-MM-DD
+  accept_policies: boolean;
+  marketing_opt_in: boolean;
+  platform?: string;
+  app_version?: string;
+  locale?: string;
   bio?: string;
   interests?: string[];
   photo_url?: string | null;

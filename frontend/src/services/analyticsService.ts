@@ -4,6 +4,11 @@ const track = (event: string) =>
   api("/analytics", { method: "POST", body: { event } }).catch(() => {});
 
 export const trackSignup = () => track("signup");
+export const trackSignupStep = (step: string) => track(`signup_step_${step}`);
+export const trackAgeGateFailed = () => track("signup_age_gate_failed_client");
+export const trackConsentAccepted = () => track("signup_consent_accepted");
+export const trackAccountDeleted = () => track("account_delete_requested");
+export const trackNoticeAck = (notice: string) => track(`notice_ack_${notice}`);
 export const trackVibeSelected = () => track("vibe_selected");
 export const trackProfileView = () => track("profile_view");
 export const trackPingSent = () => track("ping_sent");

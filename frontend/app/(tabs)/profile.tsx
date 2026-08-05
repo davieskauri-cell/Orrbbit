@@ -21,6 +21,8 @@ const MENU = [
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
   { icon: "diamond-outline", label: "Orrbbit Plans", route: "/plans", testID: "menu-plans" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
+  { icon: "folder-open-outline", label: "Account & Data", route: "/account-data", testID: "menu-account-data" },
+  { icon: "document-text-outline", label: "Legal & Safety", route: "/legal-safety", testID: "menu-legal-safety" },
   { icon: "mail-outline", label: "Email Preferences", route: "/email-preferences", testID: "menu-email-prefs" },
   { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
@@ -58,7 +60,6 @@ export default function ProfileScreen() {
   const [completion, setCompletion] = React.useState<any>(null);
   const [testMode, setTestModeOn] = useTestMode();
   const versionTaps = React.useRef(0);
-  const [deleting, setDeleting] = React.useState(false);
   const [demoResetting, setDemoResetting] = React.useState(false);
   const [qaPromptVisible, setQaPromptVisible] = React.useState(false);
   const [qaCode, setQaCode] = React.useState("");
@@ -87,36 +88,6 @@ export default function ProfileScreen() {
   const onDisableTestMode = () => {
     setTestModeOn(false);
     showAlert("Test mode disabled", "Demo and trial tools are hidden again.");
-  };
-
-  const onDeleteAccount = () => {
-    if (user?.is_demo) {
-      showAlert("Not available", "Demo accounts can't be deleted.");
-      return;
-    }
-    showAlert(
-      "Delete your account?",
-      "This permanently deletes your profile, pings, matches and meetup history. This can't be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await api("/users/me", { method: "DELETE" });
-              await signOut();
-              router.replace("/(auth)/onboarding");
-            } catch (e: any) {
-              showAlert("Couldn't delete account", e.message || "Please try again.");
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   useFocusEffect(
@@ -300,9 +271,9 @@ export default function ProfileScreen() {
         <Text style={styles.logoutText}>Log Out</Text>
       </Pressable>
 
-      <Pressable testID="delete-account-btn" style={styles.deleteBtn} onPress={onDeleteAccount} disabled={deleting}>
+      <Pressable testID="delete-account-btn" style={styles.deleteBtn} onPress={() => router.push("/account-data")}>
         <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
-        <Text style={styles.deleteText}>{deleting ? "Deleting…" : "Delete Account"}</Text>
+        <Text style={styles.deleteText}>Delete Account</Text>
       </Pressable>
 
       <Pressable testID="app-version" onPress={onVersionTap} style={styles.versionRow} hitSlop={10}>

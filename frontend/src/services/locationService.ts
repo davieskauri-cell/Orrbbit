@@ -14,6 +14,11 @@ export async function requestLocationPermission(): Promise<{
   return { granted: req.granted, canAskAgain: req.canAskAgain };
 }
 
+export async function getPermissionGranted(): Promise<boolean> {
+  const current = await Location.getForegroundPermissionsAsync();
+  return current.granted;
+}
+
 export async function getCurrentLocation(): Promise<{ lat: number; lng: number }> {
   const pos = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.Balanced,

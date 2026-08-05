@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform, Modal } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,6 +39,7 @@ export default function VerificationScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [uploadNoticeVisible, setUploadNoticeVisible] = useState(false);
 
   const load = () => {
     api<any>("/verification/status").then(setStatus).catch(() => {});
@@ -47,6 +49,26 @@ export default function VerificationScreen() {
   useEffect(() => { load(); }, []);
 
   const pickFile = async () => {
+    // Contextual credential-upload notice — picker must not open before "Continue".
+    const seen = await AsyncStorage.getItem("orrbbit_credential_notice_v1").catch(() => null);
+    if (!seen) {
+      setUploadNoticeVisible(true);
+      return;
+    }
+    await openPicker();
+  };
+
+  const acceptUploadNotice = async () => {
+    setUploadNoticeVisible(false);
+    await AsyncStorage.setItem("orrbbit_credential_notice_v1", "1").catch(() => {});
+    api("/consents/acknowledge", {
+      method: "POST",
+      body: { notice_type: "credential_upload_notice", version: "1.0" },
+    }).catch(() => {});
+    await openPicker();
+  };
+
+  const openPicker = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"], copyToCacheDirectory: true });
       if (res.canceled || !res.assets?.[0]) return;
@@ -248,6 +270,28 @@ export default function VerificationScreen() {
           </Text>
         )}
       </ScrollView>
+
+      <Modal visible={uploadNoticeVisible} transparent animationType="fade" onRequestClose={() => setUploadNoticeVisible(false)}>
+        <View style={styles.noticeOverlay}>
+          <View style={styles.noticeCard} testID="credential-upload-notice">
+            <View style={styles.noticeIcon}>
+              <Ionicons name="document-lock" size={24} color={colors.teal} />
+            </View>
+            <Text style={styles.noticeTitle}>Before you upload credentials</Text>
+            <Text style={styles.noticeText}>
+              Your documents are used only to verify your professional credentials. They are stored
+              securely, never shown to other users, and reviewed by the Orrbbit verification team.
+              Only your verification badge and status are visible to others.
+            </Text>
+            <Pressable testID="credential-notice-continue" style={styles.noticeBtn} onPress={acceptUploadNotice}>
+              <Text style={styles.noticeBtnText}>Continue</Text>
+            </Pressable>
+            <Pressable testID="credential-notice-cancel" style={styles.noticeCancel} onPress={() => setUploadNoticeVisible(false)}>
+              <Text style={styles.noticeCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -277,4 +321,13 @@ const styles = StyleSheet.create({
   notifText: { color: colors.text, fontSize: 11, flex: 1, lineHeight: 15 },
   helper: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 19, marginTop: spacing.md },
   error: { color: colors.pink, fontSize: font.base, marginTop: spacing.md },
+  noticeOverlay: { flex: 1, backgroundColor: "rgba(8,26,53,0.5)", alignItems: "center", justifyContent: "center", padding: spacing.xl },
+  noticeCard: { backgroundColor: "#FFF", borderRadius: radius.lg, padding: spacing.xl, width: "100%", maxWidth: 380 },
+  noticeIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.tealSoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
+  noticeTitle: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
+  noticeText: { color: colors.textSecondary, fontSize: font.base, lineHeight: 22, marginTop: spacing.md },
+  noticeBtn: { backgroundColor: colors.teal, borderRadius: 999, paddingVertical: 14, alignItems: "center", marginTop: spacing.xl, minHeight: 48, justifyContent: "center" },
+  noticeBtnText: { color: "#FFF", fontWeight: "800", fontSize: font.base },
+  noticeCancel: { alignItems: "center", paddingVertical: 12, marginTop: spacing.sm, minHeight: 44, justifyContent: "center" },
+  noticeCancelText: { color: colors.textSecondary, fontWeight: "600" },
 });

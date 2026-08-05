@@ -17,6 +17,7 @@ import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
 import AppModeSwitch from "@/src/components/AppModeSwitch";
 import ProfessionalHome from "@/src/components/ProfessionalHome";
+import ProfessionalDisclaimerModal from "@/src/components/ProfessionalDisclaimerModal";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 export default function RadarScreen() {
@@ -83,6 +84,7 @@ export default function RadarScreen() {
         </View>
         <AppModeSwitch />
         <ProfessionalHome />
+        <ProfessionalDisclaimerModal />
       </View>
     );
   }
