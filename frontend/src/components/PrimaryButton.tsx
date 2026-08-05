@@ -18,6 +18,7 @@ export function PrimaryButton({ title, onPress, color, disabled, loading, testID
       testID={testID}
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityState={{ disabled: !!(disabled || loading) }}
       style={({ pressed }) => [
         styles.primary,
         { backgroundColor: color || colors.orange, opacity: disabled ? 0.5 : 1 },

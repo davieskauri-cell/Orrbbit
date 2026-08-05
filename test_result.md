@@ -136,3 +136,8 @@ Backend verified via curl: plan defaults OK, HD demo 100-cap OK. needs_retesting
 - Focus top-12 markers + vibe clusters + heat zones + relevance glow; stats microcopy; BEST NEARBY MATCH card (strong-only); NEARBY NOW row w/ avatar stack; cluster tap → /nearby?vibe=X pre-filter.
 - Demo: 61 nearby / 47 aligned / 12 strong for Kauri Pro @500m (seed rebuilt, stale radar users cleaned).
 - needs_retesting: false (self-verified end-to-end via browser screenshots)
+
+## Iteration 35 — Signup / Legal Consent / Safety Access (Aug 2026)
+main agent changes: 4-step signup (DOB 18+ gate, required+optional consent, success/verify state), backend/legal_consent.py policy registry + consent endpoints, append-only db.consent_records, reauth account deletion (password + typed DELETE), /legal-safety + /account-data + /blocked-users screens, professional disclaimer + credential-upload + location pre-permission notices, marketing withdrawal hook in email prefs.
+testing agent: backend 21/21 pytest pass, frontend all flows pass (see /app/test_reports/iteration_35.json). Old pytest files use legacy register contract (age int) — expected failures, superseded.
+needs_retesting: false

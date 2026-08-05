@@ -411,3 +411,16 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - EMAIL LOGO cache-busted: static/email-assets/orrbbit-logo-v2.png; EMAIL_LOGO_URL=<prod>/api/email-assets/orrbbit-logo-v2.png (prod 404s on -v2 until owner REDEPLOYS — the redeploy is the activation step).
 - INTRO purge: EVENT_CODES INTRO100→ORB100 (server.py + join-event.tsx); diagnostics scheme fallback. Remaining legacy DATA keys kept deliberately: @intro.demo/@intro.control emails, verified_by_intro field, intro_* AsyncStorage keys (not user-facing; renaming would break data).
 - ⚠️ OWNER: REDEPLOY required to activate identifiers/assets/email logo in production; native icon/splash verification needs a real build.
+
+## Signup, Legal Consent & Safety Access Update (August 2026) — COMPLETE
+- 4-step signup (app/(auth)/register.tsx): Account → Age (DOB, 18+ gate) → Policies (required consent + optional marketing, both unticked) → Complete ("Welcome to Orrbbit" + verify-email prompt). Progress labels Account/Age/Policies/Complete. Exact spec copy incl. underage message. Continue → /location-privacy?next=setup (existing onboarding chain preserved).
+- Backend age gate authoritative: register requires date_of_birth (YYYY-MM-DD) + accept_policies; underage → 403 exact message, no account; missing consent → 400. Legacy `age` int contract removed (old pytest files use legacy contract).
+- Durable versioned consent: db.consent_records (APPEND-ONLY, retained after deletion & policy changes). Signup record: dob, age_gate_passed, terms/community/privacy versions+timestamps, marketing opt-in/withdrawal, platform/app_version/locale/method. Marketing withdrawal recorded via email-preferences PUT hook.
+- Policy registry: backend/legal_consent.py (bind pattern) — env-overridable LEGAL_SITE_BASE/POLICY_VERSION/POLICY_EFFECTIVE_DATE/POLICY_STATUS. GET /api/policies (14 docs, www.orrbbit.com, v1.0 effective 2026-08-04, status effective — verified live, no draft labels).
+- New endpoints: GET /users/me/consents, POST /consents/acknowledge (professional_disclaimer | credential_upload_notice | location_notice), GET /users/me/acknowledgements, GET /users/me/data-export (photos omitted for size), GET /blocks, DELETE /blocks/{user_id}.
+- Account deletion hardened: DELETE /users/me requires {password, confirmation:"DELETE"}; wrong pwd 401; consent records retained; token invalidated.
+- New screens: /legal-safety (14 policy links + Safety Tips + version footer), /account-data (data download, prefs, blocked users, delete w/ password modal), /blocked-users. Profile menu: Account & Data + Legal & Safety rows; old one-tap delete removed (routes to Account & Data).
+- Contextual notices: location pre-permission alert (AppContext, native only, once), ProfessionalDisclaimerModal (first Professional Mode use, server-persisted ack), credential-upload notice in professional/verification.tsx before picker.
+- Analytics (no PII): signup_step_*, signup_age_gate_failed(+_client), signup_consent_accepted, account_delete(_requested/deleted), notice_ack_*.
+- src/lib/legalLinks.ts central link registry. Payments notice NOT implemented (payments disabled).
+- Tested: iteration_35 — backend 21/21 pytest (test_iter34_signup_consent.py), frontend flows pass. Real-device GPS/camera/push/accessibility PENDING (not physically tested).
