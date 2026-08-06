@@ -126,6 +126,19 @@ def bind(server):
             {"$set": {"photo_url": None, "photos": []}})
         return applied
 
+    # ---------------- distance spread (radius-tier realism, idempotent) ----------------
+    DEMO_CENTER = (-37.8136, 144.9631)
+    DISTANCE_SPREAD = {  # email_local -> (distance_m, bearing_deg): populates the 500m-1km band
+        "priya": (620, 40), "matilda": (540, 150), "rory": (700, 260), "sana": (560, 320),
+        "theo": (830, 80), "oscar": (950, 200), "hazel": (760, 10), "jasper": (980, 120),
+    }
+
+    async def spread_demo_distances():
+        for local, (dist, bearing) in DISTANCE_SPREAD.items():
+            await db.users.update_one(
+                {"email": f"{local}@radar.intro.demo"},
+                {"$set": {"demo_dist": dist, "demo_bearing": bearing}})
+
     # ---------------- moderation example (harmless, idempotent) ----------------
     async def seed_moderation_example():
         u = await db.users.find_one({"email": MODERATION_EXAMPLE_EMAIL})
@@ -174,6 +187,7 @@ def bind(server):
         result = await server.seed_demo_environment(force=True)
         await apply_demo_photos()
         await seed_moderation_example()
+        await spread_demo_distances()
         return {"ok": True, "seeded": result}
 
     @demo_router.post("/control/demo-mode/reset")
@@ -181,6 +195,7 @@ def bind(server):
         result = await server.seed_demo_environment(force=True)
         await apply_demo_photos()
         await seed_moderation_example()
+        await spread_demo_distances()
         return {"ok": True, "reset": result}
 
     @demo_router.post("/control/demo-mode/remove")
@@ -222,3 +237,4 @@ def bind(server):
     server_ns.demo_apply_photos = apply_demo_photos
     server_ns.demo_seed_moderation_example = seed_moderation_example
     server_ns.demo_load_state = _load_state
+    server_ns.demo_spread_distances = spread_demo_distances

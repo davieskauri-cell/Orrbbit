@@ -417,22 +417,30 @@ export default function RadarScreen() {
             {nearby.length > 0 && (
               <View style={styles.nearbyNow} testID="nearby-now-row">
                 <Text style={styles.nearbyNowKicker}>NEARBY NOW</Text>
-                <View style={styles.nearbyNowInner}>
-                  <PrimaryButton
-                    testID="see-more-nearby"
-                    title="See More Nearby"
-                    onPress={() => router.push("/(tabs)/nearby")}
-                    style={{ flex: 1, minHeight: 46 }}
-                  />
+                <View style={styles.nearbyPreviewRow}>
                   <View style={styles.avatarStack}>
-                    {nearby.slice(0, 4).map((u, i) => (
-                      <View key={u.id} style={[styles.stackItem, i > 0 && { marginLeft: -10 }]}>
-                        <Avatar uri={u.photo_url} name={u.name} size={30} />
+                    {nearby.slice(0, 5).map((u, i) => (
+                      <View key={u.id} style={[styles.stackItem, i > 0 && { marginLeft: -8 }]}>
+                        <Avatar uri={u.photo_url} name={u.name} size={34} />
                       </View>
                     ))}
                   </View>
-                  {nearby.length > 4 && <Text style={styles.moreText}>+{nearby.length - 4} more</Text>}
+                  {nearby.length > 5 && (
+                    <Text
+                      style={styles.moreText}
+                      accessibilityLabel={`${nearby.length - 5} more people nearby`}
+                    >
+                      +{nearby.length - 5} more
+                    </Text>
+                  )}
                 </View>
+                <PrimaryButton
+                  testID="see-more-nearby"
+                  title="See More Nearby"
+                  color={colors.teal}
+                  onPress={() => router.push("/(tabs)/nearby")}
+                  style={{ minHeight: 52, marginTop: spacing.md }}
+                />
               </View>
             )}
 
@@ -559,11 +567,11 @@ const styles = StyleSheet.create({
   densityTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   densityText: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 19 },
   densityLink: { color: colors.teal, fontSize: font.sm, fontWeight: "800", marginTop: spacing.sm },
-  nearbyNow: { marginTop: spacing.md },
+  nearbyNow: { marginTop: spacing.lg },
   nearbyNowKicker: { color: colors.orange, fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: spacing.sm },
-  nearbyNowInner: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  nearbyPreviewRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 40 },
   avatarStack: { flexDirection: "row", alignItems: "center" },
-  stackItem: { borderWidth: 2, borderColor: colors.surface, borderRadius: 17 },
+  stackItem: { borderWidth: 2, borderColor: colors.surface, borderRadius: 19 },
   moreText: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
   whyShown: { color: colors.teal, fontSize: font.sm, fontWeight: "600", marginTop: spacing.sm, lineHeight: 18 },
   trialBanner: {
@@ -652,5 +660,5 @@ const styles = StyleSheet.create({
   bestName: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
   bestDist: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
   bestBio: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.md, lineHeight: 20 },
-  actionRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.lg },
+  actionRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xl },
 });

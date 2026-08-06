@@ -977,8 +977,8 @@ def synthetic_nearby(user: dict, radius: float, count: int) -> list:
 
 
 async def compute_nearby(user: dict, lat: float, lng: float) -> list:
-    cap = plan_max_radius(user)  # Free 50m, Plus 100m, Pro 500m — never beyond 500m
-    radius = min(user.get("radius", 50) or 50, cap)
+    cap = plan_max_radius(user)  # Free 250m, Plus 500m, Pro 1000m — backend source of truth
+    radius = min(user.get("radius", 250) or 250, cap)  # effective radius
     my_vibe = user.get("vibe")
     compat = COMPAT.get(my_vibe, []) if my_vibe else []
     blocked = await get_blocked_ids(user["id"])
@@ -1007,7 +1007,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             brg = bearing_between(lat, lng, o["lat"], o["lng"])
         else:
             continue
-        if dist > radius or dist > cap or dist > 500:
+        if dist > radius or dist > cap or dist > 1000:
             continue
         o_vibe = o.get("vibe")
         if user.get("only_same_vibe") and o_vibe != my_vibe:
@@ -2408,7 +2408,7 @@ async def matching_requests(
     if not my_cats:
         return {"requests": []}
     blocked = await get_blocked_ids(user["id"])
-    radius = float(user.get("radius", 50))
+    radius = min(float(user.get("radius", 250) or 250), float(plan_max_radius(user)))  # effective radius
     rows = await db.help_requests.find({"status": "active", "category": {"$in": list(my_cats)}}).to_list(200)
     out = []
     for r in rows:
@@ -2451,7 +2451,7 @@ async def nearby_professionals(
     cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
     if category:
         cat_list.append(category)
-    radius = float(user.get("radius", 50))
+    radius = min(float(user.get("radius", 250) or 250), float(plan_max_radius(user)))  # effective radius
     profs = await db.professional_profiles.find({"is_draft": {"$ne": True}}).to_list(200)
     out = []
     for p in profs:
@@ -3199,6 +3199,7 @@ async def startup_demo_mode():
     await demo_load_state()  # noqa: F821 — injected by demo_mode.bind
     await demo_apply_photos()  # noqa: F821
     await demo_seed_moderation_example()  # noqa: F821
+    await demo_spread_distances()  # noqa: F821
 
 
 @app.on_event("startup")

@@ -152,7 +152,7 @@ function RingLabelA({ m, maxDist, z }: { m: number; maxDist: number; z: ZoomSV }
   }));
   return (
     <Reanimated.View pointerEvents="none" style={[styles.ringLabelWrap, a]}>
-      <Text style={styles.ringLabel}>{m}m</Text>
+      <Text style={styles.ringLabel}>{m >= 1000 ? "1 km" : `${m}m`}</Text>
     </Reanimated.View>
   );
 }
@@ -162,7 +162,9 @@ function ringSet(r: number): number[] {
   if (r <= 50) return [10, 25, 50];
   if (r <= 100) return [25, 50, 75, 100];
   if (r <= 250) return [50, 100, 175, 250];
-  return [125, 250, 375, 500];
+  if (r <= 500) return [125, 250, 375, 500];
+  if (r <= 750) return [250, 500, 750];
+  return [250, 500, 750, 1000];
 }
 
 type Props = {
@@ -304,7 +306,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
 
   const rings = ringSet(radiusSetting);
   const MAX_DIST = rings[rings.length - 1];
-  const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : 15;
+  const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : MAX_DIST <= 500 ? 15 : 14;
   const loc = coords || DEMO_LOCATION;
 
   // place nearby users (fuzzed positions only) — centre coordinates in map space
