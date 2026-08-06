@@ -151,3 +151,8 @@ needs_retesting: false
 main agent: billing.py entitlement system (sandbox-gated), PLAN_LIMITS 250/500/1000, radius migration + one-time notice, /plans rebuild per visual, /subscription screen, RadiusSheet locks+paywall, copy audit, alert.ts 3-button web fallback.
 testing agent: backend 15/15 pytest + frontend 6/6 flows pass (/app/test_reports/iteration_37.json). Sarah left on free. Verdict: PRICING UI COMPLETE — BILLING NOT CONFIGURED.
 needs_retesting: false
+
+## Iteration 38 — radius/map fix + Nearby Now rebuild (Aug 2026)
+main agent: ringSet 750/1000 + 1km label, removed backend 500m hard cap (compute_nearby + professionals), effective radius everywhere, demo 500-1000m distance band, Nearby Now full-width teal CTA rebuild.
+testing agent: frontend 7/7 pass, no bugs (/app/test_reports/iteration_38.json). Kauri left free/250.
+needs_retesting: false
