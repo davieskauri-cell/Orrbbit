@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 36 — Photo upload pipeline, demo assets, demo-mode isolation, control-centre & content audit all verified. Backend: 23/23 pytest pass (test_iter36_photo_demo_mode.py) against https://nearby-connect-93.preview.emergentagent.com. Photo pipeline accepts valid JPEG/PNG data URIs (magic-byte checked), rejects file://, bogus payload, gif, and enforces 6-photo cap; DELETE /users/me/photos/{index} + PUT /users/me photos validation both work. Demo assets: /api/demo-assets/kauri.jpg returns image/jpeg 200; /api/demo-assets/../server.py 404 (basename traversal safe); public /api/demo-mode/status returns {demo_mode_enabled:true, store_screenshot_mode:false}. Demo↔real isolation confirmed: demo user (kauri) /nearby returns 0 non-demo; real user /nearby lists demo users while enabled, becomes empty of demo when toggled off, restores when re-enabled; real→demo /connect/request returns 403 cross-realm. Control /control/demo-mode: 80 demo_users / 36 demo_photos_applied, seed is idempotent (2x calls both 200), manifest returns 36 entries. Analytics from demo-login user posts 200. Regression smoke: demo-login, /policies, /professionals (now returns demo-asset photo_urls), /help-requests/mine — all 200. Final state: demo_mode_enabled=true, store_screenshot_mode=false (unchanged). Frontend (mobile viewport 390x844, logged in via /login screen): Radar shows Orrbbit + DEMO badge, 66 nearby, 12 demo-asset images inline avatars; Nearby list shows Maya/Sarah/Priya/Olivia/Alex etc with unique /api/demo-assets/*.jpg photos, ZERO randomuser/picsum/pravatar/unsplash, ZERO broken images; Person profile keeps same photo. Edit Profile shows photo-grid + photo-remove-0 + avatar-crop-preview ('How your main photo appears to people nearby' circular preview) + photo-add + photo-count-hint. /control login (qa-admin@intro.control) works → Dashboard shows 80 total users; /control/demo-mode page renders with 'Demo Mode Enabled — demo profiles visible' toggle, 'Store Screenshot Mode Off', and Seed/Reset/Remove buttons (Remove NOT pressed as instructed). Deprecated packages detected: none (only cosmetic RN-web 'shadow*' + 'props.pointerEvents' deprecation warnings — not deprecated Expo pkgs).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Global styles (react-native-web)", "issue": "Repeated runtime warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted on every screen load. Also 'props.pointerEvents is deprecated. Use style.pointerEvents.' Cosmetic — no functional impact. Same finding as iteration_35."},
+      {"component": "Animated (native driver)", "issue": "Console warning: 'Animated: useNativeDriver is not supported because the native animated module is missing.' Expected in web preview (RCTAnimation is a native module). No action needed for web."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter36_photo_demo_mode.py",
+    "/app/test_reports/pytest/pytest_iter36.xml"
+  ],
+  "action_items": [
+    "(LOW — carry-over from iter35) Migrate remaining shadow* style props to boxShadow to silence RN-Web deprecation; replace props.pointerEvents with style.pointerEvents where used."
+  ],
+  "critical_code_review_comments": [
+    "demo_mode.py bind() pattern is clean; realm-isolation gates (cross_realm_hidden / ensure_same_realm) are hooked into compute_nearby & _validate_connect_target and behave correctly under toggling.",
+    "server.py _validate_photo_url does the right magic-byte checks. Size guard uses len(payload) > MAX_PHOTO_BYTES*1.4 (a heuristic to convert base64 back to raw bytes ~1.37x) — acceptable but a strict base64-decoded length check would be tighter (currently a 5MB raw upload can appear as ~6.8MB base64, so 5*1.4=7MB gate is generous).",
+    "server.py is still ~3200 lines and now spans multiple feature areas — worth continuing the bind() pattern extraction. Not blocking.",
+    "PhotoIn/ProfileUpdate reuse the same _validate_photo_url, so client-side normalisation and PUT paths are both protected — good.",
+    "/api/demo-assets uses os.path.basename() + isfile — traversal-safe (verified). Cache-Control 7-day headers are appropriate for immutable AI-generated files."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter36_photo_demo_mode.py (new — 23 tests, all pass)"
+  ],
+  "success_rate": {"backend": "100% (23/23)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "One TEST_iter36_* fresh user registered per session and cleaned up via DELETE /users/me. Toggling demo_mode_enabled to false and back to true was performed inside a single test and left in the ON state at teardown; verified via GET /api/demo-mode/status.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL: EXPO_PUBLIC_BACKEND_URL=https://nearby-connect-93.preview.emergentagent.com. Auth: JWT is returned as `access_token` (not `token`). /nearby requires lat & lng query params. /professionals also requires lat/lng and returns {professionals:[...]} (not a raw list). /connect/request body is {user_id, message} (NOT target_user_id). Register contract: {email, password, name, date_of_birth:'YYYY-MM-DD', accept_policies:true} — use example.com emails. Frontend web auth: token is stored in AsyncStorage (IndexedDB on web), not localStorage — use the actual /login screen (email+password login-email/login-password/login-submit testIDs) rather than setting localStorage. Ping popups appear on the tabs — dismiss them with the 'Dismiss' text before further clicks, or go direct to /edit-profile, /control, /control/demo-mode.",
+  "rca_of_issue": "N/A — no functional bugs found. All iter36 acceptance criteria met."
+}
