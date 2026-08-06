@@ -1,0 +1,27 @@
+{
+  "summary": "ORRBBIT radius/map fix — frontend-only verification on web preview (390x844). ALL 7 requested flows PASS. (1) Free kauri (radius 250) — radar outer ring labelled '250m' with 50/100/175 inner rings; radius sheet lists 100m/250m/500m/750m/1km with Plus lock on 500 and Pro locks on 750/1km. (2) Kauri upgraded to Pro via POST /api/billing/sandbox/purchase + radius=1000 via PUT /api/users/me/state → radar reloaded with outer ring labelled '1 km' and inner rings 250m/500m/750m; header reads 'Radius: 1000m', '66 nearby · Showing your best 12'; stats row shows Nearby=66, Aligned=52, Radius=1km. GET /api/nearby returned count=66 radius=1000 matching. (3) Below map: NEARBY NOW kicker → avatar stack of 5 overlapping avatars + '+61 more' → full-width teal 'See More Nearby' button (342w × 52h, single line) → equal-width Change Vibe (165w) + Privacy (165w) with a clear gap. Tapping See More Nearby routes to /nearby in People mode (header 'Within 1 km of you', people filters visible, entries with distances 25/40/90/125/175/225/250m visible before scroll). (4) Switched to Professional mode via testID mode-professional → adaptive radar renders with 'I Need Help / I Can Help' role selector, radius preserved at 1000 (not reset). (5) Set radius=500 via radius-sheet-500 tap → chip updates to 'Radius: 500m' and nearby count drops 66→58, ring outer label becomes '500m'. Backend counts also validated 23/58/66 at 250/500/1000. (6) CLEANUP performed: POST /api/billing/sandbox/expire (200 OK, plan=free), radius=250, radius-notice-seen POSTed. Final GET /api/auth/me: plan=free, radius=250, max_radius=250. (7) Regression: login OK, radar renders, ping popup ('Someone nearby wants to network') fires and can be dismissed, profile tab reachable via bottom tab. No red-screen errors, no missing testIDs, no console errors (only benign deprecation warnings for shadow* / pointerEvents / useNativeDriver — pre-existing).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["Inline Playwright runs via mcp_browser_automation (4 runs); screenshots at /tmp/radar_pro_1000.png, /tmp/nearby_tab.png, /tmp/pro_mode.png, /tmp/radius_sheet.png, /tmp/after_500.png"],
+  "action_items": [
+    "None. All iter38 radar/radius fixes verified end-to-end on web preview. Ship."
+  ],
+  "critical_code_review_comments": [
+    "RadarView.ringSet() correctly returns [250,500,750,1000] for r>750 (RadarView.tsx:167) — outer ring auto-labels '1 km' via RingLabelA (line 155). Good.",
+    "index.tsx nearby-now block (lines 417-445) matches spec: kicker + slice(0,5) avatar stack with -8px overlap + '+N more' text + full-width teal PrimaryButton (minHeight 52) + actionRow with flex:1 SecondaryButtons. Clean.",
+    "RadiusSheet uses testID pattern `radius-sheet-{r}` (not `radius-option-*`) — noted for future testers; ALL_RADII=[100,250,500,750,1000] and planFor(r) correctly maps 500→plus, >500→pro so lock badges render 'Plus' at 500 and 'Pro' at 750/1000 for free users.",
+    "Backend PUT /api/users/me/state accepts `radius` (not `radius_m`); server clamps to plan cap via max(100,min(requested,cap,1000)) — confirmed cap=1000 for pro plan hits the ceiling correctly."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only per request; ad-hoc /api/nearby and /api/billing calls used only as test setup/verification and all returned 200 with expected payloads)", "frontend": "100% (all 7 requested flows verified across 3 Playwright runs, ~20 assertions)"},
+  "seed_data_creation": "None — used existing kauri@intro.demo. Kauri was elevated to pro & radius 1000 for testing, then reverted to free/250 via POST /api/billing/sandbox/expire (empty body {}) — confirmed via /api/auth/me: plan=free, radius=250, max_radius=250.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Radius sheet testIDs are `radius-sheet-100/250/500/750/1000` (NOT radius-option-*). The radar radius chip `radar-radius-chip` is absolute-positioned; use JS dispatchEvent MouseEvent to click reliably on 390x844 web viewport. POST /api/billing/sandbox/expire requires a JSON body (send `{}`) — empty body returns 422. PUT /api/users/me/state uses field name `radius` (not `radius_m`). Ping popup ('Someone nearby wants to network') can appear over the radar shortly after load; dismiss it before interacting with map controls, or just JS-dispatch clicks through it (backdrop is not click-blocking for JS events). Kauri left on free/250 at end of run.",
+  "rca_of_issue": "N/A — no issues found. Backend clamps radius to min(selected, plan cap, 1000) so requesting 1000 on Pro succeeds cleanly; requesting 1000 on Free clamps to 250. compute_nearby now uses the effective radius (no hard 500m cutoff) → counts scale as spec'd (23/58/66 at 250/500/1000)."
+}
