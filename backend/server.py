@@ -201,12 +201,12 @@ def create_token(user_id: str) -> str:
 MAX_RADIUS = 100  # base hard cap; Pro extends discovery up to 500m (still approximate only)
 
 PLAN_LIMITS = {
-    "free": {"max_radius": 50, "radius_options": [10, 25, 50]},
-    "plus": {"max_radius": 100, "radius_options": [10, 25, 50, 100]},
-    "pro": {"max_radius": 500, "radius_options": [10, 25, 50, 100, 250, 500]},
+    "free": {"max_radius": 250, "radius_options": [100, 250]},
+    "plus": {"max_radius": 500, "radius_options": [100, 250, 500]},
+    "pro": {"max_radius": 1000, "radius_options": [100, 250, 500, 750, 1000]},
 }
 MAX_DISCOVERY = 100  # never more than 100 discovery profiles
-PLAN_DEFAULT_RADIUS = {"free": 50, "plus": 100, "pro": 250}
+PLAN_DEFAULT_RADIUS = {"free": 250, "plus": 250, "pro": 250}
 
 
 def plan_max_radius(u: dict) -> int:
@@ -225,9 +225,10 @@ def public_user(u: dict) -> dict:
         "interests": u.get("interests", []),
         "vibe": u.get("vibe"),
         "visible": u.get("visible", True),
-        "radius": min(u.get("radius", 50) or 50, plan_max_radius(u)),
+        "radius": min(u.get("radius", 250) or 250, plan_max_radius(u)),
         "plan": u.get("plan", "free"),
         "max_radius": plan_max_radius(u),
+        "radius_migration_notice": bool(u.get("radius_migration_notice")),
         "radius_options": PLAN_LIMITS.get(u.get("plan", "free"), PLAN_LIMITS["free"])["radius_options"],
         "high_density_demo": u.get("high_density_demo", False),
         "ghost_mode": u.get("ghost_mode", False),
@@ -569,7 +570,7 @@ async def register(body: RegisterIn):
         "lat": None,
         "lng": None,
         "visible": True,
-        "radius": 50,
+        "radius": 250,
         "ghost_mode": False,
         "paused": False,
         "only_same_vibe": False,
@@ -810,12 +811,14 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
     if "plan" in fields:
         if fields["plan"] not in PLAN_LIMITS:
             raise HTTPException(status_code=400, detail="Unknown plan")
-        # switching plans applies the plan's default radius (Free 50, Plus 100, Pro 250)
-        fields["radius"] = PLAN_DEFAULT_RADIUS.get(fields["plan"], 50)
-    if "radius" in fields:
+        # Paid plans can only be activated through billing (store/sandbox) — never a client flag.
+        if fields["plan"] != "free" and fields["plan"] != user.get("plan", "free"):
+            raise HTTPException(status_code=403, detail="Upgrades are processed through your app store subscription")
+    if "radius" in fields or "plan" in fields:
         plan = fields.get("plan", user.get("plan", "free"))
         cap = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["max_radius"]
-        fields["radius"] = max(10, min(int(fields["radius"]), cap, 500))
+        requested = int(fields.get("radius", user.get("radius", 250) or 250))
+        fields["radius"] = max(100, min(requested, cap, 1000))
     if "vibe" in fields and fields["vibe"] not in VIBE_KEYS:
         raise HTTPException(status_code=400, detail="Unknown vibe")
     # starting/refreshing a visibility session sets its expiry
@@ -1078,7 +1081,7 @@ async def nearby(
     results = await compute_nearby(user, lat, lng)
     return {
         "count": len(results),
-        "radius": min(user.get("radius", 50) or 50, MAX_RADIUS),
+        "radius": min(user.get("radius", 250) or 250, plan_max_radius(user)),
         "my_vibe": user.get("vibe"),
         "users": results,
     }
@@ -3057,6 +3060,10 @@ app.include_router(_legal_mod.legal_router)
 _demo_mode.bind(_sys.modules[__name__])
 app.include_router(_demo_mode.demo_router)
 
+import billing as _billing  # noqa: E402
+_billing.bind(_sys.modules[__name__])
+app.include_router(_billing.billing_router)
+
 # ----------------------------- Transactional email system -----------------------------
 import email_service as _email_mod  # noqa: E402
 import email_scheduler as _email_sched  # noqa: E402
@@ -3192,6 +3199,26 @@ async def startup_demo_mode():
     await demo_load_state()  # noqa: F821 — injected by demo_mode.bind
     await demo_apply_photos()  # noqa: F821
     await demo_seed_moderation_example()  # noqa: F821
+
+
+@app.on_event("startup")
+async def migrate_radius_entitlements():
+    """One-time tier migration: clamp any user's radius above their plan entitlement.
+    Preserves accounts, profiles, modes, visibility, connections and messages."""
+    marker = await db.meta.find_one({"key": "radius_tier_migration_v2"})
+    if marker:
+        return
+    for plan, limits in PLAN_LIMITS.items():
+        res = await db.users.update_many(
+            {"plan": plan if plan != "free" else {"$in": [plan, None]},
+             "radius": {"$gt": limits["max_radius"]}},
+            {"$set": {"radius": limits["max_radius"], "radius_migration_notice": True}})
+        if res.modified_count:
+            logger.info(f"Radius migration: clamped {res.modified_count} {plan} users to {limits['max_radius']}m")
+    # Legacy radii below the new floor (10/25/50m) move up to the new minimum granularity
+    await db.users.update_many({"radius": {"$lt": 100}}, {"$set": {"radius": 100}})
+    await db.meta.update_one({"key": "radius_tier_migration_v2"},
+                             {"$set": {"key": "radius_tier_migration_v2", "done_at": now_iso()}}, upsert=True)
 
 
 @app.on_event("shutdown")

@@ -6,9 +6,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
 import { showAlert } from "@/src/lib/alert";
 import { useAuth } from "@/src/context/AuthContext";
+import { track } from "@/src/services/analyticsService";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const ALL_RADII = [10, 25, 50, 100, 250, 500];
+const ALL_RADII = [100, 250, 500, 750, 1000];
+const label = (r: number) => (r >= 1000 ? "1 km" : `${r} m`);
+const planFor = (r: number) => (r <= 500 ? "plus" : "pro");
+
+// Session-scoped: once the user dismisses the radius paywall, don't re-show it this session.
+let paywallDismissedThisSession = false;
 
 /** Shared discovery-radius bottom sheet — used by People Radar and Professional Radar. */
 export default function RadiusSheet({
@@ -23,20 +29,30 @@ export default function RadiusSheet({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
-  const maxR = user?.max_radius || 50;
+  const maxR = user?.max_radius || 250;
 
   const pick = async (r: number) => {
     if (r > maxR) {
+      track("locked_radius_tapped");
       onClose();
-      const needsPlus = r <= 100;
+      if (paywallDismissedThisSession) return;
+      const needed = planFor(r);
       showAlert(
-        needsPlus ? "Unlock 100m with Orrbbit Plus" : "Unlock extended discovery with Orrbbit Pro",
-        needsPlus
-          ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-          : "Orrbbit Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+        needed === "plus" ? "Unlock 500 m with Orrbbit Plus" : "Unlock up to 1 km with Orrbbit Pro",
+        "Expand your orbit to discover more people and professionals nearby.",
         [
-          { text: "Maybe later", style: "cancel" },
-          { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
+          {
+            text: "Maybe later",
+            style: "cancel",
+            onPress: () => {
+              paywallDismissedThisSession = true;
+              track("radius_paywall_dismissed");
+            },
+          },
+          {
+            text: needed === "plus" ? "Upgrade to Plus" : "Upgrade to Pro",
+            onPress: () => router.push(`/plans?plan=${needed}`),
+          },
         ]
       );
       return;
@@ -44,6 +60,7 @@ export default function RadiusSheet({
     try {
       const updated = await api("/users/me/state", { method: "PUT", body: { radius: r } });
       setUser(updated as any);
+      track("radius_changed");
     } catch {}
     onClose();
     onChanged?.();
@@ -57,19 +74,21 @@ export default function RadiusSheet({
           <Text style={styles.sub}>Your radius depends on your plan.</Text>
           {ALL_RADII.map((r) => {
             const locked = r > maxR;
-            const selected = (user?.radius || 50) === r;
+            const selected = (user?.radius || 250) === r;
             return (
               <Pressable
                 key={r}
                 testID={`radius-sheet-${r}`}
+                accessibilityRole="button"
+                accessibilityLabel={locked ? `${label(r)} — requires Orrbbit ${planFor(r) === "plus" ? "Plus" : "Pro"}` : `${label(r)}${selected ? ", selected" : ""}`}
                 style={[styles.row, selected && styles.rowActive]}
                 onPress={() => pick(r)}
               >
-                <Text style={[styles.rowText, locked && { color: colors.textTertiary }]}>{r}m</Text>
+                <Text style={[styles.rowText, locked && { color: colors.textTertiary }]}>{label(r)}</Text>
                 {locked ? (
                   <View style={styles.lockTag}>
                     <Ionicons name="lock-closed" size={11} color={colors.textTertiary} />
-                    <Text style={styles.lockTagText}>{r <= 100 ? "Plus" : "Pro"}</Text>
+                    <Text style={styles.lockTagText}>{planFor(r) === "plus" ? "Plus" : "Pro"}</Text>
                   </View>
                 ) : selected ? (
                   <Ionicons name="checkmark" size={18} color={colors.teal} />

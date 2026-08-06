@@ -10,6 +10,7 @@ import { trackAccountDeleted } from "@/src/services/analyticsService";
 import { colors, spacing, radius, font } from "@/src/theme";
 
 const ROWS = [
+  { icon: "card-outline", label: "Subscription", route: "/subscription", testID: "ad-subscription" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "ad-privacy" },
   { icon: "map-outline", label: "Location Privacy", route: "/location-privacy", testID: "ad-location" },
   { icon: "mail-outline", label: "Email Preferences", route: "/email-preferences", testID: "ad-email" },

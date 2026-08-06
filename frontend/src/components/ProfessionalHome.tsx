@@ -238,7 +238,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
           onSelect={(u: any) => setPreview(shown.find((x: any) => `pro:${x.user_id}` === u.id) || null)}
           meUri={me?.photo_url}
           meName={me?.name}
-          radiusSetting={me?.radius || 50}
+          radiusSetting={me?.radius || 250}
           coords={coords}
           onRadiusPress={() => setShowRadius(true)}
           onFilters={() => setShowFilters(true)}
@@ -545,7 +545,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
               onSelect={(u: any) => router.push(`/professional/request/${u.id.slice(4)}`)}
               meUri={me?.photo_url}
               meName={me?.name}
-              radiusSetting={me?.radius || 50}
+              radiusSetting={me?.radius || 250}
               coords={coords}
             />
           </View>

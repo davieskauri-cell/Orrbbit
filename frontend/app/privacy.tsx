@@ -10,7 +10,7 @@ import ToggleRow from "@/src/components/ToggleRow";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const RADII = [10, 25, 50, 100, 250, 500];
+const RADII = [100, 250, 500, 750, 1000];
 const DURATIONS = [15, 30, 60];
 const AUDIENCES = [
   { key: "everyone", label: "Everyone" },
@@ -31,7 +31,7 @@ export default function PrivacyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
-  const [radiusM, setRadiusM] = useState(user?.radius || 50);
+  const [radiusM, setRadiusM] = useState(user?.radius || 250);
   const [visibleFor, setVisibleFor] = useState(user?.visible_for || 60);
   const [visible, setVisible] = useState(!!user?.visible);
   const [ghost, setGhost] = useState(!!user?.ghost_mode);
@@ -44,19 +44,17 @@ export default function PrivacyScreen() {
   const [audience, setAudience] = useState(user?.who_can_see || "everyone");
   const [busy, setBusy] = useState(false);
 
-  const maxR = user?.max_radius || 50;
+  const maxR = user?.max_radius || 250;
   const planName = user?.plan === "pro" ? "Orrbbit Pro" : user?.plan === "plus" ? "Orrbbit Plus" : "Free";
 
   const onLockedRadius = (r: number) => {
-    const needsPlus = r <= 100;
+    const needsPlus = r <= 500;
     showAlert(
-      needsPlus ? "Unlock 100m with Orrbbit Plus" : "Unlock extended discovery with Orrbbit Pro",
-      needsPlus
-        ? "Free gives you up to 50m. Plus unlocks 100m for bigger venues, events and city blocks."
-        : "Orrbbit Pro unlocks 250m and 500m discovery for campuses, festivals, conferences and larger social spaces.",
+      needsPlus ? "Unlock 500 m with Orrbbit Plus" : "Unlock up to 1 km with Orrbbit Pro",
+      "Expand your orbit to discover more people and professionals nearby.",
       [
         { text: "Maybe later", style: "cancel" },
-        { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push("/plans") },
+        { text: needsPlus ? "Upgrade to Plus" : "Upgrade to Pro", onPress: () => router.push(`/plans?plan=${needsPlus ? "plus" : "pro"}`) },
       ]
     );
   };
@@ -110,14 +108,14 @@ export default function PrivacyScreen() {
               >
                 {locked && <Ionicons name="lock-closed" size={11} color={colors.textTertiary} />}
                 <Text style={[styles.chipText, active && styles.chipTextActive, locked && styles.chipTextLocked]}>
-                  {r}m
+                  {r >= 1000 ? "1 km" : `${r} m`}
                 </Text>
               </Pressable>
             );
           })}
         </View>
         <Text style={styles.hint}>
-          {planName} plan · up to {maxR}m. Your plan controls your maximum discovery radius. Higher
+          {planName} plan · up to {maxR >= 1000 ? "1 km" : `${maxR} m`}. Your plan controls your maximum discovery radius. Higher
           radius still keeps exact locations hidden.
         </Text>
         {maxR < 500 && (

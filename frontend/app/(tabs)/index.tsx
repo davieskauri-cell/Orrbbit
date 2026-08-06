@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl } from "react-native";
 import { showAlert } from "@/src/lib/alert";
+import { api } from "@/src/lib/api";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,6 +41,20 @@ export default function RadarScreen() {
     if (!coords) requestLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // One-time radius entitlement migration notice
+  useEffect(() => {
+    if (user?.radius_migration_notice) {
+      showAlert(
+        "Radar radius updated",
+        "Your Radar is currently set to 250 m. Upgrade anytime to expand your orbit.",
+        [{ text: "OK" }]
+      );
+      api("/users/me/radius-notice-seen", { method: "POST" }).catch(() => {});
+      setUser({ ...user, radius_migration_notice: false } as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.radius_migration_notice]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -169,7 +184,7 @@ export default function RadarScreen() {
               onSelect={(u) => setPreview(u)}
               meUri={user?.photo_url}
               meName={user?.name}
-              radiusSetting={user?.radius || 50}
+              radiusSetting={user?.radius || 250}
               coords={coords}
               onFilters={() => router.push("/privacy")}
               onCluster={(us) => {
@@ -270,7 +285,7 @@ export default function RadarScreen() {
               </View>
             ) : null}
 
-            {(user?.radius || 50) >= 250 && (
+            {(user?.radius || 250) >= 500 && (
               <Text style={styles.extendedNote} testID="extended-radius-note">
                 Extended radius shows approximate nearby discovery only. Exact locations stay hidden.
               </Text>
@@ -288,7 +303,7 @@ export default function RadarScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={[styles.statNum, { color: colors.orange }]}>{user?.radius || 50}m</Text>
+                <Text style={[styles.statNum, { color: colors.orange }]}>{(user?.radius || 250) >= 1000 ? "1km" : `${user?.radius || 250}m`}</Text>
                 <Text style={styles.statLabel}>Radius</Text>
               </View>
             </View>

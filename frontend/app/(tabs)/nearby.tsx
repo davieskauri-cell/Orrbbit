@@ -81,7 +81,7 @@ export default function NearbyScreen() {
       <Text style={styles.sub}>
         {nearby.length >= 100
           ? "100+ people nearby · Showing the best 100 based on your vibe, filters and safety settings."
-          : `Within ${user?.radius || 50}m of you`}
+          : `Within ${(user?.radius || 250) >= 1000 ? "1 km" : `${user?.radius || 250}m`} of you`}
       </Text>
 
       <View style={{ height: 52 }}>

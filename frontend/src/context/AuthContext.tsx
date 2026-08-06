@@ -39,6 +39,7 @@ export type User = {
   plan: string;
   max_radius: number;
   radius_options: number[];
+  radius_migration_notice?: boolean;
   city: string;
   country: string;
   ambassador: boolean;

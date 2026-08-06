@@ -60,7 +60,7 @@ export default function Welcome() {
         <Image source={HERO} style={styles.heroImg} contentFit="cover" transition={200} />
         <View style={styles.heroBadge}>
           <Ionicons name="location" size={14} color={colors.orange} />
-          <Text style={styles.heroBadgeText}>Starts free within 50m</Text>
+          <Text style={styles.heroBadgeText}>Starts free — up to 250 m</Text>
         </View>
       </View>
 

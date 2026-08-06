@@ -1,6 +1,6 @@
 import { api } from "@/src/lib/api";
 
-const track = (event: string) =>
+export const track = (event: string) =>
   api("/analytics", { method: "POST", body: { event } }).catch(() => {});
 
 export const trackSignup = () => track("signup");

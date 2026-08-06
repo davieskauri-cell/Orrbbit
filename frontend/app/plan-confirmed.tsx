@@ -11,16 +11,16 @@ import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const PLAN_COPY: Record<string, { title: string; text: string }> = {
   free: {
-    title: "You're on the Free plan up to 50m.",
+    title: "You're on Orrbbit Free — up to 250 m.",
     text: "Start exploring and meet new people nearby.",
   },
   plus: {
-    title: "You're on Orrbbit Plus up to 100m.",
-    text: "You can discover more people in bigger venues, events and city blocks.",
+    title: "You're on Orrbbit Plus — up to 500 m.",
+    text: "You can discover more people and professionals across a wider orbit.",
   },
   pro: {
-    title: "You're on Orrbbit Pro up to 500m.",
-    text: "You can use extended discovery for campuses, festivals, conferences and larger social spaces.",
+    title: "You're on Orrbbit Pro — up to 1 km.",
+    text: "You have Orrbbit's widest local reach across People and Professional modes.",
   },
 };
 

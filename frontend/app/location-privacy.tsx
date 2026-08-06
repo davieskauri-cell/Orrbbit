@@ -8,7 +8,7 @@ import { colors, spacing, radius, font } from "@/src/theme";
 
 const CARDS = [
   { icon: "eye", title: "Visibility is optional", text: "You choose when you are visible." },
-  { icon: "resize", title: "Radius depends on your plan", text: "Free users can discover people within 50m. Plus unlocks 100m. Pro unlocks extended discovery up to 500m." },
+  { icon: "resize", title: "Radius depends on your plan", text: "Free users can discover people up to 250 m. Plus unlocks up to 500 m. Pro unlocks up to 1 km." },
   { icon: "lock-closed", title: "Exact locations stay hidden", text: "Your exact location is only visible to you. Others are shown approximately." },
   { icon: "time", title: "Temporary sharing", text: "Meetup location sharing ends after 15 minutes." },
   { icon: "moon", title: "Ghost Mode", text: "Go invisible anytime." },
