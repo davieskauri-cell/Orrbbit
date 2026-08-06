@@ -146,3 +146,8 @@ needs_retesting: false
 main agent: root-cause photo upload fix (photo/photo_url 422 mismatch), normalisation pipeline, backend photo validation, 36 unique AI demo portraits + manifest, demo_mode.py (flags, admin seed/reset/remove, realm isolation, screenshot mode), avatar URI resolution, content audit (unsplash hero/sample photos/invite link).
 testing agent: 23/23 backend pytest + full frontend pass, 0 bugs (/app/test_reports/iteration_36.json). Demo state left enabled, screenshot mode off.
 needs_retesting: false
+
+## Iteration 37 — 3-tier radius subscriptions (Aug 2026)
+main agent: billing.py entitlement system (sandbox-gated), PLAN_LIMITS 250/500/1000, radius migration + one-time notice, /plans rebuild per visual, /subscription screen, RadiusSheet locks+paywall, copy audit, alert.ts 3-button web fallback.
+testing agent: backend 15/15 pytest + frontend 6/6 flows pass (/app/test_reports/iteration_37.json). Sarah left on free. Verdict: PRICING UI COMPLETE — BILLING NOT CONFIGURED.
+needs_retesting: false
