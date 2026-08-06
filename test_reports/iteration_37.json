@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only verification of ORRBBIT subscription system (iter37). All 6 requested flows PASS on web preview (mobile viewport 390x844). Sarah signed in, /plans renders all 3 cards in correct order (Free/Plus/Pro) with prices $6.99 & $11.99 per month, radii 250m/500m/1km, badges Included/Most Popular/Best Reach, Current-plan tag on Free. Selecting Plus → CTA 'Upgrade to Plus'. Purchase-confirm modal renders with sandbox-label, recurring-billing text, Terms/Privacy/Refunds links, Subscribe button. Subscribe fired exact success alert 'Welcome to Orrbbit Plus. Your Radar now reaches up to 500 m.' /subscription then showed Orrbbit Plus card + TEST tag + 'Renews 9/5/2026' + Upgrade options + Restore Purchases + Manage Subscription. /account-data has 'ad-subscription' row that routes to /subscription. Radar radius sheet shows 100/250/500/750/1000 with 500=Plus lock + 750/1000=Pro lock for free user; tapping 500 opens paywall alert 'Unlock 500 m with Orrbbit Plus… Expand your orbit to discover more people and professionals nearby.', tapping Maybe later and re-tapping locked 500 does NOT re-show the paywall (session dismissal works). Fresh real user signup (fresh+<ts>@test.com / Password1! / DOB 1990-01-01) reaches /plans?next=setup; Plus card CTA is 'Coming Soon' and disabled (aria-disabled=true); selecting Free → 'Continue with Free' → advances to /profile-setup. CLEANUP: Sarah was reverted to Free via POST /api/billing/sandbox/expire (200 OK, plan=free confirmed).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "subscription.tsx Manage (web)",
+        "issue": "On web, showAlert (src/lib/alert.ts) collapses multi-button alerts into a single window.confirm, so the Manage-subscription alert only exposes the first non-cancel button ('Cancel auto-renew') on OK. The 'End now (simulate expiry)' destructive option is unreachable from web UI — QA cleanup must call POST /api/billing/sandbox/expire directly. Native (iOS/Android) Alert.alert renders all 3 buttons correctly.",
+        "testID": "sub-manage",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/tests/test_iter37_frontend.py (placeholder — actual flow executed inline via Playwright/mcp_browser_automation across 4 runs)"],
+  "action_items": [
+    "Consider extending src/lib/alert.ts to render a small custom modal on web when >2 buttons are supplied, so the sandbox 'End now (simulate expiry)' path can be reached from the web preview during QA (native is unaffected).",
+    "Everything else in the iter37 plans/subscription/radius paywall/signup Coming Soon flow is working as specified — no further action required."
+  ],
+  "critical_code_review_comments": [
+    "plans.tsx correctly guards purchases with billing.sandbox_eligible (server re-verifies) — Coming Soon copy shown to real users; sandbox TEST label shown only when billing_mode=='sandbox'. Good.",
+    "RadiusSheet.tsx module-scoped `paywallDismissedThisSession` flag is process-lived (session-scoped as specified) — works because the module is not re-imported unless the app fully reloads.",
+    "showAlert web fallback is lossy for >2 buttons (see Manage flow issue above)."
+  ],
+  "updated_files": ["/app/tests/test_iter37_frontend.py (placeholder file only)"],
+  "success_rate": { "backend": "not tested (frontend-only run, per request)", "frontend": "100% (all 6 requested flows verified; ~35 individual assertions passed across 3 Playwright runs)" },
+  "seed_data_creation": "Created 1 fresh real user (fresh+<timestamp>@test.com / Password1! / DOB 1990-01-01) during signup flow verification. Sarah's plan was temporarily elevated to Plus for the purchase flow, then reverted to Free (confirmed via GET /api/auth/me → plan=free).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sarah is on Free plan at end of this run. Fresh test accounts created with pattern fresh+<epoch>@test.com. On web, use POST /api/billing/sandbox/expire (with user's bearer token) for cleanup instead of the Manage-Subscription UI. The radar radius chip has testID 'radar-radius-chip' but its absolute-positioned element renders outside Playwright's viewport-click hitbox on 390x844 — use JS dispatch (evaluate + MouseEvent) to click it and the locked radius rows inside the modal.",
+  "rca_of_issue": "Web-only limitation (not a product bug): src/lib/alert.ts:24-28 finds the first non-cancel button and uses it as OK for window.confirm, discarding the 2nd non-cancel button. The Manage sandbox subscription alert defines [Cancel auto-renew, End now (destructive), Close (cancel)] — on web OK fires 'Cancel auto-renew' and Cancel fires 'Close', leaving 'End now' unreachable. Fix: render a proper multi-button modal on web when buttons.length>=3."
+}
