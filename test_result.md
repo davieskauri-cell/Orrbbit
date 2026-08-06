@@ -141,3 +141,8 @@ Backend verified via curl: plan defaults OK, HD demo 100-cap OK. needs_retesting
 main agent changes: 4-step signup (DOB 18+ gate, required+optional consent, success/verify state), backend/legal_consent.py policy registry + consent endpoints, append-only db.consent_records, reauth account deletion (password + typed DELETE), /legal-safety + /account-data + /blocked-users screens, professional disclaimer + credential-upload + location pre-permission notices, marketing withdrawal hook in email prefs.
 testing agent: backend 21/21 pytest pass, frontend all flows pass (see /app/test_reports/iteration_35.json). Old pytest files use legacy register contract (age int) — expected failures, superseded.
 needs_retesting: false
+
+## Iteration 36 — Photo pipeline fix + Demo Mode + demo photos (Aug 2026)
+main agent: root-cause photo upload fix (photo/photo_url 422 mismatch), normalisation pipeline, backend photo validation, 36 unique AI demo portraits + manifest, demo_mode.py (flags, admin seed/reset/remove, realm isolation, screenshot mode), avatar URI resolution, content audit (unsplash hero/sample photos/invite link).
+testing agent: 23/23 backend pytest + full frontend pass, 0 bugs (/app/test_reports/iteration_36.json). Demo state left enabled, screenshot mode off.
+needs_retesting: false

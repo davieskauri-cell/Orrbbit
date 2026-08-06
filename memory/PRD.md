@@ -424,3 +424,13 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Analytics (no PII): signup_step_*, signup_age_gate_failed(+_client), signup_consent_accepted, account_delete(_requested/deleted), notice_ack_*.
 - src/lib/legalLinks.ts central link registry. Payments notice NOT implemented (payments disabled).
 - Tested: iteration_35 — backend 21/21 pytest (test_iter34_signup_consent.py), frontend flows pass. Real-device GPS/camera/push/accessibility PENDING (not physically tested).
+
+## Demo Experience + Profile-Photo Fix (August 2026) — COMPLETE
+- ROOT CAUSE photo bug: frontend sent {photo}, backend PhotoIn requires {photo_url} → 422 on every upload. Fixed in userService.addPhoto.
+- Photo pipeline: expo-image-manipulator normalisation (HEIC/HEIF→JPEG, orientation, EXIF/GPS stripped, <=1600px, q0.82, base64 data URI, never raw file/content URIs), duplicate-tap prevention, remove-confirmation, circular avatar-crop preview. Backend _validate_photo_url: only data:image jpeg/png (magic bytes, <=5MB), https://, /api/ paths; rejects file://, gif, non-images. PUT /users/me photos also validated.
+- 36 unique AI-generated fictional demo portraits (Gemini Nano Banana) at backend/static/demo-assets, served /api/demo-assets/{id}.jpg (cache 7d). Manifest: /app/memory/demo_assets_manifest.json (source/rights/inspection). Stock randomuser/picsum stripped from ALL demo users (secondary → initials). onboarding hero now bundled generated asset (unsplash removed); 'Use sample photos' feature removed; invite link → www.orrbbit.com.
+- backend/demo_mode.py (bind): flags demo_mode_enabled/store_screenshot_mode (db.app_config + env defaults DEMO_MODE_ENABLED/STORE_SCREENSHOT_MODE_ENABLED); GET /api/demo-mode/status; admin GET/PUT /api/control/demo-mode + POST seed/reset/remove/manifest (control-centre auth, audit-logged); Control Centre UI /control/demo-mode. Seed idempotent; remove deletes ONLY demo data.
+- Isolation: cross_realm_hidden in compute_nearby (demo never sees real; real sees demo only when enabled), ensure_same_realm 403 in _validate_connect_target, emails already skip demo, analytics tagged demo:true, screenshot mode suppresses ping popups.
+- Avatar consistency: src/lib/photo.ts resolvePhotoUri (env-agnostic /api/ paths + stable version cache key) used by Avatar, PhotoGrid, person/[id], control screens, RadarPanel.
+- Moderation example: marco@radar.intro.demo photo removed + notification + moderationActions demo_example (idempotent).
+- Tested: iteration_36 — 23/23 backend pytest + frontend all pass, 0 bugs. Real-device iOS/Android PENDING.
