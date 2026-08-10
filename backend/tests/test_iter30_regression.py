@@ -30,7 +30,8 @@ class TestRegisterMinPassword:
 
     def test_eight_char_ok(self):
         r = requests.post(f"{BASE_URL}/api/auth/register", json={
-            "name": "Eight", "email": f"QA_eight_{_rand()}@gmail.com", "password": "12345678", "age": 22})
+            "name": "Eight", "email": f"QA_eight_{_rand()}@gmail.com", "password": "12345678",
+            "date_of_birth": "1994-05-05", "accept_policies": True})
         assert r.status_code == 200, r.text
 
 # --- Fix 2 ---

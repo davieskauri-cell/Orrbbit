@@ -10,6 +10,12 @@ export const updatePrivacySettings = (settings: {
   verified_only?: boolean;
   who_can_see?: string;
   visible_for?: number;
+  show_recruiters?: boolean;
+  mutual_only?: boolean;
+  people_min_age?: number;
+  people_max_age?: number;
+  people_allow_age_expansion?: boolean;
+  relationship_age_prompt_seen?: boolean;
 }) => api("/users/me/state", { method: "PUT", body: settings });
 
 export const toggleGhostMode = (on: boolean) =>

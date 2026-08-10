@@ -42,6 +42,7 @@ export type NearbyUser = {
   event_name?: string | null;
   mutual_reason?: string | null;
   score?: number;
+  outside_age_preference?: boolean;
 };
 
 export type Vibe = {

@@ -160,6 +160,11 @@ export default function PersonPreview() {
               <Ionicons name="checkmark-circle" size={22} color={colors.teal} testID="verified-badge" />
             )}
           </View>
+          {!!user.outside_age_preference && (
+            <Text style={styles.outsideAgeNote} testID="profile-outside-age">
+              A little outside your age preference
+            </Text>
+          )}
           <View style={styles.badgeRow}>
             <VibePill vibe={vibe} />
             {user.active_now && (
@@ -299,6 +304,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
+  outsideAgeNote: { color: colors.textTertiary, fontSize: font.sm, fontStyle: "italic", marginTop: 2 },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm, alignItems: "center" },
   activeBadge: {
     flexDirection: "row",

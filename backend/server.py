@@ -12,7 +12,7 @@ from pathlib import Path
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 
 from email_service import fire as _es_fire
 from email_triggers import login_security as _login_security
@@ -135,6 +135,11 @@ class StateUpdate(BaseModel):
     mutual_only: Optional[bool] = None
     plan: Optional[str] = None
     high_density_demo: Optional[bool] = None
+    # People Mode age preference (free feature — never behind a subscription)
+    people_min_age: Optional[int] = None
+    people_max_age: Optional[int] = None
+    people_allow_age_expansion: Optional[bool] = None
+    relationship_age_prompt_seen: Optional[bool] = None
 
 
 class FeedbackIn(BaseModel):
@@ -145,6 +150,7 @@ class FeedbackIn(BaseModel):
 
 class AnalyticsIn(BaseModel):
     event: str
+    props: Optional[Dict[str, Any]] = None
 
 
 class MatchIn(BaseModel):
@@ -213,6 +219,73 @@ def plan_max_radius(u: dict) -> int:
     return PLAN_LIMITS.get(u.get("plan", "free"), PLAN_LIMITS["free"])["max_radius"]
 
 
+# ---------- People Mode age preference (config-driven, backend source of truth) ----------
+AGE_PREF_MIN = 18
+AGE_PREF_MAX = 65  # slider ceiling; 65 means "65+" (no upper limit)
+AGE_EXPANSION_YEARS = 3      # conservative widening band when nearby results are limited
+AGE_EXPANSION_TRIGGER = 5    # expand only when fewer in-range results than this
+AGE_EXPANSION_MAX_EXTRA = 3  # add at most this many outside-preference profiles
+
+
+def user_age(u: dict) -> Optional[int]:
+    """Current age calculated from stored DOB (source of truth). Demo/legacy
+    profiles without a DOB fall back to their stored `age`."""
+    dob_s = u.get("date_of_birth")
+    if dob_s:
+        try:
+            return _legal_age(date.fromisoformat(dob_s))
+        except (ValueError, TypeError):
+            pass
+    a = u.get("age")
+    return int(a) if isinstance(a, (int, float)) else None
+
+
+def clamp_age_pref(mn, mx) -> tuple:
+    try:
+        mn = int(mn if mn is not None else AGE_PREF_MIN)
+    except (TypeError, ValueError):
+        mn = AGE_PREF_MIN
+    try:
+        mx = int(mx if mx is not None else AGE_PREF_MAX)
+    except (TypeError, ValueError):
+        mx = AGE_PREF_MAX
+    mn = max(AGE_PREF_MIN, min(mn, AGE_PREF_MAX))
+    mx = max(mn, min(mx, AGE_PREF_MAX))
+    return mn, mx
+
+
+def age_pref(u: dict) -> tuple:
+    mn, mx = clamp_age_pref(u.get("people_min_age", AGE_PREF_MIN), u.get("people_max_age", AGE_PREF_MAX))
+    return mn, mx, u.get("people_allow_age_expansion", True) is not False
+
+
+def age_in_range(age: Optional[int], mn: int, mx: int) -> bool:
+    if age is None:
+        return True  # legacy profiles without DOB/age are never excluded by age
+    if age < 18:
+        return False  # under-18s can never appear (defence in depth on top of the signup gate)
+    return age >= mn and (mx >= AGE_PREF_MAX or age <= mx)
+
+
+def in_expansion_band(age: Optional[int], mn: int, mx: int) -> bool:
+    """Conservative fallback band just outside the preferred range (e.g. 25–35 → 22–38)."""
+    if age is None or age < 18:
+        return False
+    lo = max(18, mn - AGE_EXPANSION_YEARS)
+    hi = 200 if mx >= AGE_PREF_MAX else mx + AGE_EXPANSION_YEARS
+    return lo <= age <= hi
+
+
+def _dob_for_age(age: int) -> str:
+    """Deterministic DOB producing exactly this age today (birthday ~6 months ago,
+    so demo ages stay stable). UTC-based like the rest of age handling."""
+    d = datetime.now(timezone.utc).date() - timedelta(days=182)
+    try:
+        return d.replace(year=d.year - int(age)).isoformat()
+    except ValueError:  # Feb 29 in a non-leap year
+        return d.replace(month=3, day=1, year=d.year - int(age)).isoformat()
+
+
 def public_user(u: dict) -> dict:
     return {
         "id": u["id"],
@@ -257,6 +330,11 @@ def public_user(u: dict) -> dict:
         "is_demo": u.get("is_demo", False),
         "app_mode": u.get("app_mode", "people"),
         "professional_role": u.get("professional_role"),
+        # People Mode age preference — DOB itself is never exposed
+        "people_min_age": clamp_age_pref(u.get("people_min_age"), u.get("people_max_age"))[0],
+        "people_max_age": clamp_age_pref(u.get("people_min_age"), u.get("people_max_age"))[1],
+        "people_allow_age_expansion": u.get("people_allow_age_expansion", True) is not False,
+        "relationship_age_prompt_seen": bool(u.get("relationship_age_prompt_seen", False)),
     }
 
 
@@ -419,6 +497,8 @@ def _build_radar_demo():
             "intent": osummary, "visibility": "public",
         }
     # scattered crowd (mostly aligned, low relevance -> clustered organically)
+    # ages deliberately spread across adult age groups so the age filter visibly works
+    scatter_ages = [20, 24, 28, 32, 36, 41, 48, 55, 62, 26, 31, 45, 58, 38, 50, 22]
     scatter = [
         ("Harvey", "men/33", "networking", 70, 15), ("Bella", "women/9", "open_to_chat", 110, 205),
         ("Archie", "men/48", "need_advice", 150, 95), ("Georgia", "women/41", "networking", 190, 165),
@@ -430,7 +510,7 @@ def _build_radar_demo():
         ("Ned", "men/93", "gym_buddy", 300, 155), ("Rosa", "women/95", "relationship", 430, 335),
     ]
     for i, (n, p, v, d, b) in enumerate(scatter):
-        users.append((n, 22 + i % 15, v, d, b, p, "Out and about in Melbourne."))
+        users.append((n, scatter_ages[i % len(scatter_ages)], v, d, b, p, "Out and about in Melbourne."))
     return users, details
 
 
@@ -579,6 +659,11 @@ async def register(body: RegisterIn):
         "visible_for": 60,
         "verified": False,
         "is_demo": False,
+        # People Mode age preference — broad "any adult" default (18–65+)
+        "people_min_age": 18,
+        "people_max_age": 65,
+        "people_allow_age_expansion": True,
+        "relationship_age_prompt_seen": False,
         "created_at": now_iso(),
         "last_active": now_iso(),
     }
@@ -819,6 +904,14 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
         cap = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])["max_radius"]
         requested = int(fields.get("radius", user.get("radius", 250) or 250))
         fields["radius"] = max(100, min(requested, cap, 1000))
+    if "people_min_age" in fields or "people_max_age" in fields:
+        mn, mx = clamp_age_pref(
+            fields.get("people_min_age", user.get("people_min_age", AGE_PREF_MIN)),
+            fields.get("people_max_age", user.get("people_max_age", AGE_PREF_MAX)))
+        fields["people_min_age"], fields["people_max_age"] = mn, mx
+        fields["age_preference_updated_at"] = now_iso()
+    if "people_allow_age_expansion" in fields:
+        fields["age_preference_updated_at"] = now_iso()
     if "vibe" in fields and fields["vibe"] not in VIBE_KEYS:
         raise HTTPException(status_code=400, detail="Unknown vibe")
     # starting/refreshing a visibility session sets its expiry
@@ -972,6 +1065,7 @@ def synthetic_nearby(user: dict, radius: float, count: int) -> list:
             "event_name": None,
             "mutual_reason": None,
             "score": i % 7,
+            "outside_age_preference": False,
         })
     return out
 
@@ -982,7 +1076,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     my_vibe = user.get("vibe")
     compat = COMPAT.get(my_vibe, []) if my_vibe else []
     blocked = await get_blocked_ids(user["id"])
+    mn_age, mx_age, allow_age_exp = age_pref(user)  # People Mode age preference
     results = []
+    age_expansion_pool = []  # conservative outside-preference fallback candidates
     others = await db.users.find({"id": {"$ne": user["id"]}}, {"hashed_password": 0, "_id": 0}).to_list(500)
     for o in others:
         if o["id"] in blocked:
@@ -998,6 +1094,13 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             continue
         # users hidden or banned by moderation never appear
         if o.get("admin_status") in ("hidden_pending_review", "banned"):
+            continue
+        # People Mode age preference (from DOB — under-18s never appear)
+        o_age = user_age(o)
+        if o_age is not None and o_age < 18:
+            continue
+        age_ok = age_in_range(o_age, mn_age, mx_age)
+        if not age_ok and not (allow_age_exp and in_expansion_band(o_age, mn_age, mx_age)):
             continue
         if o.get("is_demo") and o.get("demo_dist") is not None:
             dist = o["demo_dist"]
@@ -1038,7 +1141,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         shown_details = ovd if vis == "public" else ({"intent": ovd.get("intent")} if vis in ("after_view", "after_accept") else {})
         # opportunity private details unlock only after a mutual connection — never in discovery
         shown_details = {k: v for k, v in shown_details.items() if k != "private_details"}
-        results.append({
+        payload = {
             "id": o["id"],
             "name": o.get("name"),
             "age": o.get("age"),
@@ -1061,14 +1164,25 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "event_name": o.get("event_name"),
             "mutual_reason": mutual_reason(user, o),
             "score": detail_score(user, o),
-        })
+            "outside_age_preference": not age_ok,
+        }
+        if age_ok:
+            results.append(payload)
+        else:
+            gap = (mn_age - o_age) if o_age < mn_age else (o_age - mx_age)
+            age_expansion_pool.append((gap, payload))
     # High Density Demo: simulate a packed venue (142 people within radius)
     if user.get("high_density_demo"):
         need = 142 - len(results)
         if need > 0:
-            results.extend(synthetic_nearby(user, radius, need))
+            results.extend(s for s in synthetic_nearby(user, radius, need)
+                           if age_in_range(s["age"], mn_age, mx_age))
     # most relevant first (vibe-detail fit), then closest — capped at 100 discovery profiles
     results.sort(key=lambda r: (-r["score"], r["distance"]))
+    # limited nearby results: conservatively add a few profiles slightly outside the range
+    if allow_age_exp and age_expansion_pool and len(results) < AGE_EXPANSION_TRIGGER:
+        age_expansion_pool.sort(key=lambda t: (t[0], t[1]["distance"]))
+        results.extend(p for _, p in age_expansion_pool[:AGE_EXPANSION_MAX_EXTRA])
     return results[:MAX_DISCOVERY]
 
 
@@ -1079,10 +1193,12 @@ async def nearby(
     user: dict = Depends(get_current_user),
 ):
     results = await compute_nearby(user, lat, lng)
+    mn_age, mx_age, allow_exp = age_pref(user)
     return {
         "count": len(results),
         "radius": min(user.get("radius", 250) or 250, plan_max_radius(user)),
         "my_vibe": user.get("vibe"),
+        "age_filter": {"min_age": mn_age, "max_age": mx_age, "expansion": allow_exp},
         "users": results,
     }
 
@@ -1751,10 +1867,16 @@ async def submit_feedback(body: FeedbackIn, user: dict = Depends(get_current_use
     return {"ok": True}
 
 
+_ANALYTICS_BLOCKED_PROPS = ("dob", "birth", "lat", "lng", "location")  # never store DOB/exact location
+
+
 @api_router.post("/analytics")
 async def track_event(body: AnalyticsIn, user: dict = Depends(get_current_user)):
+    props = {k: v for k, v in (body.props or {}).items()
+             if not any(b in k.lower() for b in _ANALYTICS_BLOCKED_PROPS)}
     await db.analytics_events.insert_one({
         "id": str(uuid.uuid4()), "user_id": user["id"], "event": body.event,
+        "props": props,
         "demo": bool(user.get("is_demo")), "created_at": now_iso(),
     })
     return {"ok": True}
@@ -2825,6 +2947,7 @@ async def seed_demo_environment(force: bool = False):
     # ---- 1. demo persona ----
     persona_doc = {
         "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "age": 29, "vibe": "networking",
+        "date_of_birth": _dob_for_age(29),
         "bio": "Demo explorer account — look around, everything here is seeded sample data.",
         "interests": ["Business", "Coffee", "Fitness", "Tech"],
         "photo_url": "https://randomuser.me/api/portraits/lego/1.jpg",
@@ -3087,6 +3210,15 @@ async def startup_control_center():
     await bootstrap_control_admin()
 
 
+@app.on_event("startup")
+async def migrate_age_preferences():
+    """Iter39: existing users silently receive the broad default age preference (18–65+)."""
+    await db.users.update_many(
+        {"people_min_age": {"$exists": False}},
+        {"$set": {"people_min_age": 18, "people_max_age": 65,
+                  "people_allow_age_expansion": True, "relationship_age_prompt_seen": False}})
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -3132,6 +3264,7 @@ async def seed_demo_accounts():
         email = f"{name.lower()}@radar.intro.demo"
         doc = {
             "email": email, "name": name, "age": age, "vibe": vibe,
+            "date_of_birth": _dob_for_age(age),
             "bio": bio, "interests": ["Coffee", "Melbourne"],
             "photo_url": f"https://randomuser.me/api/portraits/{portrait}.jpg",
             "photos": [
@@ -3163,6 +3296,7 @@ async def seed_demo_accounts():
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
         doc = {
             "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
+            "date_of_birth": _dob_for_age(age),
             "bio": f"{name} is exploring Orrbbit in {city}.", "interests": ["Coffee", "Travel"],
             "photo_url": f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
             "photos": [

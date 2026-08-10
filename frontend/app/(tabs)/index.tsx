@@ -264,6 +264,11 @@ export default function RadarScreen() {
                       </Text>
                     )}
                     <Text style={styles.bestDist}>{distLabel(preview.distance)}</Text>
+                    {!!preview.outside_age_preference && (
+                      <Text style={styles.outsideAgeNote} testID="preview-outside-age">
+                        A little outside your age preference
+                      </Text>
+                    )}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
                     <Pressable testID="preview-close" onPress={() => setPreview(null)} hitSlop={8}>
@@ -659,6 +664,7 @@ const styles = StyleSheet.create({
   bestRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   bestName: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
   bestDist: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
+  outsideAgeNote: { color: colors.textTertiary, fontSize: 11, fontStyle: "italic" },
   bestBio: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.md, lineHeight: 20 },
   actionRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xl },
 });

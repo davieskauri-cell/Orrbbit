@@ -45,6 +45,11 @@ export type User = {
   ambassador: boolean;
   is_demo: boolean;
   high_density_demo?: boolean;
+  app_mode?: string;
+  people_min_age?: number;
+  people_max_age?: number;
+  people_allow_age_expansion?: boolean;
+  relationship_age_prompt_seen?: boolean;
 };
 
 export type RegisterPayload = {

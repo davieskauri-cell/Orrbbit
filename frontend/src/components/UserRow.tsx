@@ -40,6 +40,12 @@ export default function UserRow({ user, vibeMap, onPress }: Props) {
           </View>
           <Text style={styles.distance}>{distLabel(user.distance)}</Text>
         </View>
+        {!!user.outside_age_preference && (
+          <View style={styles.outsideRow} testID={`outside-age-${user.id}`}>
+            <Ionicons name="information-circle-outline" size={12} color={colors.textTertiary} />
+            <Text style={styles.outsideText}>A little outside your age preference</Text>
+          </View>
+        )}
         <View style={styles.pillRow}>
           <VibePill vibe={vibe} small />
           {!!user.intent && (
@@ -101,4 +107,6 @@ const styles = StyleSheet.create({
   availRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   availDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
   availText: { color: colors.success, fontSize: 11, fontWeight: "700" },
+  outsideRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  outsideText: { color: colors.textTertiary, fontSize: 11, fontStyle: "italic" },
 });

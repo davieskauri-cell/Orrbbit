@@ -1,12 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { showAlert } from "@/src/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
+import { useApp } from "@/src/context/AppContext";
 import { updatePrivacySettings } from "@/src/services/privacyService";
+import { track } from "@/src/services/analyticsService";
 import ToggleRow from "@/src/components/ToggleRow";
+import AgeRangeSlider from "@/src/components/AgeRangeSlider";
 import { PrimaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
@@ -44,6 +47,25 @@ export default function PrivacyScreen() {
   const [audience, setAudience] = useState(user?.who_can_see || "everyone");
   const [busy, setBusy] = useState(false);
 
+  // People Mode age preference — free feature, never behind a subscription
+  const { appMode } = useApp();
+  const isPeople = appMode !== "professional";
+  const [ageMin, setAgeMin] = useState(user?.people_min_age ?? 18);
+  const [ageMax, setAgeMax] = useState(user?.people_max_age ?? 65);
+  const [ageExpansion, setAgeExpansion] = useState(user?.people_allow_age_expansion !== false);
+
+  useEffect(() => {
+    if (isPeople) track("age_filter_opened");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resetAgeFilters = () => {
+    setAgeMin(18);
+    setAgeMax(65);
+    setAgeExpansion(true);
+    track("age_filter_reset");
+  };
+
   const maxR = user?.max_radius || 250;
   const planName = user?.plan === "pro" ? "Orrbbit Pro" : user?.plan === "plus" ? "Orrbbit Plus" : "Free";
 
@@ -63,6 +85,13 @@ export default function PrivacyScreen() {
     setBusy(true);
     try {
       const updated = await updatePrivacySettings({
+        ...(isPeople
+          ? {
+              people_min_age: ageMin,
+              people_max_age: ageMax,
+              people_allow_age_expansion: ageExpansion,
+            }
+          : {}),
         radius: radiusM,
         visible_for: visibleFor,
         visible,
@@ -76,6 +105,15 @@ export default function PrivacyScreen() {
         who_can_see: audience,
       });
       setUser(updated as any);
+      if (isPeople) {
+        track("age_filter_applied", {
+          min_age: ageMin,
+          max_age: ageMax,
+          expansion_enabled: ageExpansion,
+          current_status: user?.vibe || null,
+          current_plan: user?.plan || "free",
+        });
+      }
       router.back();
     } catch {}
     setBusy(false);
@@ -93,6 +131,38 @@ export default function PrivacyScreen() {
           </Pressable>
           <Text style={styles.title}>Adjust your visibility</Text>
         </View>
+
+        {isPeople && (
+          <>
+            <Text style={styles.label}>Age</Text>
+            <View style={styles.ageHeader}>
+              <Text style={styles.ageTitle}>Age range</Text>
+              <Text style={styles.ageValue} testID="age-range-value">
+                {ageMin} – {ageMax >= 65 ? "65+" : ageMax}
+              </Text>
+            </View>
+            <AgeRangeSlider
+              testID="age-range-slider"
+              valueMin={ageMin}
+              valueMax={ageMax}
+              onChange={(mn, mx) => {
+                setAgeMin(mn);
+                setAgeMax(mx);
+              }}
+              onChangeEnd={() => track("age_range_changed")}
+            />
+            <ToggleRow
+              testID="toggle-age-expansion"
+              title="Show people outside my preferred age range when nearby results are limited"
+              description="A small number of people slightly outside your range may appear — always clearly marked."
+              value={ageExpansion}
+              onChange={(v) => {
+                setAgeExpansion(v);
+                track(v ? "age_expansion_enabled" : "age_expansion_disabled");
+              }}
+            />
+          </>
+        )}
 
         <Text style={styles.label}>Plan & radius</Text>
         <View style={styles.chipRow}>
@@ -230,7 +300,22 @@ export default function PrivacyScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <PrimaryButton testID="save-privacy" title="Save Settings" onPress={save} loading={busy} />
+        <View style={styles.footerRow}>
+          {isPeople && (
+            <Pressable
+              testID="reset-filters"
+              onPress={resetAgeFilters}
+              style={styles.resetBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Reset filters"
+            >
+              <Text style={styles.resetText}>Reset</Text>
+            </Pressable>
+          )}
+          <View style={{ flex: 1 }}>
+            <PrimaryButton testID="save-privacy" title="Apply Filters" onPress={save} loading={busy} />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -289,4 +374,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
   },
+  footerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  resetBtn: {
+    minHeight: 48,
+    minWidth: 84,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.lg,
+  },
+  resetText: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  ageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.xs },
+  ageTitle: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  ageValue: { color: colors.teal, fontSize: font.lg, fontWeight: "800" },
 });
