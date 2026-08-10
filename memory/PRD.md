@@ -450,3 +450,13 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Demo distance band: demo_mode DISTANCE_SPREAD sets demo_dist 540-980m for priya/matilda/rory/sana/theo/oscar/hazel/jasper (startup + seed/reset). Counts now vary: people 23/58/62/66 and pros 3/9/13 at 250/500/750/1000.
 - Nearby Now section rebuilt (index.tsx): heading → 5 overlapping avatars (2px surface border) + "+N more" (accessible label) → full-width teal single-line "See More Nearby" (52px, opens Nearby preserving mode/radius/filters) → spacing.xl gap → equal-width Change Vibe/Privacy.
 - Tested: iteration_38 frontend 7/7 flows pass + iter37 pytest 15/15 regression. Physical iOS/Android map checks PENDING.
+
+## People Mode Age Preference Filter (August 2026) — COMPLETE
+- Free feature for all plans (Free/Plus/Pro) — never paywalled. People Mode only; Professional Mode has no age controls anywhere.
+- Backend source of truth: `people_min_age` / `people_max_age` / `people_allow_age_expansion` / `relationship_age_prompt_seen` / `age_preference_updated_at` on the user; enforced in `compute_nearby` (Radar, Nearby and pings all share it). Config constants: AGE_PREF_MIN=18, AGE_PREF_MAX=65 (=65+, no upper bound), AGE_EXPANSION_YEARS=3, AGE_EXPANSION_TRIGGER=5, AGE_EXPANSION_MAX_EXTRA=3.
+- Age calculated live from date_of_birth (UTC); under-18 profiles hard-blocked in discovery; full DOB never exposed by any API (audited).
+- Default 18–65+ ("any adult"); expansion toggle default ON; out-of-range fallback profiles flagged `outside_age_preference` and shown with "A little outside your age preference" (Nearby rows, radar marker preview, person profile).
+- UI: dual-handle AgeRangeSlider (accessible: adjustable role, increment/decrement, min/max announce), AGE section in Filters (/privacy) with Reset + Apply Filters footer; one-time "Who would you like to meet?" prompt on first Relationship vibe selection (Save preference / Not now).
+- Existing users migrated silently to 18–65+/expansion-on at startup; demo users seeded with consistent DOBs and ages spanning 20–62.
+- Analytics: age_filter_opened/applied/reset, age_range_changed, age_expansion_enabled/disabled, relationship_age_prompt_viewed/saved/skipped with sanitized props (DOB/lat/lng stripped server-side).
+- Tests: backend 16/16 (tests/test_iter39_age_filter.py) + regressions green; testing agent frontend flows pass (iteration_39.json). Device (iOS/Android) validation pending.

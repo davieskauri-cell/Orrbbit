@@ -156,3 +156,9 @@ needs_retesting: false
 main agent: ringSet 750/1000 + 1km label, removed backend 500m hard cap (compute_nearby + professionals), effective radius everywhere, demo 500-1000m distance band, Nearby Now full-width teal CTA rebuild.
 testing agent: frontend 7/7 pass, no bugs (/app/test_reports/iteration_38.json). Kauri left free/250.
 needs_retesting: false
+
+## Iteration 39 — People Mode Age Preference filter (Aug 2026)
+main agent: backend age filter in compute_nearby (people_min_age/people_max_age/people_allow_age_expansion; 18–65 where 65="65+"; under-18 hard block from DOB; conservative expansion ±3y, max 3 extra, only when in-range <5, flagged outside_age_preference); StateUpdate validation+clamping; public_user exposes prefs (never DOB); signup defaults 18/65/true; startup migration for existing users; demo seeds get consistent date_of_birth + scatter ages 20–62; analytics props (DOB/lat/lng stripped). Frontend: AgeRangeSlider (dual-handle, PanResponder, a11y adjustable), /privacy AGE section (People mode only) + Reset/Apply Filters footer + hydration re-sync effect, vibe.tsx one-time relationship prompt (Save preference / Not now, relationship_age_prompt_seen), outside-age note in UserRow/radar preview/person profile.
+testing: backend 16/16 pytest (tests/test_iter39_age_filter.py) + regression suites green (iter30 stale test updated for DOB contract). testing agent frontend 5/6 pass; hydration bug fixed by main agent then Flow 4 verified visually (60–64 range → Freddie 62 in-range, Barney 58 flagged "A little outside your age preference"). Kauri restored to 18/65/true, visible, radius 500. Report: /app/test_reports/iteration_39.json
+needs_retesting: false
+NOTE for web automation: localStorage 'auth_token' value is JSON-serialized (store JSON.stringify(token), not the raw token).

@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 39 People Mode Age Preference filter — frontend tested end-to-end at 390x844 against the preview URL. Flows 1, 2, 3, 5, 6 all PASS. Flow 4 (visible outside-age note in Nearby UI) not visually verified because demo user 'kauri' was invisible on radar during testing (existing seed state — 'You are invisible' shown), but code review confirms UserRow renders testID `outside-age-<id>` when backend returns outside_age_preference=true, and backend behaviour is already covered by the 16 passing pytest tests in test_iter39_age_filter.py. One notable pre-existing UX bug found: PrivacyScreen state is initialised from `user?.…` only on mount and never re-syncs when AuthContext hydrates or user is refreshed, so on remount (e.g. after Apply, or when Filters is opened from a deep-link before /auth/me resolves) the sliders/chips can display default (18–65+, radius 250 m) instead of the persisted values. This creates a real risk of silently overwriting saved age preferences by tapping Apply Filters.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "privacy.tsx",
+        "issue": "PrivacyScreen `useState` initialisers (ageMin/ageMax/ageExpansion/radiusM/visibleFor/…) read from `user?.…` only on mount. When AuthContext hydrates asynchronously (or is refreshed after saving) the local state is NOT re-synchronised, so the screen can render defaults (18–65+, radius 250 m) even though backend has other values persisted. Reproduced: PUT /api/users/me/state {people_min_age:25, people_max_age:34}; goto /privacy → UI shows '18 – 65+' although GET /api/auth/me returns 25/34. Tapping Apply then silently overwrites the saved preference back to 18–65+. Reference: /app/frontend/app/privacy.tsx:37-55",
+        "testID": "age-range-value",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter39_age_filter.py (existing, not rerun)"
+  ],
+  "action_items": [
+    "Add a useEffect in /app/frontend/app/privacy.tsx that syncs ageMin/ageMax/ageExpansion (and ideally radiusM/visibleFor/toggles) from `user` whenever `user?.id`, `user?.people_min_age`, `user?.people_max_age`, or `user?.people_allow_age_expansion` changes, so the screen always reflects the currently persisted values.",
+    "Optional: guard the Save handler with a check that state has been hydrated from `user` before writing back, or disable Apply Filters until user is loaded."
+  ],
+  "critical_code_review_comments": [
+    "privacy.tsx (line 37+53-55): useState( user?.foo ?? default ) pattern captures only the first render; add a useEffect to keep it in sync with user updates, otherwise every screen mount before /auth/me resolves silently reverts UI to defaults.",
+    "AgeRangeSlider math is correct and clamps min<=max on both handles (verified: dragging max fully left produced 25–25, not below 25).",
+    "vibe.tsx relationship prompt implementation is clean; broad-default heuristic (18/65 → default 24–34, else use existing prefs) works as intended.",
+    "UserRow correctly renders testID `outside-age-<id>` with italic gray note when `outside_age_preference` is set — matches spec."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (per existing 16/16 pytest suite, spot-checked PUT /users/me/state, GET /auth/me, PUT /users/me/mode — all OK)",
+    "frontend": "~85% (5 of 6 flows fully verified in UI; Flow 4 outside-age visual note verified only via code review because seeded demo state showed kauri invisible on Nearby)"
+  },
+  "seed_data_creation": "One throw-away user created via /api/auth/register for the relationship prompt test (email testrel_<ts>@example.com). Not cleaned up — safe to ignore or delete manually.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login response key is `access_token` (NOT `token`); localStorage `auth_token` must be JSON-stringified. AppContext appMode is stored in localStorage key `intro_app_mode` (AsyncStorage on web) — switching mode via PUT /api/users/me/mode does NOT update the frontend context; set localStorage BEFORE navigation to test Professional Mode. Kauri restored to defaults (18/65/true, mode=people, vibe=networking, radius=500). Backend suite for iter39 is at /app/backend/tests/test_iter39_age_filter.py and was NOT rerun.",
+  "rca_of_issue": "Root cause of the state-sync bug: PrivacyScreen initialises local state with `useState(user?.people_min_age ?? 18)`. React only evaluates the initialiser on the first render; subsequent changes to `user` (e.g. when AuthContext finishes hydrating from /api/auth/me, or when a sibling screen calls setUser) do NOT re-run the initialiser, so the UI keeps its stale defaults. Mitigation: add `useEffect(() => { setAgeMin(user?.people_min_age ?? 18); setAgeMax(user?.people_max_age ?? 65); setAgeExpansion(user?.people_allow_age_expansion !== false); }, [user?.people_min_age, user?.people_max_age, user?.people_allow_age_expansion]);` (and analogous effects for radius/visibleFor/toggles)."
+}

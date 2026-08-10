@@ -59,6 +59,26 @@ export default function PrivacyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // re-sync from the account when it hydrates/refreshes after mount
+  useEffect(() => {
+    if (!user) return;
+    setAgeMin(user.people_min_age ?? 18);
+    setAgeMax(user.people_max_age ?? 65);
+    setAgeExpansion(user.people_allow_age_expansion !== false);
+    setRadiusM(user.radius || 250);
+    setVisibleFor(user.visible_for || 60);
+    setVisible(!!user.visible);
+    setGhost(!!user.ghost_mode);
+    setQuiet(!!user.quiet_mode);
+    setPaused(!!user.paused);
+    setSameVibe(!!user.only_same_vibe);
+    setVerifiedOnly(!!user.verified_only);
+    setShowRecruiters(user.show_recruiters !== false);
+    setMutualOnly(!!user.mutual_only);
+    setAudience(user.who_can_see || "everyone");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.people_min_age, user?.people_max_age, user?.people_allow_age_expansion, user?.radius]);
+
   const resetAgeFilters = () => {
     setAgeMin(18);
     setAgeMax(65);
