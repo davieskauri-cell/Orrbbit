@@ -158,7 +158,9 @@ export default function ProfileScreen() {
       {completion && (
         <View style={[styles.card, shadow.card, { marginTop: spacing.md }]} testID="completion-card">
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={styles.completionTitle}>Your profile is {completion.score}% complete</Text>
+            <Text style={styles.completionTitle}>
+              {completion.discoverable === false ? "Complete your profile" : `Your profile is ${completion.score}% complete`}
+            </Text>
             <Text style={styles.completionPct}>{completion.score}%</Text>
           </View>
           <View style={styles.completionBarWrap}>
@@ -167,12 +169,25 @@ export default function ProfileScreen() {
           {completion.score < 100 && (
             <>
               <Text style={styles.completionNote}>{completion.message}</Text>
-              {completion.suggestions.map((s: string) => (
-                <View key={s} style={styles.suggestionRow}>
-                  <Ionicons name="add-circle-outline" size={15} color={colors.teal} />
-                  <Text style={styles.suggestionText}>{s}</Text>
+              {(completion.checklist || []).map((c: any) => (
+                <View key={c.key} style={styles.suggestionRow} testID={`checklist-${c.key}`}>
+                  <Ionicons
+                    name={c.done ? "checkmark-circle" : "ellipse-outline"}
+                    size={15}
+                    color={c.done ? colors.success : c.required ? colors.orange : colors.teal}
+                  />
+                  <Text style={[styles.suggestionText, c.done && { color: colors.textTertiary }]}>{c.label}</Text>
                 </View>
               ))}
+              <Pressable
+                testID="completion-edit-profile"
+                onPress={() => router.push("/edit-profile")}
+                style={styles.completionCta}
+                accessibilityRole="button"
+              >
+                <Text style={styles.completionCtaText}>Complete now</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.teal} />
+              </Pressable>
             </>
           )}
         </View>
@@ -362,6 +377,8 @@ const styles = StyleSheet.create({
   completionNote: { color: colors.textSecondary, fontSize: font.sm, marginTop: spacing.md, marginBottom: spacing.xs },
   suggestionRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
   suggestionText: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
+  completionCta: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: spacing.sm, minHeight: 44, paddingRight: spacing.md },
+  completionCtaText: { color: colors.teal, fontSize: font.base, fontWeight: "800" },
   sectionTitle: {
     color: colors.textSecondary,
     fontSize: font.sm,

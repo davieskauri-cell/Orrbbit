@@ -11,6 +11,7 @@ type Props = {
   photos: string[];
   onAdd: (uris: string[]) => void;
   onRemove: (index: number) => void;
+  onReorder?: (from: number, to: number) => void;
   uploading?: boolean;
   max?: number;
   minRequired?: number;
@@ -82,7 +83,7 @@ async function normalisePhoto(asset: ImagePicker.ImagePickerAsset): Promise<stri
   }
 }
 
-export default function PhotoGrid({ photos, onAdd, onRemove, uploading, max = 6, minRequired = 3 }: Props) {
+export default function PhotoGrid({ photos, onAdd, onRemove, onReorder, uploading, max = 6, minRequired = 3 }: Props) {
   const [processing, setProcessing] = React.useState(false);
   const busy = uploading || processing;
 
@@ -123,6 +124,28 @@ export default function PhotoGrid({ photos, onAdd, onRemove, uploading, max = 6,
               <View style={styles.mainTag}>
                 <Text style={styles.mainTagText}>Main</Text>
               </View>
+            )}
+            {!!onReorder && i > 0 && (
+              <Pressable
+                testID={`photo-make-main-${i}`}
+                style={styles.mainBtn}
+                accessibilityLabel="Make main photo"
+                onPress={() => onReorder(i, 0)}
+                hitSlop={8}
+              >
+                <Ionicons name="star-outline" size={13} color="#FFF" />
+              </Pressable>
+            )}
+            {!!onReorder && i > 0 && (
+              <Pressable
+                testID={`photo-move-left-${i}`}
+                style={styles.moveBtn}
+                accessibilityLabel="Move photo earlier"
+                onPress={() => onReorder(i, i - 1)}
+                hitSlop={8}
+              >
+                <Ionicons name="arrow-back" size={12} color="#FFF" />
+              </Pressable>
             )}
             <Pressable
               testID={`photo-remove-${i}`}
@@ -190,6 +213,28 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   mainTagText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
+  mainBtn: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 14,
+    backgroundColor: "rgba(15,23,42,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moveBtn: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 14,
+    backgroundColor: "rgba(15,23,42,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   removeBtn: {
     position: "absolute",
     top: 6,

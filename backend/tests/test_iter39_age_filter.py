@@ -38,7 +38,22 @@ def _register(age: int, name: str):
         "date_of_birth": _dob_for_age(age), "accept_policies": True, "city": CITY,
     })
     assert r.status_code == 200, r.text
+    _make_discoverable(r.json()["user"]["id"])
     return r.json()["access_token"], r.json()["user"]
+
+
+def _make_discoverable(user_id: str):
+    """Iter40 gate: discovery requires 3+ photos, 40+ char bio and a verified email."""
+    import pymongo
+    from dotenv import dotenv_values
+    env = dotenv_values("/app/backend/.env")
+    client = pymongo.MongoClient(env["MONGO_URL"])
+    client[env["DB_NAME"]].users.update_one({"id": user_id}, {"$set": {
+        "photos": [f"https://picsum.photos/seed/{user_id[:6]}-{i}/400/400" for i in range(3)],
+        "bio": "Test profile bio that is comfortably longer than forty characters for discovery.",
+        "email_verified": True,
+    }})
+    client.close()
 
 
 def _set_state(token, **fields):
@@ -152,6 +167,9 @@ def test_under_18_never_appears(world):
         "id": uid, "email": f"iter39_minor_{uid[:8]}@example.com", "name": "Minor",
         "age": 17, "date_of_birth": _dob_for_age(17), "hashed_password": "x",
         "city": CITY, "lat": LAT, "lng": LNG, "visible": True, "is_demo": False,
+        "photos": ["https://picsum.photos/seed/m1/400/400"] * 3,
+        "bio": "A bio long enough to pass the forty character discoverability requirement.",
+        "email_verified": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     try:

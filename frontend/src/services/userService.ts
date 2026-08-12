@@ -2,10 +2,17 @@ import { api } from "@/src/lib/api";
 
 export const updateProfile = (fields: {
   name?: string;
-  age?: number;
   bio?: string;
   interests?: string[];
   photo_url?: string | null;
+  photos?: string[];
+  city?: string;
+  country?: string;
+  home_city?: string;
+  occupation?: string;
+  education?: string;
+  languages?: string;
+  prompts?: { prompt: string; answer: string }[];
 }) => api("/users/me", { method: "PUT", body: fields });
 
 export const updateVibe = (vibe: string) =>

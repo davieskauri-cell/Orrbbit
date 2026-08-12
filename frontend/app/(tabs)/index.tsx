@@ -269,6 +269,18 @@ export default function RadarScreen() {
                         A little outside your age preference
                       </Text>
                     )}
+                    {!!preview.interests?.length && (
+                      <Text style={styles.previewInterests} numberOfLines={1} testID="preview-interests">
+                        {preview.interests.slice(0, 3).join(" • ")}
+                        {preview.interests.length > 3 ? ` • +${preview.interests.length - 3}` : ""}
+                      </Text>
+                    )}
+                    {!!preview.mutual_interests?.length && (
+                      <Text style={styles.previewMutual} numberOfLines={1} testID="preview-mutual">
+                        You both like {preview.mutual_interests.slice(0, 2).join(", ")}
+                        {preview.mutual_interests.length > 2 ? ` +${preview.mutual_interests.length - 2}` : ""}
+                      </Text>
+                    )}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: spacing.sm }}>
                     <Pressable testID="preview-close" onPress={() => setPreview(null)} hitSlop={8}>
@@ -294,6 +306,25 @@ export default function RadarScreen() {
               <Text style={styles.extendedNote} testID="extended-radius-note">
                 Extended radius shows approximate nearby discovery only. Exact locations stay hidden.
               </Text>
+            )}
+
+            {user && user.people_discoverable === false && (
+              <Pressable
+                testID="complete-profile-banner"
+                style={[styles.completeBanner, shadow.card]}
+                onPress={() => router.push("/edit-profile")}
+                accessibilityRole="button"
+                accessibilityLabel="Complete your profile"
+              >
+                <Ionicons name="person-circle-outline" size={24} color={colors.teal} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.completeTitle}>Complete your profile</Text>
+                  <Text style={styles.completeText}>
+                    Add at least 3 photos so people nearby can get a better sense of who you are.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.teal} />
+              </Pressable>
             )}
 
             <View style={[styles.stats, shadow.card]}>
@@ -665,6 +696,19 @@ const styles = StyleSheet.create({
   bestName: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
   bestDist: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },
   outsideAgeNote: { color: colors.textTertiary, fontSize: 11, fontStyle: "italic" },
+  previewInterests: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
+  previewMutual: { color: colors.orange, fontSize: 11, fontWeight: "700" },
+  completeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  completeTitle: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  completeText: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 17 },
   bestBio: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.md, lineHeight: 20 },
   actionRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xl },
 });

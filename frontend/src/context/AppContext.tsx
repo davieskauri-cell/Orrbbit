@@ -43,6 +43,17 @@ export type NearbyUser = {
   mutual_reason?: string | null;
   score?: number;
   outside_age_preference?: boolean;
+  photos?: string[];
+  city?: string;
+  country?: string;
+  home_city?: string | null;
+  occupation?: string | null;
+  education?: string | null;
+  languages?: string | null;
+  prompts?: { prompt: string; answer: string }[];
+  mutual_interests?: string[];
+  joined?: string;
+  photo_verified?: boolean;
 };
 
 export type Vibe = {

@@ -113,9 +113,12 @@ def bind(server):
             if not os.path.isfile(os.path.join(_ASSETS_DIR, f"{asset_id}.jpg")):
                 continue
             url = f"/api/demo-assets/{asset_id}.jpg"
+            # same-person variant shots (asset2/asset3) build a 3-photo gallery where generated
+            photos = [url] + [f"/api/demo-assets/{asset_id}{i}.jpg" for i in (2, 3)
+                              if os.path.isfile(os.path.join(_ASSETS_DIR, f"{asset_id}{i}.jpg"))]
             r = await db.users.update_one(
                 {"email": email},
-                {"$set": {"photo_url": url, "photos": [url], "photo_version": 1}})
+                {"$set": {"photo_url": url, "photos": photos, "photo_version": 2}})
             applied += r.modified_count
         # Strip third-party stock photos from every remaining demo user (initials fallback)
         await db.users.update_many(

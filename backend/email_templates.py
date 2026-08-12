@@ -148,9 +148,9 @@ def _t(key, subject, heading, body, *, cta=None, category=None, enabled=True,
 
 
 # ---------------------------------------------------------------- 1. ACCOUNT & SECURITY (mandatory)
-_t("verify_email", "Verify your Orrbbit email", "Confirm your email address",
-   "Hi {name}, welcome to Orrbbit! Tap the button below to verify your email address and secure your account. This link expires in 7 days.",
-   cta=("Verify Email", "__VERIFY_LINK__"), trigger="On registration")
+_t("verify_email", "Verify your Orrbbit email", "Verify your email",
+   "Thanks for joining Orrbbit, {name}. Please verify your email to get started — it keeps your account secure and makes your profile fully discoverable. This link expires in 7 days.",
+   cta=("Verify Email Address", "__VERIFY_LINK__"), trigger="On registration")
 _t("welcome", "Welcome to Orrbbit 🎉", "Welcome to Orrbbit, {name}!",
    "You're in! Orrbbit connects you with real people and verified professionals right nearby. Set your vibe, switch on your radar and see who's around you.",
    cta=("Open Orrbbit", "/"), trigger="On registration")

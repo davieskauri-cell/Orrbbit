@@ -50,6 +50,15 @@ export type User = {
   people_max_age?: number;
   people_allow_age_expansion?: boolean;
   relationship_age_prompt_seen?: boolean;
+  home_city?: string | null;
+  occupation?: string | null;
+  education?: string | null;
+  languages?: string | null;
+  prompts?: { prompt: string; answer: string }[];
+  email_verified?: boolean;
+  photo_verified?: boolean;
+  joined?: string;
+  people_discoverable?: boolean;
 };
 
 export type RegisterPayload = {

@@ -92,11 +92,18 @@ class DemoLoginIn(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
-    age: Optional[int] = None
     bio: Optional[str] = None
     interests: Optional[List[str]] = None
     photo_url: Optional[str] = None
     photos: Optional[List[str]] = None
+    # About section (all optional, city-level only — never addresses/coordinates)
+    city: Optional[str] = None        # current city ("Lives in")
+    country: Optional[str] = None
+    home_city: Optional[str] = None   # "From" — user-entered, never derived from GPS
+    occupation: Optional[str] = None
+    education: Optional[str] = None
+    languages: Optional[str] = None
+    prompts: Optional[List[Dict[str, str]]] = None  # up to 3 {prompt, answer}
 
 
 class PhotoIn(BaseModel):
@@ -286,6 +293,66 @@ def _dob_for_age(age: int) -> str:
         return d.replace(month=3, day=1, year=d.year - int(age)).isoformat()
 
 
+# ---------- Profile richness & discoverability (People Mode) ----------
+DISCOVERY_MIN_PHOTOS = 3
+BIO_MIN_CHARS = 40
+BIO_MAX_CHARS = 500
+MAX_PROMPTS = 3
+PROMPT_ANSWER_MAX = 180
+_TAG_RE = None  # compiled lazily
+
+
+def _clean_text(value, limit: int) -> str:
+    """Sanitise free-text user input: strip HTML tags/control chars, cap length."""
+    global _TAG_RE
+    import re
+    if _TAG_RE is None:
+        _TAG_RE = re.compile(r"<[^>]*>")
+    s = _TAG_RE.sub("", str(value or ""))
+    s = "".join(ch for ch in s if ch == "\n" or ord(ch) >= 32)
+    return s.strip()[:limit]
+
+
+def _clean_prompts(items) -> list:
+    out = []
+    for it in (items or [])[:MAX_PROMPTS]:
+        if not isinstance(it, dict):
+            continue
+        prompt = _clean_text(it.get("prompt"), 80)
+        answer = _clean_text(it.get("answer"), PROMPT_ANSWER_MAX)
+        if prompt and answer:
+            out.append({"prompt": prompt, "answer": answer})
+    return out
+
+
+def completion_checklist(u: dict) -> tuple:
+    """Owner-only completion checklist. Returns (percent, checklist, discoverable, missing)."""
+    photos = [p for p in (u.get("photos") or []) if p] or ([u["photo_url"]] if u.get("photo_url") else [])
+    bio_len = len((u.get("bio") or "").strip())
+    checklist = [
+        {"key": "photos", "label": "Add 3 profile photos", "done": len(photos) >= DISCOVERY_MIN_PHOTOS, "required": True},
+        {"key": "bio", "label": "Write your bio (40+ characters)", "done": bio_len >= BIO_MIN_CHARS, "required": True},
+        {"key": "email", "label": "Verify your email", "done": bool(u.get("email_verified")), "required": True},
+        {"key": "current_city", "label": "Add your current city", "done": bool(u.get("city")), "required": False},
+        {"key": "home_city", "label": "Add your home city", "done": bool(u.get("home_city")), "required": False},
+        {"key": "interests", "label": "Add 3+ interests", "done": len(u.get("interests") or []) >= 3, "required": False},
+        {"key": "prompt", "label": "Answer a prompt", "done": bool(u.get("prompts")), "required": False},
+    ]
+    pct = round(100 * sum(1 for c in checklist if c["done"]) / len(checklist))
+    missing = [c["label"] for c in checklist if c["required"] and not c["done"]]
+    discoverable = not missing and u.get("admin_status") not in ("hidden_pending_review", "banned")
+    return pct, checklist, discoverable, missing
+
+
+def is_discoverable(u: dict) -> bool:
+    """People Mode full-discoverability gate: 18+/consent (enforced at signup),
+    email verified, 3+ photos, 40+ char bio, no safety restriction.
+    Curated demo profiles stay visible inside the isolated demo realm."""
+    if u.get("is_demo"):
+        return True
+    return completion_checklist(u)[2]
+
+
 def public_user(u: dict) -> dict:
     return {
         "id": u["id"],
@@ -335,6 +402,16 @@ def public_user(u: dict) -> dict:
         "people_max_age": clamp_age_pref(u.get("people_min_age"), u.get("people_max_age"))[1],
         "people_allow_age_expansion": u.get("people_allow_age_expansion", True) is not False,
         "relationship_age_prompt_seen": bool(u.get("relationship_age_prompt_seen", False)),
+        # Rich profile (About / prompts) — city-level only, never addresses or coordinates
+        "home_city": u.get("home_city"),
+        "occupation": u.get("occupation"),
+        "education": u.get("education"),
+        "languages": u.get("languages"),
+        "prompts": (u.get("prompts") or [])[:MAX_PROMPTS],
+        "email_verified": bool(u.get("email_verified")),
+        "photo_verified": bool(u.get("photo_verified", False)),  # future Photo Verified — never displayed yet
+        "joined": (u.get("created_at") or "")[:7],
+        "people_discoverable": is_discoverable(u),
     }
 
 
@@ -609,6 +686,64 @@ DEMO_VIBE_DETAILS = {
     },
 }
 
+# Rich-profile demo data (About + prompts) so Demo Mode showcases the full profile system.
+DEMO_PROFILE_EXTRAS = {
+    "kauri@intro.demo": {
+        "home_city": "Auckland, New Zealand", "occupation": "Founder", "education": "University of Auckland",
+        "languages": "English, Te Reo Māori",
+        "prompts": [
+            {"prompt": "Ask me about...", "answer": "Starting a business while working full-time."},
+            {"prompt": "My ideal weekend is...", "answer": "Golf in the morning, good food and something spontaneous afterwards."},
+        ],
+    },
+    "james@intro.demo": {
+        "home_city": "Sydney, Australia", "occupation": "Fintech founder", "education": "UNSW",
+        "languages": "English",
+        "prompts": [{"prompt": "Currently obsessed with...", "answer": "Payments infrastructure and long trail runs along the Yarra."}],
+    },
+    "sarah@intro.demo": {
+        "home_city": "Brisbane, Australia", "occupation": "Junior analyst", "education": "QUT",
+        "languages": "English",
+        "prompts": [{"prompt": "I'd love to meet people who...", "answer": "Have made a big career change and lived to tell the story."}],
+    },
+    "olivia@intro.demo": {
+        "home_city": "Melbourne, Australia", "occupation": "Marketing manager", "education": "RMIT",
+        "languages": "English, Italian",
+        "prompts": [{"prompt": "The easiest way to start a conversation with me is...", "answer": "Ask for a coffee recommendation — I have strong opinions."}],
+    },
+    "jake@intro.demo": {
+        "home_city": "Perth, Australia", "occupation": "Sound engineer", "languages": "English",
+        "prompts": [{"prompt": "You'll probably find me...", "answer": "At a gig on Friday night or hunting new coffee spots on Saturday."}],
+    },
+    "mia@intro.demo": {
+        "home_city": "Wellington, New Zealand", "occupation": "Physiotherapist", "education": "University of Otago",
+        "languages": "English",
+        "prompts": [
+            {"prompt": "My ideal weekend is...", "answer": "A morning hike, a farmers market and dinner somewhere new."},
+            {"prompt": "I moved here from...", "answer": "Wellington — still adjusting to Melbourne weather being even windier."},
+        ],
+    },
+    "liam@intro.demo": {
+        "home_city": "Geelong, Australia", "occupation": "Personal trainer", "languages": "English",
+        "prompts": [{"prompt": "I'm always up for...", "answer": "A 6am session, a parkrun or trying any new sport once."}],
+    },
+    "sophie@intro.demo": {
+        "home_city": "Auckland, New Zealand", "occupation": "UX designer", "education": "AUT",
+        "languages": "English, French",
+        "prompts": [{"prompt": "A random fact about me...", "answer": "I've sketched strangers in 14 different airports."}],
+    },
+    "ryan@intro.demo": {
+        "home_city": "Melbourne, Australia", "occupation": "Business owner", "languages": "English",
+        "prompts": [{"prompt": "Something I'm working towards...", "answer": "Opening a second site and finally taking a real holiday."}],
+    },
+    "emily@intro.demo": {
+        "home_city": "Hobart, Australia", "occupation": "Food writer", "education": "University of Tasmania",
+        "languages": "English",
+        "prompts": [{"prompt": "Ask me about...", "answer": "The best cheap eats within 500 m of wherever we're standing."}],
+    },
+}
+
+
 
 # ----------------------------- Auth routes -----------------------------
 @api_router.get("/")
@@ -762,6 +897,16 @@ async def get_vibes():
 @api_router.put("/users/me")
 async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.dict().items() if v is not None}
+    # sanitise all free-text profile input (no HTML, hard length caps)
+    if "bio" in fields:
+        fields["bio"] = _clean_text(fields["bio"], BIO_MAX_CHARS)
+    for f in ("name", "city", "country", "home_city", "occupation", "education", "languages"):
+        if f in fields:
+            fields[f] = _clean_text(fields[f], 80)
+    if "interests" in fields:
+        fields["interests"] = [_clean_text(i, 30) for i in fields["interests"][:15] if _clean_text(i, 30)]
+    if "prompts" in fields:
+        fields["prompts"] = _clean_prompts(fields["prompts"])
     if "photos" in fields:
         fields["photos"] = [_validate_photo_url(p) for p in fields["photos"][:MAX_PHOTOS]]
         fields["photo_url"] = fields["photos"][0] if fields["photos"] else None
@@ -1077,6 +1222,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     compat = COMPAT.get(my_vibe, []) if my_vibe else []
     blocked = await get_blocked_ids(user["id"])
     mn_age, mx_age, allow_age_exp = age_pref(user)  # People Mode age preference
+    my_interests = _lset(user.get("interests"))
     results = []
     age_expansion_pool = []  # conservative outside-preference fallback candidates
     others = await db.users.find({"id": {"$ne": user["id"]}}, {"hashed_password": 0, "_id": 0}).to_list(500)
@@ -1091,6 +1237,9 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         if o.get("city", "Melbourne") != user.get("city", "Melbourne"):
             continue
         if not o.get("visible", True) or o.get("ghost_mode") or o.get("paused"):
+            continue
+        # full-discoverability gate: 3+ photos, 40+ char bio, verified email
+        if not is_discoverable(o):
             continue
         # users hidden or banned by moderation never appear
         if o.get("admin_status") in ("hidden_pending_review", "banned"):
@@ -1144,7 +1293,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         payload = {
             "id": o["id"],
             "name": o.get("name"),
-            "age": o.get("age"),
+            "age": (user_age(o) if o.get("date_of_birth") else o.get("age")),
             "bio": o.get("bio", ""),
             "photo_url": o.get("photo_url"),
             "interests": o.get("interests", []),
@@ -1165,6 +1314,18 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             "mutual_reason": mutual_reason(user, o),
             "score": detail_score(user, o),
             "outside_age_preference": not age_ok,
+            # rich profile — city-level only, calculated age, never DOB/coordinates
+            "photos": [p for p in (o.get("photos") or []) if p][:MAX_PHOTOS] or ([o["photo_url"]] if o.get("photo_url") else []),
+            "city": o.get("city", "Melbourne"),
+            "country": o.get("country", "Australia"),
+            "home_city": o.get("home_city"),
+            "occupation": o.get("occupation"),
+            "education": o.get("education"),
+            "languages": o.get("languages"),
+            "prompts": (o.get("prompts") or [])[:MAX_PROMPTS],
+            "mutual_interests": [i for i in (o.get("interests") or []) if str(i).lower() in my_interests][:6],
+            "joined": (o.get("created_at") or "")[:7],
+            "photo_verified": bool(o.get("photo_verified", False)),
         }
         if age_ok:
             results.append(payload)
@@ -1698,26 +1859,22 @@ async def leave_event(user: dict = Depends(get_current_user)):
 # ----------------------------- Profile completion -----------------------------
 @api_router.get("/users/me/completion")
 async def profile_completion(user: dict = Depends(get_current_user)):
-    vd = user.get("vibe_details") or {}
-    items = [
-        ("Profile photos", bool(user.get("photos")) or bool(user.get("photo_url")), "Add profile photos"),
-        ("First name", bool(user.get("name")), "Add your first name"),
-        ("Age", bool(user.get("age")), "Add your age"),
-        ("Bio", bool(user.get("bio")), "Add a short bio"),
-        ("Vibe selected", bool(user.get("vibe")), "Choose a vibe"),
-        ("Vibe details", bool(vd.get("intent") or vd.get("context") or vd.get("looking_for")), "Add vibe details"),
-        ("Interests", bool(user.get("interests")), "Add your interests"),
-        ("Availability window", bool(vd.get("availability")), "Select an availability window"),
-        ("Verification", bool(user.get("verified")), "Verify your profile"),
-        ("Privacy reviewed", any(k in user for k in ("quiet_mode", "mutual_only", "only_same_vibe", "verified_only")), "Review your privacy settings"),
-    ]
-    done = [label for label, ok, _ in items if ok]
-    suggestions = [tip for _, ok, tip in items if not ok][:4]
+    """Owner-only profile completion — never shown for other users."""
+    pct, checklist, discoverable, missing = completion_checklist(user)
+    discoverable = is_discoverable(user)  # demo realm profiles stay visible
+    suggestions = [c["label"] for c in checklist if not c["done"]][:4]
     return {
-        "score": round(len(done) / len(items) * 100),
-        "done": done,
+        "score": pct,
+        "checklist": checklist,
+        "discoverable": discoverable,
+        "missing": missing,
+        "done": [c["label"] for c in checklist if c["done"]],
         "suggestions": suggestions,
-        "message": "More detail helps the right people know when to approach.",
+        "message": (
+            "Add at least 3 photos so people nearby can get a better sense of who you are."
+            if not discoverable
+            else "More detail helps the right people know when to approach."
+        ),
     }
 
 
@@ -2222,6 +2379,7 @@ class ProProfileIn(BaseModel):
     response_time: Optional[str] = ""
     rate: Optional[str] = ""
     rate_type: Optional[str] = ""
+    portfolio_photos: list[str] = []  # up to 6 public work/portfolio images — never credential documents
 
 
 class VerificationDecisionIn(BaseModel):
@@ -2450,6 +2608,7 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
         "specialties": prof.get("specialties", []),
         "availability": prof.get("availability", ""), "response_time": prof.get("response_time", ""),
         "rate": prof.get("rate", ""), "rate_type": prof.get("rate_type", ""),
+        "portfolio_photos": (prof.get("portfolio_photos") or [])[:6],
         "verified_by_intro": verified,
         "professionally_verified": verified,
         "verified_profession": ver.get("profession") if verified else None,
@@ -2476,6 +2635,7 @@ async def upsert_pro_profile(body: ProProfileIn, user: dict = Depends(get_curren
             raise HTTPException(status_code=400, detail="You can only offer services inside your verified categories")
     existing = await db.professional_profiles.find_one({"user_id": user["id"]})
     doc = body.model_dump()
+    doc["portfolio_photos"] = [_validate_photo_url(p) for p in (doc.get("portfolio_photos") or [])[:6]]
     doc.update({"user_id": user["id"], "is_draft": not ok, "updated_at": now_iso()})
     ver = await _verification_status(user["id"])
     if existing and ver["status"] == "Approved":
@@ -2947,7 +3107,7 @@ async def seed_demo_environment(force: bool = False):
     # ---- 1. demo persona ----
     persona_doc = {
         "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "age": 29, "vibe": "networking",
-        "date_of_birth": _dob_for_age(29),
+        "date_of_birth": _dob_for_age(29), "email_verified": True,
         "bio": "Demo explorer account — look around, everything here is seeded sample data.",
         "interests": ["Business", "Coffee", "Fitness", "Tech"],
         "photo_url": "https://randomuser.me/api/portraits/lego/1.jpg",
@@ -3238,7 +3398,10 @@ async def seed_demo_accounts():
                 acc["photo_url"],
                 f"https://picsum.photos/seed/{acc['email']}-a/400/400",
                 f"https://picsum.photos/seed/{acc['email']}-b/400/400",
+                f"https://picsum.photos/seed/{acc['email']}-c/400/400",
             ],
+            "email_verified": True,
+            **DEMO_PROFILE_EXTRAS.get(acc["email"], {}),
             "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
             "visible": True,
             "radius": {"kauri@intro.demo": 500}.get(acc["email"], 50),
@@ -3273,6 +3436,7 @@ async def seed_demo_accounts():
                 f"https://picsum.photos/seed/{email}-b/400/400",
             ],
             "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 5 + i * 3,
+            "email_verified": True, "home_city": "Melbourne, Australia",
             "visible": True, "radius": 100, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
             "visible_for": 60, "verified": i % 3 == 0, "active_now": i % 4 != 3, "is_demo": True,
@@ -3305,6 +3469,7 @@ async def seed_demo_accounts():
                 f"https://picsum.photos/seed/{email}-b/400/400",
             ],
             "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 15 + i * 10,
+            "email_verified": True,
             "visible": True, "radius": 50, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
             "visible_for": 30, "verified": i % 2 == 0, "active_now": True, "is_demo": True,
