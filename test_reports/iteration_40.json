@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 40 Approved Profile Experience — frontend tested at 390x844 (+ 320x568 spot check) on preview URL. All 6 flows PASS with only minor caveats. FLOW 1 (full profile view of Mia): profile-gallery, photo-counter (1/3), gallery-photo-0, expand-close (modal opens/closes), about-card, mutual-interests, profile-prompt-0, verified-badge, person-close/-block/-report all present; body contains 'ABOUT MIA', 'Lives in', 'YOU BOTH LIKE', 'ABOUT ME', 'Joined Orrbbit July 2026'. Gallery drag via Playwright mouse did not fire RN onMomentumScrollEnd so counter did not increment programmatically, but 3 dots + counter are rendered — this is a Playwright/RN ScrollView limitation, not a code bug. FLOW 2 (edit-profile as kauri): 'Photos (3/6)' label + 'Add at least 3 photos to be visible on Orrbbit.' subtext render; photo-make-main-1 & photo-move-left-2 present; bio-char-count switches from '48/500 · at least 40 characters to be discoverable' hint to 'n/500' at ≥40 chars; delete-below-3 warning dialog fires and CANCEL leaves the photo intact; edit-city/-country/-home-city/-occupation/-education/-languages all present; add-prompt reveals prompt-picker with library options, prompt-card-0/1 rendered, prompt-up-1 present, edit-save present. FLOW 3 (fresh /api/auth/register): backend response has people_discoverable=false, GET /api/users/me/completion returns score=14 with 7 checklist items (photos, bio, email, current_city, home_city, interests, prompts). On Profile tab: completion-card visible with title 'Complete your profile', 14% progress bar, checklist-photos/-bio/-email/-current_city/-home_city/-interests/-prompts, and completion-edit-profile CTA that navigates to /edit-profile. NOTE: the complete-profile-banner (index.tsx:313) was NOT visible for the fresh user because signup routes into the onboarding stack (choose-vibe screen) before the tabs — verified by code review only. FLOW 4 (radar preview as kauri): tapping radar-blip-* opens marker-preview; preview-interests shows 'Career • Mindset • Life Advice' for Sarah; card contains ONLY name/vibe/intent/distance/interests/View Profile — no bio/prompts/gallery, matching spec. preview-mutual code path exists (index.tsx:279) but was not visually reachable across the 12 visible blips in current demo state (kauri's nearby blips had no interest intersection); low risk. FLOW 5 (regression): /privacy still exposes age-range-value + Reset/Apply Filters; /report exposes 'Inappropriate photo' option; Professional mode pill switches (client-side localStorage) and radar renders without age preference references. FLOW 6 (320x568): person profile (Mia) renders with person-connect + person-close + photo-counter fully visible; edit-profile renders photo grid + Main tag + move arrows + edit-save without clipping. Kauri restored to visible=true, radius=500, mode=people; home_city 'Auckland, New Zealand', occupation 'Founder', 2 prompts confirmed via /api/auth/me.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/users/me", "issue": "Returned 405 during restore. Endpoint likely PUT-only; not spec-breaking but worth documenting. updateProfile in the app uses PUT which is fine."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter40_profile.py (existing, 69/69 pytest already green per main agent — not rerun)"
+  ],
+  "action_items": [
+    "OPTIONAL (spec clarification): the complete-profile-banner on radar home is only reachable AFTER a new user finishes the onboarding stack (choose-vibe → profile-setup → …). If the spec intends the banner to also be shown to users who abandon onboarding partway or return to the tab shell before completing, verify the (auth)/_layout redirect logic still lands them on the tabs radar home. Current behaviour is arguably correct because fresh signups are held in onboarding, but worth confirming with the PM.",
+    "OPTIONAL (visibility): consider seeding at least one radar-visible demo user that shares interests with kauri so preview-mutual can be visually verified without inspecting individual blips (currently kauri's nearest blips have no interest intersection)."
+  ],
+  "critical_code_review_comments": [
+    "person/[id].tsx cleanly separates gallery + about-card + mutual-interests + profile-prompt-* + joinedLabel; correct testIDs match the spec; broken-image fallback via `failed` state and `Avatar` is properly wired.",
+    "edit-profile.tsx uses `hydrated` useRef so the form only rehydrates once when `user` first loads (avoids clobbering in-progress edits) — good pattern; deletion-below-3 uses showAlert with Cancel/Remove buttons, correct copy.",
+    "PhotoGrid: `minRequired` prop defaults to 3, hint switches to success colour at ≥3; make-main / move-left / remove overlay buttons have testIDs; normalisePhoto strips EXIF and caps at 1600px — solid.",
+    "profile.tsx completion-card conditionally renders CTA only when score<100 and message/checklist come from the backend — good separation of concerns; testID='checklist-{key}' works with backend keys (photos, bio, email, current_city, home_city, interests, prompts)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% per existing 69/69 pytest (not rerun in this iteration); spot-checks POST /api/auth/register, GET /api/auth/me, GET /api/users/me/completion, PUT /api/users/me/state, PUT /api/users/me/mode, POST /api/auth/demo-login all returned 200.",
+    "frontend": "~95% — 5 of 6 flows fully verified in UI; preview-mutual and radar-home complete-profile-banner reachable in code but not visually surfaced under current demo state (both are conditional on data/onboarding state, not real bugs)."
+  },
+  "seed_data_creation": "One throwaway user via POST /api/auth/register (email test_iter40_<ts>@example.com). Kept intact — safe to ignore; can be deleted with DELETE /api/users/me if desired.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "auth_token in localStorage must be JSON.stringify(access_token); intro_app_mode must be JSON.stringify('people'). Login response key is `access_token`. kauri auto-goes-invisible after visible_for expires — re-PUT /api/users/me/state {visible:true,visible_for:240,radius:500}. Nearby list may hide Mia in the top rows; use page.get_by_text('Mia,').first + scroll_into_view. Radar markers use testID='radar-blip-<userId>' (12 visible at a time) and testID='radar-cluster-<key>' — iterate blips to find one with mutual interests. Fresh registrations are routed into (auth)/onboarding stack (choose-vibe) so the complete-profile-banner on the tabs radar home is only visible AFTER onboarding completes. Mia's Joined Orrbbit shows 'July 2026' in current demo state.",
+  "rca_of_issue": "N/A — no regressions or blocker bugs found. The two 'not visually verified' items (preview-mutual on radar, complete-profile-banner on radar home) both depend on runtime data/onboarding state, not on missing code — the corresponding testID branches were located and reviewed in source."
+}

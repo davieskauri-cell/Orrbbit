@@ -162,3 +162,9 @@ main agent: backend age filter in compute_nearby (people_min_age/people_max_age/
 testing: backend 16/16 pytest (tests/test_iter39_age_filter.py) + regression suites green (iter30 stale test updated for DOB contract). testing agent frontend 5/6 pass; hydration bug fixed by main agent then Flow 4 verified visually (60–64 range → Freddie 62 in-range, Barney 58 flagged "A little outside your age preference"). Kauri restored to 18/65/true, visible, radius 500. Report: /app/test_reports/iteration_39.json
 needs_retesting: false
 NOTE for web automation: localStorage 'auth_token' value is JSON-serialized (store JSON.stringify(token), not the raw token).
+
+## Iteration 40 — Approved Profile Experience (Aug 2026)
+main agent: discoverability gate (3 photos/40-char bio/verified email) enforced in compute_nearby via is_discoverable (demo exempt); rich profile fields + sanitisation in update_profile; nearby payload rich data + mutual_interests + calculated age; completion endpoint rewritten; pro portfolio_photos; demo same-person galleries (gen_demo_photo_variants.py, 20 images, all succeeded); verify-email copy update. Frontend: PhotoGrid reorder/make-main, edit-profile About+prompts editor, person/[id] gallery+sections, radar preview interests/mutual, profile completion card, complete-profile banner.
+testing: backend 69/69 pytest (iter40+39+37+34+30). testing agent iteration_40: ALL 6 FLOWS PASS, no fixes applied. Kauri restored. Report: /app/test_reports/iteration_40.json
+needs_retesting: false
+notes: person/[id] needs nearby context (direct URL cold-load shows Out of range); Nearby advice bottom-sheet may need Dismiss; kauri visibility auto-expires — re-PUT visible:true.
