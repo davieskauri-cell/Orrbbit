@@ -188,7 +188,13 @@ export default function Shell({ title, children, actions }: { title: string; chi
             <Pressable onPress={() => router.push('/control' as any)} style={{ padding: 4 }}>
               <Ionicons name="notifications-outline" size={20} color={CC.navy} />
             </Pressable>
-            <Pressable onPress={() => setProfileOpen(!profileOpen)} style={st.avatar}>
+            <Pressable
+              testID="header-avatar"
+              accessibilityRole="button"
+              accessibilityLabel="Admin profile menu"
+              onPress={() => setProfileOpen(!profileOpen)}
+              style={st.avatar}
+            >
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>{(admin?.email || 'A')[0].toUpperCase()}</Text>
             </Pressable>
           </View>

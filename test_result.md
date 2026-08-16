@@ -168,3 +168,8 @@ main agent: discoverability gate (3 photos/40-char bio/verified email) enforced 
 testing: backend 69/69 pytest (iter40+39+37+34+30). testing agent iteration_40: ALL 6 FLOWS PASS, no fixes applied. Kauri restored. Report: /app/test_reports/iteration_40.json
 needs_retesting: false
 notes: person/[id] needs nearby context (direct URL cold-load shows Out of range); Nearby advice bottom-sheet may need Dismiss; kauri visibility auto-expires — re-PUT visible:true.
+
+## Iteration 41 — Master Dashboard Branding (Aug 2026)
+main agent: control theme tokens → official palette, light sidebar + logo, login rebrand, env badges, greeting, DEMO pills, plan rename (intro_* keys removed, demo billing reseeded), chart palette, branded empty states, teal primary buttons.
+testing: testing agent iteration_41 — ALL 8 FLOWS PASS at 1440x800 + 900x800; two low findings (avatar testID — fixed by main agent; RN-web shadow* deprecation warnings — pre-existing). Report: /app/test_reports/iteration_41.json
+needs_retesting: false

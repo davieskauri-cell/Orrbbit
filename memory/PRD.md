@@ -469,3 +469,12 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Demo: 10 core intro.demo accounts now have 3 same-person generated photos (20 new Nano Banana variant images in backend/static/demo-assets, script scripts/gen_demo_photo_variants.py), home_city/occupation/education/languages/prompts, email_verified. demo_mode.apply_demo_photos builds galleries automatically.
 - Email: verify-email copy aligned to approved layout ("Verify your email" / "Thanks for joining Orrbbit…"); all transactional emails already share one layout with official logo (orrbbit-logo-v2.png live on production, retina v3 asset shipped for post-deploy). Sender/reply-to unchanged. Brand audit: no user-facing Intro/Orbit/Nearby Connect/Emergent branding found.
 - Tests: 69/69 backend pytest (incl. new tests/test_iter40_profile.py); testing agent iteration_40 — all 6 frontend flows pass, 320x568 clean. Native device testing PENDING.
+
+## Master Dashboard Orrbbit Branding (August 2026) — COMPLETE (iter41)
+- Official logo (assets/images/logo.png) on login + sidebar (legacy "IN"/"OR" text marks removed). Login: white/light bg, subtle teal radar rings, "Orrbbit Master Dashboard" / "Authorised access only", teal Sign In.
+- Tokens (src/control/theme.ts) aligned to official app palette: teal #20B2AA (+soft/dark), orange #FF5A1F (+soft/dark), navy #16294E; generic blue retired (CC.blue aliases to teal). Quicksand (CCF) applied to headings/brand/KPIs.
+- Shell: light white sidebar, soft-teal rounded active nav pills + hover; env badges: LIVE · PRODUCTION (green outline) / DEMO (light teal), explicit text; profile menu shows email/role/environment; header-avatar testID added.
+- UI kit: primary buttons teal (orange available as accent variant), filter chips teal-soft active, branded empty states with teal icon circle, status pills (active/verified teal, pending orange-soft, demo pill, expired amber).
+- Overview: time-based greeting + "Here's what's happening across Orrbbit."; chart palette teal/navy/orange/subtle-teal.
+- Users table: explicit DEMO pill on demo accounts. Subscriptions: Orrbbit Free/Plus/Pro with correct radii 250m/500m/1km; legacy intro_plus/intro_professional keys removed from control_phase3.py, demo billing reseeded to orrbbit_plus/orrbbit_pro; LIVE shows Not configured (no fake revenue).
+- Tests: testing agent iteration_41 — all 8 flows pass (login, dashboard, mode switch, users, subscriptions, 5-page spot check, 900px responsive, search/signout regression). No production data touched.
