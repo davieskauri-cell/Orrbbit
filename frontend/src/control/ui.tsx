@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Modal, ActivityIndicator, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline, Polygon, Line } from 'react-native-svg';
-import { CC, STATUS_COLORS } from './theme';
+import { CC, CCF, STATUS_COLORS } from './theme';
 
 export function Card({ children, style }: { children: React.ReactNode; style?: any }) {
   return <View style={[s.card, style]}>{children}</View>;
@@ -36,11 +37,12 @@ export function Badge({ status, label }: { status?: string; label?: string }) {
 
 export function Btn({
   title, onPress, variant = 'primary', small, disabled, testID,
-}: { title: string; onPress: () => void; variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'teal'; small?: boolean; disabled?: boolean; testID?: string }) {
+}: { title: string; onPress: () => void; variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'teal' | 'orange'; small?: boolean; disabled?: boolean; testID?: string }) {
   const base: any = [s.btn, small && s.btnSmall, disabled && { opacity: 0.5 }];
   const txt: any = [s.btnText, small && { fontSize: 12 }];
-  if (variant === 'primary') base.push({ backgroundColor: CC.orange });
+  if (variant === 'primary') base.push({ backgroundColor: CC.teal });
   if (variant === 'teal') base.push({ backgroundColor: CC.teal });
+  if (variant === 'orange') base.push({ backgroundColor: CC.orange });
   if (variant === 'danger') base.push({ backgroundColor: CC.red });
   if (variant === 'outline') {
     base.push({ backgroundColor: CC.surface, borderWidth: 1, borderColor: CC.border });
@@ -63,8 +65,8 @@ export function Input(props: any) {
 
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[s.chip, active && { backgroundColor: CC.navy, borderColor: CC.navy }]}>
-      <Text style={[s.chipText, active && { color: '#fff' }]}>{label}</Text>
+    <Pressable onPress={onPress} style={[s.chip, active && { backgroundColor: CC.tealSoft, borderColor: CC.teal }]}>
+      <Text style={[s.chipText, active && { color: CC.navy, fontWeight: '700' }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -104,8 +106,15 @@ export function Td({ children, flex = 1 }: { children: React.ReactNode; flex?: n
   );
 }
 
-export function EmptyText({ children }: { children: React.ReactNode }) {
-  return <Text style={s.empty}>{children}</Text>;
+export function EmptyText({ children, icon }: { children: React.ReactNode; icon?: any }) {
+  return (
+    <View style={s.emptyWrap}>
+      <View style={s.emptyIcon}>
+        <Ionicons name={icon || 'checkmark-circle-outline'} size={22} color={CC.teal} />
+      </View>
+      <Text style={s.empty}>{children}</Text>
+    </View>
+  );
 }
 
 export function Loading() {
@@ -178,9 +187,9 @@ export function ReauthModal({ visible, onCancel, onSubmit, busy }: { visible: bo
 const s = StyleSheet.create({
   card: { backgroundColor: CC.surface, borderRadius: 12, borderWidth: 1, borderColor: CC.border, padding: 16, marginBottom: 16 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: CC.navy },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: CC.navy, fontFamily: CCF.bold },
   kpi: { backgroundColor: CC.surface, borderRadius: 10, borderWidth: 1, borderColor: CC.border, padding: 14, minWidth: 150, flexGrow: 1, flexBasis: 150 },
-  kpiValue: { fontSize: 22, fontWeight: '800', color: CC.navy },
+  kpiValue: { fontSize: 22, fontWeight: '800', color: CC.navy, fontFamily: CCF.bold },
   kpiLabel: { fontSize: 12, color: CC.sub, marginTop: 2 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, alignSelf: 'flex-start' },
   badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
@@ -195,7 +204,9 @@ const s = StyleSheet.create({
   th: { fontSize: 11, fontWeight: '700', color: CC.sub, textTransform: 'uppercase', paddingRight: 8 },
   tr: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', alignItems: 'center' },
   td: { fontSize: 13, color: CC.text },
-  empty: { color: CC.sub, fontSize: 13, padding: 16, textAlign: 'center' },
+  empty: { color: CC.sub, fontSize: 13, textAlign: 'center' },
+  emptyWrap: { alignItems: 'center', padding: 20, gap: 8 },
+  emptyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: CC.tealSoft, alignItems: 'center', justifyContent: 'center' },
   pager: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   pagerText: { fontSize: 12, color: CC.sub },
   modalBg: { flex: 1, backgroundColor: 'rgba(15,29,58,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },

@@ -8,7 +8,7 @@ import { BarList } from '../../src/control/RadarPanel';
 
 const SERIES: [string, string, string][] = [
   ['signups', 'Sign-ups (30d)', CC.teal], ['connections', 'Connections (30d)', CC.orange],
-  ['pings', 'Pings (30d)', CC.blue], ['help_requests', 'Help Requests (30d)', CC.navy],
+  ['pings', 'Pings (30d)', '#5FB8B2'], ['help_requests', 'Help Requests (30d)', CC.navy],
   ['professional_growth', 'Professional Growth (30d)', CC.green],
 ];
 

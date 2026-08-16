@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions, TextInput, Image } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { CC } from './theme';
+import { CC, CCF } from './theme';
 import { useCC } from './ControlContext';
 import { ModalCard, Btn, Badge } from './ui';
 
@@ -124,23 +124,30 @@ export default function Shell({ title, children, actions }: { title: string; chi
   const sidebar = (
     <View style={[st.sidebar, compact && st.sidebarOverlay]}>
       <View style={st.brand}>
-        <View style={st.brandMark}><Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>IN</Text></View>
+        <Image
+          source={require('../../assets/images/logo.png')}
+          style={st.brandLogo}
+          resizeMode="contain"
+          accessibilityLabel="Orrbbit logo"
+        />
         <View>
           <Text style={st.brandText}>Orrbbit</Text>
           <Text style={st.brandSub}>Control Centre</Text>
         </View>
       </View>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 8 }}>
         {NAV.map((item) => {
           const active = pathname === item.path;
           return (
             <Pressable
               key={item.path}
               onPress={() => { setNavOpen(false); router.push(item.path as any); }}
-              style={[st.navItem, active && st.navItemActive]}
+              style={({ hovered }: any) => [st.navItem, hovered && !active && st.navItemHover, active && st.navItemActive]}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
             >
-              <Ionicons name={item.icon} size={16} color={active ? CC.teal : '#9FB0CC'} />
-              <Text style={[st.navLabel, active && { color: '#fff', fontWeight: '700' }]} numberOfLines={1}>{item.label}</Text>
+              <Ionicons name={item.icon} size={16} color={active ? CC.tealDark : CC.sub} />
+              <Text style={[st.navLabel, active && st.navLabelActive]} numberOfLines={1}>{item.label}</Text>
               {item.soon ? <Text style={st.soonTag}>P{item.soon}</Text> : null}
             </Pressable>
           );
@@ -168,11 +175,15 @@ export default function Shell({ title, children, actions }: { title: string; chi
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
               onPress={() => (mode === 'live' ? setMode('demo') : setConfirmLive(true))}
-              style={[st.modeBadge, { backgroundColor: mode === 'live' ? CC.red : CC.blue }]}
+              style={[st.modeBadge, mode === 'live' ? st.modeLive : st.modeDemo]}
+              accessibilityRole="button"
+              accessibilityLabel={mode === 'live' ? 'Environment: LIVE production. Switch to demo.' : 'Environment: DEMO. Switch to live.'}
             >
-              <View style={st.modeDot} />
-              <Text style={st.modeText}>{mode === 'live' ? 'LIVE' : 'DEMO'}</Text>
-              <Ionicons name="swap-horizontal" size={13} color="#fff" />
+              <View style={[st.modeDot, { backgroundColor: mode === 'live' ? CC.green : CC.tealDark }]} />
+              <Text style={[st.modeText, { color: mode === 'live' ? CC.green : CC.tealDark }]}>
+                {mode === 'live' ? 'LIVE · PRODUCTION' : 'DEMO'}
+              </Text>
+              <Ionicons name="swap-horizontal" size={13} color={mode === 'live' ? CC.green : CC.tealDark} />
             </Pressable>
             <Pressable onPress={() => router.push('/control' as any)} style={{ padding: 4 }}>
               <Ionicons name="notifications-outline" size={20} color={CC.navy} />
@@ -186,6 +197,7 @@ export default function Shell({ title, children, actions }: { title: string; chi
           <View style={st.profileDrop}>
             <Text style={{ fontWeight: '700', color: CC.navy, fontSize: 13 }}>{admin?.email}</Text>
             <Badge status="active" label={admin?.role?.replace('_', ' ')} />
+            <Text style={{ color: CC.sub, fontSize: 11 }}>Environment: {mode === 'live' ? 'LIVE · Production' : 'DEMO · Isolated data'}</Text>
             <Pressable onPress={() => { setProfileOpen(false); router.push('/control/change-password' as any); }} style={{ paddingVertical: 6 }}>
               <Text style={{ color: CC.teal, fontSize: 13, fontWeight: '600' }}>Change password</Text>
             </Pressable>
@@ -220,29 +232,33 @@ export default function Shell({ title, children, actions }: { title: string; chi
 
 const st = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row', backgroundColor: CC.bg },
-  sidebar: { width: 240, backgroundColor: CC.navy, paddingTop: 16 },
+  sidebar: { width: 240, backgroundColor: CC.surface, paddingTop: 16, borderRightWidth: 1, borderRightColor: CC.border },
   sidebarOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, zIndex: 100, elevation: 10 },
-  overlayBg: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 99 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  brandMark: { width: 34, height: 34, borderRadius: 8, backgroundColor: CC.teal, alignItems: 'center', justifyContent: 'center' },
-  brandText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
-  brandSub: { color: '#9FB0CC', fontSize: 11 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 9 },
-  navItemActive: { backgroundColor: 'rgba(15,163,163,0.15)', borderLeftWidth: 3, borderLeftColor: CC.teal, paddingLeft: 13 },
-  navLabel: { color: '#C4D0E4', fontSize: 13, flex: 1 },
-  soonTag: { color: '#7C8DB0', fontSize: 9, fontWeight: '700', backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
+  overlayBg: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(15,29,58,0.4)', zIndex: 99 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: CC.border },
+  brandLogo: { width: 36, height: 36, borderRadius: 9 },
+  brandText: { color: CC.navy, fontWeight: '900', fontSize: 15, letterSpacing: 0.5, fontFamily: CCF.bold },
+  brandSub: { color: CC.sub, fontSize: 11, fontFamily: CCF.med },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, marginBottom: 1 },
+  navItemHover: { backgroundColor: '#F1F8F8' },
+  navItemActive: { backgroundColor: CC.tealSoft },
+  navLabel: { color: CC.text, fontSize: 13, flex: 1 },
+  navLabelActive: { color: CC.navy, fontWeight: '700' },
+  soonTag: { color: CC.sub, fontSize: 9, fontWeight: '700', backgroundColor: '#F1F5F9', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: CC.surface, borderBottomWidth: 1, borderBottomColor: CC.border, paddingHorizontal: 20, paddingVertical: 10, zIndex: 40 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 12, height: 38 },
   searchInput: { flex: 1, fontSize: 13, color: CC.text, outlineStyle: 'none' } as any,
   searchDrop: { position: 'absolute', top: 44, left: 0, right: 0, backgroundColor: CC.surface, borderRadius: 10, borderWidth: 1, borderColor: CC.border, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', elevation: 6, paddingVertical: 4 } as any,
   searchItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
   searchItemText: { fontSize: 13, color: CC.text, flex: 1 },
-  modeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  modeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
-  modeText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
+  modeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
+  modeLive: { backgroundColor: CC.greenSoft, borderColor: CC.green },
+  modeDemo: { backgroundColor: CC.tealSoft, borderColor: CC.teal },
+  modeDot: { width: 7, height: 7, borderRadius: 4 },
+  modeText: { fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: CC.orange, alignItems: 'center', justifyContent: 'center' },
   profileDrop: { position: 'absolute', top: 54, right: 20, backgroundColor: CC.surface, borderRadius: 10, borderWidth: 1, borderColor: CC.border, padding: 14, gap: 6, zIndex: 60, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', elevation: 6, minWidth: 220 } as any,
   content: { padding: 24, maxWidth: 1400, width: '100%', alignSelf: 'center' },
   pageHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 },
-  pageTitle: { fontSize: 22, fontWeight: '800', color: CC.navy },
+  pageTitle: { fontSize: 22, fontWeight: '800', color: CC.navy, fontFamily: CCF.bold },
 });

@@ -17,7 +17,7 @@ export default function Subscriptions() {
   if (!data) return <Shell title="Subscriptions"><Loading /></Shell>;
   return (
     <Shell title="Subscriptions" actions={<Badge status={mode === 'live' ? 'not_configured' : 'new'} label={mode === 'live' ? 'Not configured' : 'DEMO data'} />}>
-      <Card style={{ backgroundColor: mode === 'live' ? '#F1F5F9' : CC.blueSoft, borderColor: mode === 'live' ? CC.border : CC.blue }}>
+      <Card style={{ backgroundColor: mode === 'live' ? '#F1F5F9' : CC.tealSoft, borderColor: mode === 'live' ? CC.border : CC.teal }}>
         <Text style={{ color: CC.navy, fontSize: 13 }}>{data.message}</Text>
       </Card>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>

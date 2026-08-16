@@ -18,14 +18,14 @@ const KPI_DEFS: [string, string, string?][] = [
 const CHART_DEFS: [string, string, string][] = [
   ['user_growth', 'User Growth (30d)', CC.teal],
   ['connections', 'Connections (30d)', CC.orange],
-  ['messages', 'Pings (30d)', CC.blue],
+  ['messages', 'Pings (30d)', '#5FB8B2'],
   ['help_requests', 'Help Requests (30d)', CC.navy],
   ['professional_growth', 'Professional Growth (30d)', CC.green],
   ['reports', 'Reports (30d)', CC.red],
 ];
 
 export default function Dashboard() {
-  const { req, mode } = useCC();
+  const { req, mode, admin } = useCC();
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [actions, setActions] = useState<any>(null);
@@ -59,13 +59,21 @@ export default function Dashboard() {
     (actions?.expired_credentials?.length || 0) + (actions?.expiring_soon?.length || 0);
 
   return (
-    <Shell title="Dashboard" actions={<Badge status={mode === 'live' ? 'banned' : 'new'} label={mode === 'live' ? 'LIVE data' : 'DEMO data'} />}>
+    <Shell title="Dashboard" actions={<Badge status={mode === 'live' ? 'active' : 'demo'} label={mode === 'live' ? 'LIVE data' : 'DEMO data'} />}>
       {error ? <Text style={{ color: CC.red, marginBottom: 12 }}>{error}</Text> : null}
+
+      <View style={{ marginBottom: 16 }}>
+        <Text style={s.greeting}>
+          {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
+          {admin?.email ? `, ${admin.email.split('@')[0].replace(/^\w/, (c: string) => c.toUpperCase())}` : ''}
+        </Text>
+        <Text style={s.greetingSub}>Here&rsquo;s what&rsquo;s happening across Orrbbit.</Text>
+      </View>
 
       <View style={s.kpiGrid}>
         {KPI_DEFS.map(([key, label]) => (
           <KpiCard key={key} label={label} value={notConfigured(key) ? 'Not configured' : data.kpis[key]}
-            accent={key === 'reports_pending' && data.kpis[key] > 0 ? CC.red : key === 'pending_verification' && data.kpis[key] > 0 ? CC.amber : undefined} />
+            accent={key === 'reports_pending' && data.kpis[key] > 0 ? CC.red : key === 'pending_verification' && data.kpis[key] > 0 ? CC.orange : undefined} />
         ))}
       </View>
 
@@ -173,6 +181,8 @@ function ActivityPreview() {
 
 const s = StyleSheet.create({
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  greeting: { fontSize: 18, fontWeight: '800', color: CC.navy },
+  greetingSub: { fontSize: 13, color: CC.sub, marginTop: 2 },
   sysChip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: CC.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   sysLabel: { fontSize: 12, color: CC.text, fontWeight: '600', textTransform: 'capitalize' },
   chartGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },

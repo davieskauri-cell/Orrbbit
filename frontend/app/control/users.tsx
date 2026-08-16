@@ -48,6 +48,7 @@ export default function Users() {
                     {u.photo_url ? <Image source={{ uri: resolvePhotoUri(u.photo_url) }} style={{ width: 28, height: 28, borderRadius: 14 }} /> : <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: CC.tealSoft }} />}
                     <Text style={{ fontSize: 13, color: CC.text, fontWeight: '600' }} numberOfLines={1}>{u.name}</Text>
                     {u.verified ? <Text style={{ color: CC.teal, fontSize: 12 }}>✓</Text> : null}
+                    {u.is_demo ? <Badge status="demo" label="DEMO" /> : null}
                   </View>
                 </Td>
                 <Td flex={1.8}>{u.email}</Td>

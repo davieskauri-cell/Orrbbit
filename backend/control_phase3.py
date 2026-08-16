@@ -45,7 +45,7 @@ class BannerIn(BaseModel):
 class PromoIn(BaseModel):
     code: str
     discount_pct: int
-    plan: str  # intro_plus | intro_professional | any
+    plan: str  # orrbbit_plus | orrbbit_pro | any
     max_uses: int = 100
 
 
@@ -216,9 +216,9 @@ async def add_category(body: CategoryIn, request: Request, admin: dict = Depends
 
 # ============================ SUBSCRIPTIONS & PAYMENTS ============================
 PLANS = [
-    {"key": "free", "name": "Free", "price": None, "features": ["50m radius", "Core radar"]},
-    {"key": "intro_plus", "name": "Orrbbit Plus", "price": None, "features": ["100m radius", "Priority pings"]},
-    {"key": "intro_professional", "name": "Orrbbit Professional", "price": None, "features": ["500m radius", "Professional tools", "Verified badge priority"]},
+    {"key": "free", "name": "Orrbbit Free", "price": None, "features": ["Radar up to 250 m", "Core radar", "Age preference filter"]},
+    {"key": "orrbbit_plus", "name": "Orrbbit Plus", "price": None, "features": ["Radar up to 500 m", "Priority pings"]},
+    {"key": "orrbbit_pro", "name": "Orrbbit Pro", "price": None, "features": ["Radar up to 1 km", "Professional tools", "Verified badge priority"]},
 ]
 WEBHOOK_EVENTS = ["subscription.created", "subscription.renewed", "subscription.upgraded", "subscription.downgraded",
                   "subscription.cancelled", "payment.succeeded", "payment.failed", "refund.issued", "trial.started", "trial.ended"]
@@ -228,7 +228,7 @@ async def _seed_demo_billing():
     if await db.demo_subscriptions.count_documents({}) > 0:
         return
     demo_users = await db.users.find({"is_demo": True}, {"id": 1, "name": 1, "email": 1}).to_list(12)
-    plans = ["intro_plus", "intro_professional"]
+    plans = ["orrbbit_plus", "orrbbit_pro"]
     statuses = ["active", "active", "active", "trialing", "past_due", "cancelled"]
     for i, u in enumerate(demo_users[:10]):
         plan = plans[i % 2]
@@ -243,7 +243,7 @@ async def _seed_demo_billing():
             "cancelled_at": now_iso() if status == "cancelled" else None,
             "provider_ref": f"demo_sub_{i:03d}",
         })
-        amount = 9.99 if plan == "intro_plus" else 24.99
+        amount = 9.99 if plan == "orrbbit_plus" else 24.99
         for m in range(2):
             ok = not (status == "past_due" and m == 1)
             await db.demo_payments.insert_one({
@@ -265,7 +265,7 @@ async def billing_overview(admin: dict = Depends(require_perm("payments")), mode
     await _seed_demo_billing()
     subs = await db.demo_subscriptions.find({}, {"_id": 0}).sort("started_at", -1).to_list(50)
     pays = await db.demo_payments.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    mrr = sum(9.99 if s["plan"] == "intro_plus" else 24.99 for s in subs if s["status"] in ("active", "trialing"))
+    mrr = sum(9.99 if s["plan"] == "orrbbit_plus" else 24.99 for s in subs if s["status"] in ("active", "trialing"))
     return {"configured": False, "mode": "demo", "provider": "demo-sandbox (seeded data)", "plans": PLANS,
             "message": "DEMO DATA — clearly-labelled seeded billing records for interface testing. Isolated from production; no real money moves.",
             "kpis": {"active_subscriptions": sum(1 for s in subs if s["status"] in ("active", "trialing")),
