@@ -79,16 +79,23 @@ def test_incomplete_profile_hidden_then_visible_when_complete():
     assert any(u["id"] == cu["id"] for u in _nearby(vt)["users"])
 
 
-def test_two_photos_not_enough():
+def test_one_photo_not_enough_two_is():
     vt, _ = _register("Viewer2")
     requests.put(f"{API}/users/me/state", json={"lat": LAT, "lng": LNG, "visible": True}, headers=_h(vt))
     ct, cu = _register("TwoPhotos")
     requests.put(f"{API}/users/me/state", json={"lat": LAT, "lng": LNG, "visible": True}, headers=_h(ct))
     requests.put(f"{API}/users/me", headers=_h(ct), json={
-        "photos": [IMG % "a", IMG % "b"],
+        "photos": [IMG % "a"],
         "bio": "A long enough bio that easily satisfies the forty character requirement here.",
     })
     _verify_email(cu["id"])
+    # 1 photo → not discoverable
+    assert all(u["id"] != cu["id"] for u in _nearby(vt)["users"])
+    # 2 photos → discoverable (iter42: minimum reduced from 3 to 2)
+    requests.put(f"{API}/users/me", headers=_h(ct), json={"photos": [IMG % "a", IMG % "b"]})
+    assert any(u["id"] == cu["id"] for u in _nearby(vt)["users"])
+    # deleting back to 1 removes full discoverability again
+    requests.put(f"{API}/users/me", headers=_h(ct), json={"photos": [IMG % "a"]})
     assert all(u["id"] != cu["id"] for u in _nearby(vt)["users"])
 
 

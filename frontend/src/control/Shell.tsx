@@ -123,7 +123,13 @@ export default function Shell({ title, children, actions }: { title: string; chi
 
   const sidebar = (
     <View style={[st.sidebar, compact && st.sidebarOverlay]}>
-      <View style={st.brand}>
+      <Pressable
+        style={st.brand}
+        onPress={() => router.push('/control' as any)}
+        accessibilityRole="button"
+        accessibilityLabel="Orrbbit — go to dashboard overview"
+        testID="brand-home"
+      >
         <Image
           source={require('../../assets/images/logo.png')}
           style={st.brandLogo}
@@ -134,7 +140,7 @@ export default function Shell({ title, children, actions }: { title: string; chi
           <Text style={st.brandText}>Orrbbit</Text>
           <Text style={st.brandSub}>Control Centre</Text>
         </View>
-      </View>
+      </Pressable>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 8 }}>
         {NAV.map((item) => {
           const active = pathname === item.path;

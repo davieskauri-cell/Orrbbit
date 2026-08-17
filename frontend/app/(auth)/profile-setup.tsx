@@ -76,8 +76,8 @@ export default function ProfileSetup() {
   };
 
   const next = async () => {
-    if (photos.length < 3) {
-      setError("Please add at least 3 photos.");
+    if (photos.length < 2) {
+      setError("Please add at least 2 photos.");
       return;
     }
     setError("");
@@ -104,7 +104,7 @@ export default function ProfileSetup() {
         <Text style={styles.title}>Tell us about you</Text>
         <Text style={styles.sub}>This is what people nearby will see.</Text>
 
-        <Text style={styles.label}>Your photos (minimum 3)</Text>
+        <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
 
         <Text style={styles.label}>Short bio</Text>

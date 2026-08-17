@@ -108,10 +108,10 @@ export default function EditProfile() {
         setPhotos(updated.photos || []);
       } catch {}
     };
-    if (photos.length === 3 && user?.people_discoverable) {
+    if (photos.length === 2 && user?.people_discoverable) {
       showAlert(
         "Your profile will be less visible",
-        "With fewer than 3 photos your People profile won't be fully discoverable on Radar and Nearby until you add another photo.",
+        "With fewer than 2 photos your People profile won't be fully discoverable on Radar and Nearby until you add another photo.",
         [
           { text: "Cancel", style: "cancel" },
           { text: "Remove anyway", style: "destructive", onPress: doRemove },
@@ -189,7 +189,7 @@ export default function EditProfile() {
         </View>
 
         <Text style={styles.label}>Photos ({photos.length}/6)</Text>
-        <Text style={styles.subLabel}>Add at least 3 photos to be visible on Orrbbit.</Text>
+        <Text style={styles.subLabel}>Add at least 2 photos to complete your profile.</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} onReorder={reorder} uploading={uploading} />
 
         <Text style={styles.label}>First name</Text>

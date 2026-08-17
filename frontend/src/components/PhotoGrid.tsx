@@ -83,7 +83,7 @@ async function normalisePhoto(asset: ImagePicker.ImagePickerAsset): Promise<stri
   }
 }
 
-export default function PhotoGrid({ photos, onAdd, onRemove, onReorder, uploading, max = 6, minRequired = 3 }: Props) {
+export default function PhotoGrid({ photos, onAdd, onRemove, onReorder, uploading, max = 6, minRequired = 2 }: Props) {
   const [processing, setProcessing] = React.useState(false);
   const busy = uploading || processing;
 

@@ -35,6 +35,7 @@ export default function PersonPreview() {
   const [expanded, setExpanded] = useState(false);
   const [failed, setFailed] = useState<Record<number, boolean>>({});
   const { width } = useWindowDimensions();
+  const pageW = width - spacing.lg * 2; // fitted photo-card width (rounded Orrbbit card)
   const user = findUser(id!);
 
   const DISMISS_REASONS = [
@@ -156,19 +157,19 @@ export default function PersonPreview() {
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(e) => setPhotoIdx(Math.min(photos.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / width))))}
+              onMomentumScrollEnd={(e) => setPhotoIdx(Math.min(photos.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / pageW))))}
               testID="profile-gallery"
             >
               {photos.map((p, i) => (
                 <Pressable key={`${i}-${p.slice(0, 24)}`} onPress={() => setExpanded(true)} testID={`gallery-photo-${i}`}>
                   {failed[i] ? (
-                    <View style={[styles.photoFallback, { width, height: 360 }]}>
+                    <View style={[styles.photoFallback, { width: pageW, height: 400 }]}>
                       <Avatar name={user.name} size={140} />
                     </View>
                   ) : (
                     <Image
                       source={{ uri: resolvePhotoUri(p) || p }}
-                      style={{ width, height: 360, backgroundColor: colors.card }}
+                      style={{ width: pageW, height: 400, backgroundColor: colors.card }}
                       contentFit="cover"
                       transition={200}
                       onError={() => setFailed((f) => ({ ...f, [i]: true }))}
@@ -420,7 +421,14 @@ export default function PersonPreview() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  photoWrap: { width: "100%", height: 360 },
+  photoWrap: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    height: 400,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    backgroundColor: colors.card,
+  },
   photo: { width: "100%", height: "100%" },
   photoFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.card },
   close: {

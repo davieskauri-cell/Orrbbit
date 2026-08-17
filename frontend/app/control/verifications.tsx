@@ -7,9 +7,11 @@ import { CC } from '../../src/control/theme';
 import { Card, Chip, Badge, Btn, Loading, EmptyText, ModalCard, Input } from '../../src/control/ui';
 
 const QUEUES = [
-  { key: 'Pending', label: 'Pending' }, { key: 'Approved', label: 'Approved' },
-  { key: 'Rejected', label: 'Rejected' }, { key: 'Expired', label: 'Expired' },
-  { key: 'expiring_soon', label: 'Expiring Soon' }, { key: '', label: 'All' },
+  { key: 'Pending', label: 'Pending' }, { key: 'Approved', label: 'Verified' },
+  { key: 'review_due', label: 'Annual Review Due' },
+  { key: 'expiring_soon', label: 'Expiring Soon' }, { key: 'Expired', label: 'Expired' },
+  { key: 'More Information Required', label: 'More Info Required' },
+  { key: 'Rejected', label: 'Rejected' }, { key: '', label: 'All' },
 ];
 
 export default function Verifications() {
@@ -60,6 +62,13 @@ export default function Verifications() {
               <Text style={s.name}>{sub.user?.name} — {sub.profession}</Text>
               <Text style={s.sub}>{sub.user?.email} · {(sub.categories || []).join(', ')}</Text>
               <Text style={s.sub}>Submitted {String(sub.submitted_at).slice(0, 10)}{sub.valid_until ? ` · valid until ${sub.valid_until}` : ''}</Text>
+              {sub.credential_last_reviewed_at ? (
+                <Text style={s.sub}>
+                  Reviewed {String(sub.credential_last_reviewed_at).slice(0, 10)} · Next review {String(sub.credential_next_review_at || '').slice(0, 10)}
+                  {sub.review_due ? '  ' : ''}
+                </Text>
+              ) : null}
+              {sub.review_due ? <Badge status="pending" label="ANNUAL REVIEW DUE" /> : null}
             </View>
             <Badge status={sub.status} />
           </View>
@@ -76,6 +85,7 @@ export default function Verifications() {
             {sub.status !== 'Approved' ? <Btn small variant="teal" title="Approve" onPress={() => setDecision({ sub, action: 'approve' })} /> : null}
             {sub.status !== 'Rejected' ? <Btn small variant="danger" title="Reject" onPress={() => setDecision({ sub, action: 'reject' })} /> : null}
             <Btn small variant="outline" title="Request More Info" onPress={() => setDecision({ sub, action: 'more_info' })} />
+            {sub.status === 'Approved' ? <Btn small variant="teal" title="Complete Annual Review" onPress={() => setDecision({ sub, action: 'annual_review' })} /> : null}
             {sub.status === 'Approved' ? <Btn small variant="outline" title="Renew" onPress={() => setDecision({ sub, action: 'renew' })} /> : null}
             {sub.status === 'Approved' ? <Btn small variant="outline" title="Suspend" onPress={() => setDecision({ sub, action: 'suspend' })} /> : null}
             {sub.status === 'Expired' ? <Btn small variant="outline" title="Revoke" onPress={() => setDecision({ sub, action: 'revoke' })} /> : null}

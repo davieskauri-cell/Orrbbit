@@ -11,7 +11,7 @@ import { colors, spacing, radius, font } from "@/src/theme";
 export default function PingModal() {
   const router = useRouter();
   const pathname = usePathname();
-  const { activePing, dismissActivePing, vibeMap } = useApp();
+  const { activePing, dismissActivePing, vibeMap, appMode } = useApp();
   const shownAtPath = React.useRef<string | null>(null);
 
   // auto-dismiss when the user navigates away — the ping stays in the Pings tab
@@ -29,6 +29,7 @@ export default function PingModal() {
   }, [pathname, activePing, dismissActivePing]);
 
   if (!activePing) return null;
+  if (appMode === "professional") return null; // People recommendations never surface in Professional Mode
   // only interrupt on the main discovery tabs — never block menus, profile,
   // match/meetup or safety flows. The ping always remains in the Pings tab.
   const ALLOWED = ["/", "/nearby", "/pings", "/encounters"];

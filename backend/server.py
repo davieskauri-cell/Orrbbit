@@ -294,7 +294,7 @@ def _dob_for_age(age: int) -> str:
 
 
 # ---------- Profile richness & discoverability (People Mode) ----------
-DISCOVERY_MIN_PHOTOS = 3
+DISCOVERY_MIN_PHOTOS = 2
 BIO_MIN_CHARS = 40
 BIO_MAX_CHARS = 500
 MAX_PROMPTS = 3
@@ -330,7 +330,7 @@ def completion_checklist(u: dict) -> tuple:
     photos = [p for p in (u.get("photos") or []) if p] or ([u["photo_url"]] if u.get("photo_url") else [])
     bio_len = len((u.get("bio") or "").strip())
     checklist = [
-        {"key": "photos", "label": "Add 3 profile photos", "done": len(photos) >= DISCOVERY_MIN_PHOTOS, "required": True},
+        {"key": "photos", "label": "Add at least 2 photos", "done": len(photos) >= DISCOVERY_MIN_PHOTOS, "required": True},
         {"key": "bio", "label": "Write your bio (40+ characters)", "done": bio_len >= BIO_MIN_CHARS, "required": True},
         {"key": "email", "label": "Verify your email", "done": bool(u.get("email_verified")), "required": True},
         {"key": "current_city", "label": "Add your current city", "done": bool(u.get("city")), "required": False},
@@ -1400,6 +1400,8 @@ async def generate_ping(
 ):
     if not user.get("visible", True) or user.get("ghost_mode") or user.get("paused"):
         return {"ping": None}
+    if user.get("app_mode") == "professional":
+        return {"ping": None}  # mode isolation: no People recommendations in Professional Mode
     if _demo_mode.STATE.get("store_screenshot_mode"):
         return {"ping": None}  # stable screenshots: no random ping popups
     if user.get("quiet_mode"):
@@ -1871,7 +1873,7 @@ async def profile_completion(user: dict = Depends(get_current_user)):
         "done": [c["label"] for c in checklist if c["done"]],
         "suggestions": suggestions,
         "message": (
-            "Add at least 3 photos so people nearby can get a better sense of who you are."
+            "Add at least 2 photos so people nearby can get a better sense of who you are."
             if not discoverable
             else "More detail helps the right people know when to approach."
         ),
@@ -2271,11 +2273,31 @@ def _min_expiry(sub: dict) -> Optional[str]:
     return min(dates) if dates else None
 
 
+CREDENTIAL_REVIEW_CYCLE_MONTHS = 12   # Orrbbit reviews verified credentials annually
+CREDENTIAL_MAX_VALIDITY_MONTHS = 24   # no credential accepted >24 months without renewed evidence
+
+
+def _effective_expiry(sub: dict) -> Optional[str]:
+    """Earliest applicable invalidity date: the credential's real expiry always takes
+    precedence; credentials without an expiry cap out at 24 months from approval."""
+    doc_exp = _min_expiry(sub)
+    anchor = sub.get("credential_verified_at") or sub.get("reviewed_at")
+    cap = None
+    if anchor:
+        try:
+            cap = (datetime.fromisoformat(anchor.replace("Z", "+00:00")) + timedelta(days=730)).date().isoformat()
+        except (ValueError, TypeError):
+            cap = None
+    candidates = [x for x in (doc_exp, cap) if x]
+    return min(candidates) if candidates else None
+
+
 async def _apply_expiry(sub: dict) -> dict:
-    """Automatic expiry management: reminders at 90/60/30 days, auto-expire on the date."""
+    """Automatic expiry management: reminders at 90/60/30 days, auto-expire on the date.
+    Effective expiry = earliest of the credential's real expiry and the 24-month cap."""
     if sub.get("status") != "Approved":
         return sub
-    exp = _min_expiry(sub)
+    exp = _effective_expiry(sub)
     if not exp:
         sub["credential_status"] = "Verified"
         return sub
@@ -2578,6 +2600,12 @@ async def _verification_status(user_id: str) -> dict:
         "verified_since": sub.get("reviewed_at") if sub["status"] == "Approved" else None,
         "valid_until": _min_expiry(sub),
         "credential_status": sub.get("credential_status", "Verified" if sub["status"] == "Approved" else None),
+        # credential lifecycle (owner + admin visibility; not exposed to ordinary users)
+        "credential_verified_at": sub.get("credential_verified_at"),
+        "credential_last_reviewed_at": sub.get("credential_last_reviewed_at"),
+        "credential_next_review_at": sub.get("credential_next_review_at"),
+        "credential_effective_expiry": _effective_expiry(sub),
+        "review_due": bool(sub.get("credential_next_review_at") and sub["credential_next_review_at"] <= now_iso() and sub["status"] == "Approved"),
         "note": sub.get("public_note", ""),
         "submitted_at": sub.get("submitted_at"),
         "documents": [
@@ -2883,6 +2911,7 @@ _DECISION_MAP = {
     "more_info": ("More Information Required", "More information requested", "The review team needs more information. Check the note and resubmit."),
     "suspend": ("Suspended", "Verification suspended", "Your verification is suspended. Contact support or resubmit updated credentials."),
     "renew": ("Approved", "Verification renewed", "Your verification has been renewed. Your badge stays live."),
+    "annual_review": ("Approved", "Annual review completed", "Your annual credential review is complete. Your verified status continues."),
     "mark_expired": ("Expired", "Verification expired", "Your verification was marked expired. Upload updated credentials to continue."),
     "revoke": ("Rejected", "Verification removed", "Your verification badge was removed by the review team."),
 }
@@ -2903,6 +2932,26 @@ async def admin_verification_decision(sub_id: str, body: VerificationDecisionIn,
     }
     if body.action == "renew":
         upd["reminders_sent"] = []
+    if body.action in ("approve", "renew"):
+        # (re)start the credential lifecycle: annual review every 12 months,
+        # max 24-month validity, real expiry date always takes precedence
+        now_dt = datetime.now(timezone.utc)
+        upd.update({
+            "credential_verified_at": now_iso(),
+            "credential_last_reviewed_at": now_iso(),
+            "credential_next_review_at": (now_dt + timedelta(days=365)).isoformat(),
+            "credential_expiry_date": _min_expiry(sub),
+            "credential_review_cycle_months": CREDENTIAL_REVIEW_CYCLE_MONTHS,
+            "credential_max_validity_months": CREDENTIAL_MAX_VALIDITY_MONTHS,
+        })
+    elif body.action == "annual_review":
+        if sub.get("status") != "Approved":
+            raise HTTPException(status_code=400, detail="Annual review applies to approved credentials only")
+        now_dt = datetime.now(timezone.utc)
+        upd.update({
+            "credential_last_reviewed_at": now_iso(),
+            "credential_next_review_at": (now_dt + timedelta(days=365)).isoformat(),
+        })
     await db.verification_submissions.update_one(
         {"id": sub_id},
         {"$set": upd, "$push": {"history": {"action": body.action, "by": user["id"], "note": body.note or "", "at": now_iso()}}},

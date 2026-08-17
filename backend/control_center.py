@@ -623,11 +623,12 @@ async def control_professionals(q: Optional[str] = None, status: Optional[str] =
 
 # ----------------------------- Verification queues -----------------------------
 _DECISION_MAP = {
-    "approve": ("Approved", "Verification approved", "You're now Professionally Verified. Your badge and verified categories are live."),
+    "approve": ("Approved", "Verification approved", "Your professional status has been verified. Orrbbit reviews verified professional credentials annually to help keep information current. Your credential may remain valid for up to 2 years, subject to its actual expiry date."),
     "reject": ("Rejected", "Verification rejected", "Your verification was not approved. See the reviewer note and resubmit."),
     "more_info": ("More Information Required", "More information requested", "The review team needs more information. Check the note and resubmit."),
     "suspend": ("Suspended", "Verification suspended", "Your verification is suspended. Contact support or resubmit updated credentials."),
     "renew": ("Approved", "Verification renewed", "Your verification has been renewed. Your badge stays live."),
+    "annual_review": ("Approved", "Annual review completed", "Your annual credential review is complete. Your verified status continues."),
     "mark_expired": ("Expired", "Verification expired", "Your verification was marked expired. Upload updated credentials to continue."),
     "revoke": ("Rejected", "Verification removed", "Your verification badge was removed by the review team."),
 }
@@ -637,6 +638,7 @@ DECISION_EMAIL = {
     "approve": "pro_approved", "renew": "pro_approved",
     "reject": "pro_declined", "revoke": "pro_declined",
     "more_info": "pro_more_info", "suspend": "pro_restricted",
+    "annual_review": "annual_review_completed",
     "mark_expired": "credential_expired",
 }
 
@@ -660,6 +662,8 @@ async def control_verifications(status: Optional[str] = None, admin: dict = Depe
     d30f = (now() + timedelta(days=30)).date().isoformat()
     if status == "expiring_soon":
         f.update({"status": "Approved", "documents.expiry_date": {"$lte": d30f, "$gte": today}})
+    elif status == "review_due":
+        f.update({"status": "Approved", "credential_next_review_at": {"$lte": now().isoformat()}})
     elif status:
         f["status"] = status
     subs = await db.verification_submissions.find(f, {"_id": 0}).sort("submitted_at", -1).to_list(300)
@@ -673,6 +677,9 @@ async def control_verifications(status: Optional[str] = None, admin: dict = Depe
         s["user"] = {"id": s["user_id"], "name": u.get("name"), "email": u.get("email"), "photo_url": u.get("photo_url")}
         dates = [d.get("expiry_date") for d in s.get("documents", []) if d.get("expiry_date")]
         s["valid_until"] = min(dates) if dates else None
+        s["review_due"] = bool(s.get("credential_next_review_at") and s["credential_next_review_at"][:10] <= today and s.get("status") == "Approved")
+    counts["review_due"] = await db.verification_submissions.count_documents(
+        {**linked, "status": "Approved", "credential_next_review_at": {"$lte": now().isoformat()}})
     return {"items": subs, "counts": counts}
 
 
@@ -689,6 +696,25 @@ async def control_verification_decision(sub_id: str, body: DecisionIn, request: 
            "public_note": (body.note or "") if body.action in ("reject", "more_info", "suspend") else ""}
     if body.action == "renew":
         upd["reminders_sent"] = []
+    if body.action in ("approve", "renew"):
+        # credential lifecycle: annual review every 12 months, 24-month max validity,
+        # the credential's real expiry date always takes precedence
+        _doc_dates = [d.get("expiry_date") for d in sub.get("documents", []) if d.get("expiry_date")]
+        upd.update({
+            "credential_verified_at": now_iso(),
+            "credential_last_reviewed_at": now_iso(),
+            "credential_next_review_at": (now() + timedelta(days=365)).isoformat(),
+            "credential_expiry_date": min(_doc_dates) if _doc_dates else None,
+            "credential_review_cycle_months": 12,
+            "credential_max_validity_months": 24,
+        })
+    elif body.action == "annual_review":
+        if sub.get("status") != "Approved":
+            raise HTTPException(status_code=400, detail="Annual review applies to approved credentials only")
+        upd.update({
+            "credential_last_reviewed_at": now_iso(),
+            "credential_next_review_at": (now() + timedelta(days=365)).isoformat(),
+        })
     await db.verification_submissions.update_one(
         {"id": sub_id},
         {"$set": upd, "$push": {"history": {"action": body.action, "by": f"control:{admin['email']}", "note": body.note or "", "at": now_iso()}}})

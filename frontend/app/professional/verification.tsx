@@ -167,9 +167,17 @@ export default function VerificationScreen() {
             </Text>
             {!!status.profession && <Text style={styles.statusMeta}>{status.profession}{status.categories?.length ? ` · ${status.categories.join(", ")}` : ""}</Text>}
             {!!status.verified_since && <Text style={styles.statusMeta}>Verified since {fmtDate(status.verified_since)}</Text>}
-            {!!status.valid_until && (
+            {!!status.credential_last_reviewed_at && (
+              <Text style={styles.statusMeta} testID="ver-last-review">Credential reviewed {fmtDate(status.credential_last_reviewed_at)}</Text>
+            )}
+            {!!status.credential_next_review_at && status.status === "Approved" && (
+              <Text style={[styles.statusMeta, status.review_due && { color: colors.warning, fontWeight: "700" }]} testID="ver-next-review">
+                Next Orrbbit review {fmtDate(status.credential_next_review_at)}{status.review_due ? " · Review due" : ""}
+              </Text>
+            )}
+            {!!status.credential_effective_expiry && status.status === "Approved" && (
               <Text style={[styles.statusMeta, status.credential_status === "Expiring Soon" && { color: colors.warning, fontWeight: "700" }]} testID="ver-valid-until">
-                Valid until {fmtDate(status.valid_until)}{status.credential_status === "Expiring Soon" ? " · Expiring Soon" : ""}
+                Credential expiry {fmtDate(status.credential_effective_expiry)}{status.credential_status === "Expiring Soon" ? " · Expiring Soon" : ""}
               </Text>
             )}
             {!!status.note && <Text style={styles.statusNote}>Reviewer note: {status.note}</Text>}
@@ -282,6 +290,12 @@ export default function VerificationScreen() {
               Your documents are used only to verify your professional credentials. They are stored
               securely, never shown to other users, and reviewed by the Orrbbit verification team.
               Only your verification badge and status are visible to others.
+            </Text>
+            <Text style={styles.noticeText}>
+              Once verified, your credentials will be reviewed annually to help keep professional
+              information current. Credentials may remain valid for up to 2 years, subject to their
+              actual expiry date and Orrbbit&rsquo;s annual review. Verification is not an endorsement
+              or guarantee.
             </Text>
             <Pressable testID="credential-notice-continue" style={styles.noticeBtn} onPress={acceptUploadNotice}>
               <Text style={styles.noticeBtnText}>Continue</Text>

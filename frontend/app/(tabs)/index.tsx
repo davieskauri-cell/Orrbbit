@@ -320,7 +320,7 @@ export default function RadarScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.completeTitle}>Complete your profile</Text>
                   <Text style={styles.completeText}>
-                    Add at least 3 photos so people nearby can get a better sense of who you are.
+                    Add at least 2 photos so people nearby can get a better sense of who you are.
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.teal} />

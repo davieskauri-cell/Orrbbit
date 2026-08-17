@@ -133,6 +133,31 @@ async def process_credential_expiry(db, svc):
                        idempotency_key=f"credential_expired:{sub['id']}")
 
 
+async def process_annual_reviews(db, svc):
+    """Annual credential review reminders at 60/30/7 days before due (idempotent —
+    one email per window per review date, deduped by EmailService idempotency keys)."""
+    today = _now().date()
+    horizon = (today + timedelta(days=60)).isoformat()
+    subs = await db.verification_submissions.find(
+        {"status": "Approved", "credential_next_review_at": {"$lte": horizon + "T23:59:59"}}).to_list(200)
+    for sub in subs:
+        due_s = (sub.get("credential_next_review_at") or "")[:10]
+        if not due_s:
+            continue
+        try:
+            due = datetime.fromisoformat(due_s).date()
+        except ValueError:
+            continue
+        days = (due - today).days
+        window = "due" if days <= 0 else ("7" if days <= 7 else ("30" if days <= 30 else "60"))
+        u = await _user(db, sub["user_id"])
+        if not u:
+            continue
+        await svc.send("annual_review_reminder", user=u, entity_id=sub["id"],
+                       idempotency_key=f"annual_review_{window}:{sub['id']}:{due_s}",
+                       ctx={"due_date": due_s})
+
+
 async def _acquire_lease(db) -> bool:
     """Cross-instance lease so only one backend runs a cycle at a time.
     (Duplicate emails are additionally prevented by EmailService idempotency keys.)"""
@@ -157,7 +182,7 @@ async def run_cycle(db, svc):
     if not await _acquire_lease(db):
         return  # another instance holds the lease
     for job in (process_unread_messages, process_unread_requests,
-                process_session_reminders, process_credential_expiry):
+                process_session_reminders, process_credential_expiry, process_annual_reviews):
         try:
             await job(db, svc)
         except Exception as e:  # noqa: BLE001

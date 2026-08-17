@@ -154,6 +154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setAppMode = useCallback((m: "people" | "professional") => {
     setAppModeState(m);
+    if (m === "professional") setActivePing(null); // mode isolation: drop People recommendations
     AsyncStorage.setItem("intro_app_mode", m).catch(() => {});
     api("/users/me/mode", { method: "PUT", body: { app_mode: m } }).catch(() => {});
   }, []);
@@ -245,7 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (pingPoll.current) clearInterval(pingPoll.current);
     const canPing =
-      token && coords && visibleAndActive && !user?.quiet_mode && user?.vibe && user.vibe !== "busy";
+      token && coords && visibleAndActive && appMode === "people" && !user?.quiet_mode && user?.vibe && user.vibe !== "busy";
     if (canPing) {
       const tick = async () => {
         try {
@@ -269,7 +270,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (pingPoll.current) clearInterval(pingPoll.current);
     };
-  }, [token, coords, visibleAndActive, user?.vibe, user?.radius, user?.quiet_mode]);
+  }, [token, coords, visibleAndActive, appMode, user?.vibe, user?.radius, user?.quiet_mode]);
 
   const dismissActivePing = useCallback(
     (alsoDismissOnServer = false) => {

@@ -192,10 +192,18 @@ _t("pro_approved", "You're Orrbbit Verified ✔", "Verification approved",
 _t("pro_declined", "Your verification was not approved", "Verification declined",
    "Hi {name}, unfortunately your verification was not approved this time.<br><br><b>Reviewer note:</b> {note}<br><br>You can resubmit with updated credentials at any time.",
    cta=("Resubmit", "/professional"), trigger="Admin decision: reject/revoke")
-_t("credential_expiring", "Your credential expires soon", "Credential expiring soon",
-   "Hi {name}, one of your verified credentials expires on <b>{expiry}</b>. Renew it before then to keep your verified badge and stay visible to clients.",
+_t("credential_expiring", "Your credential expires soon", "Your credential is approaching its expiry date",
+   "Hi {name}, one of your verified credentials expires on <b>{expiry}</b>. Renew it before then to keep your verified badge and stay visible to clients. Note: credential expiry is separate from Orrbbit's annual review — your credential's actual expiry date always takes precedence.",
    cta=("Renew Credentials", "/professional"), category="professional_activity",
    trigger="Scheduler: expiry within 30 days")
+_t("annual_review_reminder", "Your annual credential review is coming up", "Your annual professional credential review is coming up",
+   "Hi {name}, Orrbbit reviews verified professional credentials each year to help keep information current. Your next review is due on <b>{due_date}</b>. Please make sure your credential information remains current — this is separate from your credential's own expiry date.",
+   cta=("Review My Credentials", "/professional"), category="professional_activity",
+   trigger="Scheduler: annual review due within 60/30/7 days")
+_t("annual_review_completed", "Your annual credential review is complete", "Annual review completed",
+   "Hi {name}, your annual professional credential review is complete and your verified status continues. Reminder: credentials may remain valid for up to 2 years, subject to their actual expiry date.",
+   cta=("View My Verification", "/professional"), category="professional_activity",
+   trigger="Admin completes annual review")
 _t("credential_expired", "Your credential has expired", "Credential expired",
    "Hi {name}, a verified credential on your account has expired and your verified badge has been paused. Upload updated credentials to restore it. Existing conversations stay active.",
    cta=("Upload Credentials", "/professional"), trigger="Credential auto-expiry")
