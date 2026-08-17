@@ -10,6 +10,7 @@ import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, Pager } fr
 const STATUSES = [
   { key: '', label: 'All' }, { key: 'active', label: 'Active' },
   { key: 'suspended', label: 'Suspended' }, { key: 'banned', label: 'Banned' },
+  { key: 'verified_email', label: 'Email verified' }, { key: 'unverified_email', label: 'Email unverified' },
 ];
 
 export default function Users() {
@@ -40,7 +41,7 @@ export default function Users() {
       </Card>
       {!data ? <Loading /> : (
         <Card>
-          <Table columns={['User', 'Email', 'City', 'Mode', 'Plan', 'Status', 'Joined']} widths={[1.6, 1.8, 1, 0.9, 0.7, 1, 1]}>
+          <Table columns={['User', 'Email', 'Email status', 'City', 'Mode', 'Plan', 'Status', 'Joined']} widths={[1.6, 1.8, 1, 1, 0.9, 0.7, 1, 1]}>
             {!data.items.length ? <EmptyText>No users found.</EmptyText> : data.items.map((u: any) => (
               <Tr key={u.id} onPress={() => router.push(`/control/user/${u.id}` as any)}>
                 <Td flex={1.6}>
@@ -52,6 +53,7 @@ export default function Users() {
                   </View>
                 </Td>
                 <Td flex={1.8}>{u.email}</Td>
+                <Td flex={1}><Badge status={u.email_verified || u.is_demo ? 'active' : 'suspended'} label={u.email_verified || u.is_demo ? 'Verified' : 'Unverified'} /></Td>
                 <Td>{u.city || '—'}</Td>
                 <Td flex={0.9}>{u.app_mode === 'professional' ? 'Professional' : 'People'}</Td>
                 <Td flex={0.7}>{u.plan || 'free'}</Td>

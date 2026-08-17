@@ -154,9 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (!token) return;
+    if (!token) return null;
     const me = await api<User>("/auth/me", { token });
     setUser(me);
+    return me;
   }, [token]);
 
   return (

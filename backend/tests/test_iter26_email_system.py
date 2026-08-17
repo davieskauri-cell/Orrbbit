@@ -24,7 +24,7 @@ API = f"{BASE}/api"
 
 # QA control admin creds
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QaControl!2026x"
+ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
 
 
 # ------------------------------------------------------- fixtures
@@ -49,14 +49,16 @@ def admin_headers(admin_token):
 
 
 @pytest.fixture(scope="session")
-def real_user(s):
+def real_user(s, verify_email):
     """Register a fresh real (non-demo) user for trigger tests."""
     tag = uuid.uuid4().hex[:8]
     email = f"TEST_emailtest_{tag}@gmail.com"
     payload = {"name": "Email Test", "email": email, "password": "TestPass!2026",
-               "age": 27, "gender": "other"}
+               "age": 27, "gender": "other",
+               "date_of_birth": "1996-02-02", "accept_policies": True}
     r = s.post(f"{API}/auth/register", json=payload)
     assert r.status_code == 200, f"register failed: {r.status_code} {r.text}"
+    verify_email(email)  # pass iter43 hard gate
     data = r.json()
     return {"email": email, "password": payload["password"],
             "token": data.get("access_token") or data.get("token"),
@@ -84,7 +86,7 @@ class TestTemplates:
         assert r.status_code == 200
         data = r.json()
         items = data["items"]
-        assert len(items) == 56, f"expected 56 templates, got {len(items)}"
+        assert len(items) == 58, f"expected 58 templates, got {len(items)}"
         mandatory = [t for t in items if t["mandatory"]]
         disabled_default = [t for t in items if not t["default_enabled"]]
         assert len(mandatory) == 33, f"expected 33 mandatory, got {len(mandatory)}"

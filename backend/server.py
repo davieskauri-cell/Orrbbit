@@ -793,6 +793,7 @@ async def register(body: RegisterIn):
         "who_can_see": "everyone",
         "visible_for": 60,
         "verified": False,
+        "email_verified": False,
         "is_demo": False,
         # People Mode age preference — broad "any adult" default (18–65+)
         "people_min_age": 18,
@@ -2620,6 +2621,8 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
     prof = await db.professional_profiles.find_one({"user_id": user_id})
     if not u or not prof:
         return None
+    if not u.get("email_verified") and not u.get("is_demo"):
+        return None  # unverified accounts are never publicly listed (iter43 gate)
     ver = await _verification_status(user_id)
     verified = ver["status"] == "Approved"
     from professional_flow import pro_rating
@@ -3367,6 +3370,35 @@ async def reset_demo(user: dict = Depends(get_current_user)):
 
 
 app.include_router(api_router)
+
+
+# ---- HARD email-verification gate (backend source of truth) ----
+# Unverified accounts may only reach auth/verification/legal/support/deletion surfaces.
+_VERIFY_EXEMPT = (
+    "/api/auth/", "/api/email/", "/api/vibes", "/api/legal", "/api/policies",
+    "/api/content", "/api/support", "/api/control", "/api/email-assets",
+    "/api/demo-assets", "/api/analytics", "/api/demo-accounts", "/api/health",
+    "/api/users/me/email-preferences",  # email management allowed pre-verification
+)
+
+
+@app.middleware("http")
+async def enforce_email_verification(request, call_next):
+    p = request.url.path
+    exempt = (any(p.startswith(e) for e in _VERIFY_EXEMPT)
+              or (p == "/api/users/me" and request.method == "DELETE"))  # account deletion always allowed
+    if p.startswith("/api/") and not exempt:
+        auth = request.headers.get("authorization", "")
+        if auth.startswith("Bearer "):
+            try:
+                payload = jwt.decode(auth[7:], JWT_SECRET, algorithms=[JWT_ALGO])
+                u = await db.users.find_one({"id": payload.get("sub")}, {"email_verified": 1, "is_demo": 1})
+                if u and not u.get("email_verified") and not u.get("is_demo"):
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse(status_code=403, content={"detail": "EMAIL_VERIFICATION_REQUIRED"})
+            except jwt.PyJWTError:
+                pass
+    return await call_next(request)
 
 from control_center import control_router, bootstrap_control_admin  # noqa: E402
 from control_phase2 import control_p2_router  # noqa: E402

@@ -228,7 +228,8 @@ class TestAuthRegression:
         uniq = uuid.uuid4().hex[:8]
         email = f"QA_iter33_{uniq}@example.com"
         payload = {"name": "QA Iter33", "email": email,
-                   "password": "QaIter33Pass!", "age": 27}
+                   "password": "QaIter33Pass!", "age": 27,
+                   "date_of_birth": "1998-06-06", "accept_policies": True}
         r = api_client.post(f"{BASE_URL}/api/auth/register", json=payload, timeout=20)
         assert r.status_code in (200, 201), f"register failed: {r.status_code} {r.text[:300]}"
         data = r.json()
@@ -262,6 +263,7 @@ class TestAuthRegression:
             pytest.skip("no user was created")
         r = api_client.delete(f"{BASE_URL}/api/users/me",
                               headers={"Authorization": f"Bearer {TestAuthRegression._created_token}"},
+                              json={"password": "QaIter33Pass!", "confirmation": "DELETE"},
                               timeout=15)
         # 200 or 204 acceptable
         assert r.status_code in (200, 204), f"cleanup failed: {r.status_code} {r.text[:200]}"

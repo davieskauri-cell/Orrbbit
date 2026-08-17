@@ -5,6 +5,7 @@ search events by user/email, view failures & bounces, retry appropriate failed
 emails and toggle optional templates. Passwords/security tokens are never
 stored in events, so they can never be exposed here.
 """
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -124,8 +125,21 @@ async def email_stats(admin: dict = Depends(require_perm("emails"))):
     recent_failures = await (db.email_events.find({"status": "failed"}, {"_id": 0})
                              .sort("created_at", -1).limit(10).to_list(10))
     sched = await db.config.find_one({"key": "email_scheduler"}, {"_id": 0})
+    # Email-verification funnel (real users only — demo excluded). No tokens exposed.
+    real = {"is_demo": {"$ne": True}}
+    total_users = await db.users.count_documents(real)
+    verified_users = await db.users.count_documents({**real, "email_verified": True})
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    funnel = {
+        "total_users": total_users,
+        "verified": verified_users,
+        "unverified": total_users - verified_users,
+        "verification_rate": round(100 * verified_users / total_users, 1) if total_users else 0,
+        "verify_emails_sent": await db.email_events.count_documents({"template": "verify_email", "status": "sent"}),
+        "verified_last_7d": await db.users.count_documents({**real, "email_verified_at": {"$gte": week_ago}}),
+    }
     return {"counts": counts, "suppressions": suppressions, "bounces": bounces,
-            "recent_failures": recent_failures,
+            "recent_failures": recent_failures, "verification_funnel": funnel,
             "scheduler_last_run": (sched or {}).get("last_run")}
 
 

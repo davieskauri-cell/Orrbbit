@@ -358,7 +358,7 @@ export default function Register() {
             <PrimaryButton
               testID="signup-success-continue"
               title="Continue"
-              onPress={() => router.replace("/location-privacy?next=setup")}
+              onPress={() => router.replace("/(auth)/verify-email")}
               style={{ marginTop: spacing.xl, alignSelf: "stretch" }}
             />
           </View>

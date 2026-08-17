@@ -158,6 +158,19 @@ export default function EmailsAdmin() {
             <KpiCard label="Suppressed" value={stats.suppressions} />
             <KpiCard label="Bounced addresses" value={stats.bounces} />
           </View>
+          {stats.verification_funnel ? (
+            <Card>
+              <SectionTitle>Email verification funnel (real users)</SectionTitle>
+              <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
+                <KpiCard label="Total users" value={stats.verification_funnel.total_users} />
+                <KpiCard label="Verified" value={stats.verification_funnel.verified} accent={CC.teal} />
+                <KpiCard label="Unverified" value={stats.verification_funnel.unverified} accent={CC.red} />
+                <KpiCard label="Verification rate" value={`${stats.verification_funnel.verification_rate}%`} accent={CC.teal} />
+                <KpiCard label="Verify emails sent" value={stats.verification_funnel.verify_emails_sent} />
+                <KpiCard label="Verified last 7 days" value={stats.verification_funnel.verified_last_7d} />
+              </View>
+            </Card>
+          ) : null}
           <Card>
             <SectionTitle>Scheduler last run: {stats.scheduler_last_run ? String(stats.scheduler_last_run).slice(0, 19).replace('T', ' ') : 'not yet'}</SectionTitle>
             <SectionTitle>Recent failures</SectionTitle>

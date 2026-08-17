@@ -126,11 +126,12 @@ class TestRegisterValidation:
 
 # ---------------- Successful signup + consent record ----------------
 @pytest.fixture(scope="module")
-def new_user():
+def new_user(verify_email):
     payload = _register_payload(marketing=True)
     r = requests.post(f"{BASE_URL}/auth/register", json=payload, timeout=15)
     assert r.status_code == 200, r.text
     body = r.json()
+    verify_email(payload["email"])  # pass iter43 hard gate
     yield {"token": body["access_token"], "user": body["user"], "password": payload["password"]}
     # best-effort cleanup — may already be deleted by delete tests
     requests.delete(f"{BASE_URL}/users/me",

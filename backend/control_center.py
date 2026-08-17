@@ -489,6 +489,10 @@ async def control_users(q: Optional[str] = None, status: Optional[str] = None,
         f["admin_status"] = "banned"
     elif status == "active":
         f["admin_status"] = {"$nin": ["banned", "hidden_pending_review"]}
+    elif status == "verified_email":
+        f["email_verified"] = True
+    elif status == "unverified_email":
+        f["email_verified"] = {"$ne": True}
     total = await db.users.count_documents(f)
     rows = await db.users.find(f, {"hashed_password": 0}).sort("created_at", -1).skip((page - 1) * limit).limit(limit).to_list(limit)
     return {"total": total, "page": page, "limit": limit, "items": [strip(r) for r in rows]}

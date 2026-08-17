@@ -63,6 +63,7 @@ class EmailService:
         await self.db.email_events.create_index([("to_email", 1), ("created_at", -1)])
         await self.db.email_events.create_index([("user_id", 1), ("created_at", -1)])
         await self.db.email_suppressions.create_index("email", unique=True)
+        await self.db.email_resend_attempts.create_index([("user_id", 1), ("created_at", -1)])
 
     # ------------------------------------------------ settings / prefs
     async def template_enabled(self, key: str) -> bool:
@@ -261,6 +262,33 @@ def _page(title, body):
     return HTMLResponse(_PAGE.format(title=title, body=body, app_url=APP_URL))
 
 
+def _branded_page(title, body, icon="check"):
+    """Official Orrbbit verification result page: real logo + brand icon, teal CTA,
+    deep link into the app with web fallback. No technical errors exposed."""
+    from email_templates import EMAIL_LOGO_URL
+    icon_svg = (
+        '<svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Success">'
+        '<circle cx="32" cy="32" r="30" fill="#E4F6F5" stroke="#20B2AA" stroke-width="3"/>'
+        '<path d="M20 33 L28 41 L44 25" stroke="#20B2AA" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        if icon == "check" else
+        '<svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Expired">'
+        '<circle cx="32" cy="32" r="30" fill="#FFF0E9" stroke="#FF5A1F" stroke-width="3"/>'
+        '<path d="M32 18 v18 M32 44 v2" stroke="#FF5A1F" stroke-width="5" stroke-linecap="round"/></svg>')
+    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>{title} | Orrbbit</title></head>
+<body style="margin:0;background:#F6F8FB;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div style="max-width:430px;margin:60px auto;padding:40px 28px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:20px;text-align:center;">
+<img src="{EMAIL_LOGO_URL}" alt="Orrbbit" style="height:44px;max-width:220px;margin-bottom:26px;">
+<div style="margin-bottom:18px;">{icon_svg}</div>
+<h1 style="color:#16294E;font-size:22px;margin:0 0 10px;">{title}</h1>
+<p style="color:#4B5563;font-size:14px;line-height:22px;margin:0 0 22px;">{body}</p>
+<a href="orrbbit://" style="display:inline-block;background:#20B2AA;color:#FFFFFF;text-decoration:none;font-weight:bold;padding:14px 36px;border-radius:999px;font-size:15px;">Open Orrbbit</a>
+<p style="color:#94A3B8;font-size:12px;margin-top:18px;">App not opening? Visit <a href="https://www.orrbbit.com" style="color:#20B2AA;">www.orrbbit.com</a></p>
+<p style="color:#94A3B8;font-size:12px;margin-top:6px;">Need help? <a href="mailto:support@orrbbit.com" style="color:#20B2AA;">support@orrbbit.com</a></p>
+</div></body></html>"""
+    return HTMLResponse(html)
+
+
 class PrefsIn(BaseModel):
     connections: Optional[bool] = None
     session_reminders: Optional[bool] = None
@@ -320,20 +348,66 @@ def bind(server, svc: EmailService):
     async def verify_email(token: str = ""):
         data = svc.decode_token(token, "verify_email")
         if not data:
-            return _page("Link expired", "This verification link is invalid or has expired. Request a new one from the Orrbbit app.")
+            return _branded_page(
+                "This verification link has expired",
+                "For your security, verification links are only valid for a limited time. "
+                "Open the Orrbbit app and tap “Resend verification email” to get a new link.",
+                icon="expired")
         user = await db.users.find_one({"id": data["uid"]})
         if not user:
-            return _page("Link expired", "This verification link is no longer valid.")
-        if not user.get("email_verified"):
-            await db.users.update_one({"id": user["id"]}, {"$set": {"email_verified": True, "email_verified_at": _iso()}})
-        return _page("Email verified ✔", f"Thanks {user.get('name', '')}! Your email address is verified and your Orrbbit account is secure.")
+            return _branded_page("We couldn't verify this link",
+                                 "This verification link is no longer valid. You can request a new one from the Orrbbit app.",
+                                 icon="expired")
+        if user.get("email_verified"):
+            return _branded_page("Your email is already verified",
+                                 "You're all set — head back to Orrbbit to continue.", icon="check")
+        await db.users.update_one({"id": user["id"]}, {"$set": {"email_verified": True, "email_verified_at": _iso()}})
+        first = (user.get("name") or "").split(" ")[0]
+        return _branded_page("Email verified",
+                             f"Thanks{', ' + first if first else ''}. Your email address has been verified. "
+                             "You're ready to continue to Orrbbit.", icon="check")
+
+    async def _resend_guard(user_id: str, limit: int = 5):
+        """Abuse control: max N verification-email requests per rolling hour per
+        account — counted at the endpoint (independent of delivery/demo/test skips)."""
+        hour_ago = (_now() - timedelta(hours=1)).isoformat()
+        n = await db.email_resend_attempts.count_documents(
+            {"user_id": user_id, "created_at": {"$gte": hour_ago}})
+        if n >= limit:
+            raise HTTPException(status_code=429,
+                                detail="Too many verification emails requested. Please try again later.")
+        await db.email_resend_attempts.insert_one(
+            {"user_id": user_id, "created_at": _iso()})
 
     @email_user_router.post("/email/resend-verification")
     async def resend_verification(user: dict = Depends(get_current_user)):
         if user.get("email_verified"):
             return {"ok": True, "message": "Email already verified"}
+        await _resend_guard(user["id"])
         res = await svc.send("verify_email", user=user, ctx={"name": user.get("name")},
-                             idempotency_key=f"verify:{user['id']}:{_now().strftime('%Y%m%d%H')}")
+                             idempotency_key=f"verify:{user['id']}:{_now().strftime('%Y%m%d%H%M')[:11]}")
         if res["status"] == "skipped" and res.get("reason") == "demo account":
             return {"ok": True, "message": "Demo accounts don't receive emails"}
         return {"ok": res["status"] in ("sent", "skipped"), "message": "Verification email sent"}
+
+    class ChangeEmailIn(BaseModel):
+        new_email: str
+
+    @email_user_router.post("/email/change-unverified")
+    async def change_unverified_email(body: ChangeEmailIn, user: dict = Depends(get_current_user)):
+        """Fix a typo'd email BEFORE verification. Never carries verified status."""
+        if user.get("email_verified"):
+            raise HTTPException(status_code=400, detail="Email already verified — use account settings to change it.")
+        new_email = body.new_email.strip().lower()
+        if "@" not in new_email or "." not in new_email.split("@")[-1] or len(new_email) > 254:
+            raise HTTPException(status_code=400, detail="Please enter a valid email address")
+        existing = await db.users.find_one({"email": new_email})
+        if existing and existing["id"] != user["id"]:
+            raise HTTPException(status_code=400, detail="That email can't be used")
+        await _resend_guard(user["id"])  # same hourly cap — change-email can't be used to spam
+        await db.users.update_one({"id": user["id"]},
+                                  {"$set": {"email": new_email, "email_verified": False}})
+        fresh = await db.users.find_one({"id": user["id"]})
+        await svc.send("verify_email", user=fresh, ctx={"name": fresh.get("name")},
+                       idempotency_key=f"verify:{user['id']}:{new_email}:{_now().strftime('%Y%m%d%H')}")
+        return {"ok": True, "email": new_email}

@@ -32,6 +32,7 @@ def _register(name, age=30):
         "accept_policies": True, "city": CITY,
     })
     assert r.status_code == 200, r.text
+    _verify_email(r.json()["user"]["id"])  # iter43: hard gate — tests operate as verified users
     return r.json()["access_token"], r.json()["user"]
 
 
@@ -66,7 +67,7 @@ def test_incomplete_profile_hidden_then_visible_when_complete():
     me = requests.get(f"{API}/auth/me", headers=_h(ct)).json()
     assert me["people_discoverable"] is False
     comp = requests.get(f"{API}/users/me/completion", headers=_h(ct)).json()
-    assert comp["discoverable"] is False and len(comp["missing"]) == 3
+    assert comp["discoverable"] is False and len(comp["missing"]) == 2  # photos + bio (email pre-verified in tests)
     # add 3 photos + 40-char bio + verified email → discoverable
     r = requests.put(f"{API}/users/me", headers=_h(ct), json={
         "photos": [IMG % i for i in range(3)],

@@ -38,7 +38,7 @@ def s():
 
 
 @pytest.fixture(scope="session")
-def fresh_user(s):
+def fresh_user(s, verify_email):
     email = f"TEST_iter36_{uuid.uuid4().hex[:8]}@example.com"
     password = "TestPass123!"
     r = s.post(f"{API}/auth/register", json={
@@ -47,6 +47,7 @@ def fresh_user(s):
         "platform": "web", "app_version": "1.0.0", "locale": "en-AU",
     })
     assert r.status_code == 200, f"register failed: {r.status_code} {r.text}"
+    verify_email(email)  # pass iter43 hard gate
     token = r.json().get("access_token") or r.json().get("token")
     assert token
     # user id for reference

@@ -29,7 +29,7 @@ QA_ADMIN_EMAIL = "qa-admin@intro.control"
 QA_ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
 
 RESEND_API_KEY = BACKEND_ENV.get("RESEND_API_KEY")
-EXPECTED_LOGO_URL = "nearby-connect-93.emergent.host/api/email-assets/orrbbit-logo.png"
+EXPECTED_LOGO_URL = "nearby-connect-93.emergent.host/api/email-assets/orrbbit-logo-v2.png"
 EXPECTED_APP_URL = "https://orrbbit.com"
 
 
@@ -192,7 +192,8 @@ def qa_user():
     payload = {"name": "QA Prodmail",
                "email": email,
                "password": "QaProd2026!",
-               "age": 30}
+               "date_of_birth": "1994-03-03",
+               "accept_policies": True}
     r = requests.post(f"{PREVIEW_BASE}/api/auth/register", json=payload, timeout=30)
     assert r.status_code in (200, 201), r.text
     data = r.json()

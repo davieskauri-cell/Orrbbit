@@ -487,3 +487,17 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Admin logo clickable → /control overview (accessible).
 - Tests: backend 36/36 (new tests/test_iter42_credentials_mode.py); testing agent iteration_42 — ALL 6 flows PASS, zero regressions.
 - Deferred (next phase, low risk): admin Overview KPI tiles for reviews due/overdue; 7-day credential-expiry reminder tier (90/60/30 exist); richer demo credential-state labels.
+
+## Iter43 — Mandatory Email Verification + Resend Branding (Aug 2026) — COMPLETE (Preview; awaiting owner redeploy + real-device QA)
+- Hard server-side gate: enforce_email_verification middleware blocks ALL /api product endpoints with 403 EMAIL_VERIFICATION_REQUIRED for unverified non-demo accounts. Exempt allowlist: /auth, /email, /vibes, /legal, /policies, /content, /support, /control, /email-assets, /demo-assets, /analytics, /demo-accounts, /health, /users/me/email-preferences, DELETE /users/me (account deletion always allowed).
+- Registration: email_verified:false explicit; branded verify email fire-and-forget; success screen routes to gate (old location-privacy bypass removed).
+- Mobile gate (auth)/verify-email.tsx: shows email, Open Email, Resend (60s cooldown), I've verified (refreshUser → /auth/me), Wrong email? Change email, Log out. index.tsx redirects unverified→gate; login routes unverified→gate; demo accounts bypass.
+- Resend abuse control: 5 requests/rolling hour per account via db.email_resend_attempts (endpoint-level counter — works even when delivery is skipped for demo/test emails); change-unverified shares the same cap; 429 after limit. Index added.
+- Change email: dup-check 400, updates email + resends, never sets verified.
+- Branded /api/email/verify HTML pages (success / expired / invalid); no stack traces or secrets leaked.
+- Discovery exclusion at query level: People via is_discoverable (email item required); Professionals via _pro_public returning None for unverified non-demo owners.
+- Admin: control users Email status column (Verified/Unverified badges), status filters verified_email/unverified_email; /control/email/stats verification_funnel {total_users, verified, unverified, verification_rate, verify_emails_sent, verified_last_7d} + KPI cards on Emails → Failures & Bounces. No tokens exposed.
+- Email URLs: PUBLIC_BASE_URL / EMAIL_LOGO_URL / APP_URL env-driven (prod cutover test suite green, logo v2, orrbbit.com links, no preview/localhost leaks). NOTE: verification links resolve on the deployed backend host; pointing a custom domain (e.g. api.orrbbit.com) requires owner DNS action — env vars make it a config-only change.
+- Test maintenance: tests/conftest.py verify_email fixture; stale suites revived (DOB/accept_policies contracts, rotated admin password, 58 templates, logo v2, delete reauth body, bootstrap-pw skip, reauth reset). 245 tests green: iter26/26b/27/30/32/33/34/36/37/39/40/42/43 + control_center + email_prod_cutover. Legacy pre-DOB suites (iter4-25, backend_test, new_features) remain stale/out of scope.
+- Testing agent iteration_43: FULL PASS — backend 17/17, frontend 5/5 flows, admin verified. No bugs, no regressions.
+- Verdict: EMAIL + VERIFICATION COMPLETE — REAL DEVICE QA REQUIRED (email open + orrbbit:// deep link on physical iOS/Android after owner redeploys Production).

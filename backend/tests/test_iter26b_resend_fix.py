@@ -24,7 +24,7 @@ BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
 API = f"{BASE}/api"
 
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QaControl!2026x"
+ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
 
 # Emails sent budget: keep <=4 real live sends
 # 1) control test-send to delivered@resend.dev (welcome)
@@ -62,6 +62,8 @@ def live_user(s):
         "password": "LivePass!2026",
         "age": 28,
         "gender": "other",
+        "date_of_birth": "1997-04-04",
+        "accept_policies": True,
     }
     r = s.post(f"{API}/auth/register", json=payload)
     assert r.status_code == 200, f"register failed: {r.status_code} {r.text}"
@@ -184,7 +186,7 @@ class TestRegression:
         data = r.json()
         items = data.get("items") or data.get("templates") or data
         assert isinstance(items, list)
-        assert len(items) == 56, f"expected 56 templates, got {len(items)}"
+        assert len(items) == 58, f"expected 58 templates, got {len(items)}"
 
     def test_demo_login_works(self, s):
         r = s.post(f"{API}/auth/demo-login", json={})

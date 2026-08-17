@@ -30,7 +30,7 @@ def admin_token():
 
 
 @pytest.fixture(scope="module")
-def fresh_user():
+def fresh_user(verify_email):
     email = f"test_iter37_{uuid.uuid4().hex[:10]}@example.com"
     payload = {
         "email": email, "password": "Passw0rd!23", "name": "Test Iter37",
@@ -38,6 +38,7 @@ def fresh_user():
     }
     r = requests.post(f"{API}/auth/register", json=payload)
     assert r.status_code == 200, r.text
+    verify_email(email)  # pass iter43 hard gate
     return r.json()["access_token"], r.json()["user"], email
 
 

@@ -61,6 +61,8 @@ def test_annual_review_fields_in_owner_status():
     if not sub:
         pytest.skip("no approved submission in this environment")
     owner = db.users.find_one({"id": sub["user_id"]})
+    # Fixture setup: the owner must be email-verified to pass the iter43 hard gate
+    db.users.update_one({"id": sub["user_id"]}, {"$set": {"email_verified": True}})
     c.close()
     r = requests.post(f"{API}/auth/login", json={"email": owner["email"], "password": "Intro123!"})
     if r.status_code != 200:

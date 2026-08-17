@@ -29,11 +29,11 @@ BASE_URL = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/") if os.environ.get("
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QaControl!2026x"
+ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
 RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 EXPECTED_FROM = "ORRBBIT <notifications@updates.orrbbit.com>"
 EXPECTED_REPLY_TO = "support@orrbbit.com"
-LOGO_PATH_FRAG = "/api/email-assets/orrbbit-logo.png"
+LOGO_PATH_FRAG = "/api/email-assets/orrbbit-logo"  # matches v1 and current v2 asset
 OLD_WORDMARK = "Orrbb<span"          # old wordmark in layout, must be gone
 API_KEY_SNIPPET = "re_V4"
 
@@ -55,7 +55,8 @@ def user_token_and_id():
     # happen (verify_email + welcome) — same recipient as the ONE explicit live
     # test send, keeping total live sends minimal.
     email = f"delivered+iter27_{uuid.uuid4().hex[:10]}@resend.dev"
-    payload = {"email": email, "password": "TestPass!2026", "name": "TEST Iter27", "age": 28}
+    payload = {"email": email, "password": "TestPass!2026", "name": "TEST Iter27", "age": 28,
+               "date_of_birth": "1997-05-05", "accept_policies": True}
     r = requests.post(f"{API}/auth/register", json=payload, timeout=15)
     assert r.status_code in (200, 201), f"register failed: {r.status_code} {r.text[:300]}"
     data = r.json()
@@ -194,7 +195,7 @@ class TestRegressionRegistration:
         assert r.status_code == 200
         body = r.json()
         templates = body if isinstance(body, list) else (body.get("templates") or body.get("items") or [])
-        assert len(templates) == 56, f"expected 56 templates, got {len(templates)}"
+        assert len(templates) == 58, f"expected 58 templates, got {len(templates)}"
 
     def test_demo_login_works(self):
         r = requests.post(f"{API}/auth/demo-login", json={}, timeout=15)

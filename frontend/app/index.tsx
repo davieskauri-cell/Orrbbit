@@ -21,6 +21,7 @@ export default function Index() {
   }
 
   if (!token) return <Redirect href="/(auth)/onboarding" />;
+  if (user && !user.email_verified && !user.is_demo) return <Redirect href="/(auth)/verify-email" />;
   if (!user?.vibe) return <Redirect href="/(auth)/choose-vibe" />;
   return <Redirect href="/(tabs)" />;
 }

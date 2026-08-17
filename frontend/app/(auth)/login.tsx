@@ -28,7 +28,7 @@ export default function Login() {
   const [demoBusy, setDemoBusy] = useState(false);
 
   const go = (u: { vibe: string | null }) =>
-    router.replace(u.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
+    router.replace(!u.email_verified && !u.is_demo ? "/(auth)/verify-email" : u.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
 
   const submit = async () => {
     setError(null);
