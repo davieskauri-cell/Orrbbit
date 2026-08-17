@@ -478,3 +478,12 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Overview: time-based greeting + "Here's what's happening across Orrbbit."; chart palette teal/navy/orange/subtle-teal.
 - Users table: explicit DEMO pill on demo accounts. Subscriptions: Orrbbit Free/Plus/Pro with correct radii 250m/500m/1km; legacy intro_plus/intro_professional keys removed from control_phase3.py, demo billing reseeded to orrbbit_plus/orrbbit_pro; LIVE shows Not configured (no fake revenue).
 - Tests: testing agent iteration_41 — all 8 flows pass (login, dashboard, mode switch, users, subscriptions, 5-page spot check, 900px responsive, search/signout regression). No production data touched.
+
+## Iter42 — Photo Card, 2-Photo Minimum, Mode Isolation, Credential Annual Review (Aug 2026) — COMPLETE
+- Full-profile primary photo: fitted rounded photo-card (inset, radius, cover crop, pager width fixed); circular avatars retained only for compact UI (radar markers, chat, lists).
+- People discoverability minimum photos 3 → 2 everywhere (DISCOVERY_MIN_PHOTOS=2, all copy "Add at least 2 photos", PhotoGrid minRequired=2, delete-below-2 warning, onboarding, completion checklist, tests).
+- Mode isolation fixed (user-reported bug): pings/generate returns null server-side when app_mode=professional; AppContext poller gated on appMode; activePing cleared on switch; PingModal never renders in Professional Mode. Verified 20/20 API calls + 50s UI watch + reload persistence.
+- Credential lifecycle: 12-month annual review cycle + 24-month max validity + real-expiry precedence (_effective_expiry). Fields: credential_verified_at/last_reviewed_at/next_review_at/expiry_date/review_cycle_months/max_validity_months set on approve/renew; new admin action annual_review (both admin APIs); owner sees Reviewed/Next review/Expiry dates; verification notice adds annual-review + 2-year copy; approval email copy updated; annual_review_reminder emails (60/30/7d, idempotent) added to existing scheduler; admin queue tabs: Pending/Verified/Annual Review Due/Expiring Soon/Expired/More Info/Rejected + review_due filter + Complete Annual Review button.
+- Admin logo clickable → /control overview (accessible).
+- Tests: backend 36/36 (new tests/test_iter42_credentials_mode.py); testing agent iteration_42 — ALL 6 flows PASS, zero regressions.
+- Deferred (next phase, low risk): admin Overview KPI tiles for reviews due/overdue; 7-day credential-expiry reminder tier (90/60/30 exist); richer demo credential-state labels.

@@ -173,3 +173,6 @@ notes: person/[id] needs nearby context (direct URL cold-load shows Out of range
 main agent: control theme tokens → official palette, light sidebar + logo, login rebrand, env badges, greeting, DEMO pills, plan rename (intro_* keys removed, demo billing reseeded), chart palette, branded empty states, teal primary buttons.
 testing: testing agent iteration_41 — ALL 8 FLOWS PASS at 1440x800 + 900x800; two low findings (avatar testID — fixed by main agent; RN-web shadow* deprecation warnings — pre-existing). Report: /app/test_reports/iteration_41.json
 needs_retesting: false
+
+## Iteration 42 — Photo card / 2-photo min / mode isolation / credential annual review (Aug 2026)
+main agent: see PRD iter42 section. testing agent iteration_42: ALL 6 FLOWS PASS — mode-bleed bug verified fixed end-to-end (server 20/20 ping:null in professional mode, UI 50s watch + reload), photo card 358x400 r22 verified, 2-photo copy/checklist verified, admin queue tabs + Complete Annual Review verified (Rory demo review → next review +12mo), logo click verified. Kauri restored. needs_retesting: false
