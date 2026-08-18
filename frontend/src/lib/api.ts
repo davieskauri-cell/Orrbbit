@@ -20,10 +20,18 @@ export async function api<T = any>(path: string, opts: Options = {}): Promise<T>
   });
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null; // non-JSON body (proxy/HTML error page) — fall through to status handling
+  }
 
   if (!res.ok) {
-    const message = (data && (data.detail || data.message)) || "Something went wrong";
+    let message = (data && (data.detail || data.message)) || `Request failed (${res.status})`;
+    if (message === "EMAIL_VERIFICATION_REQUIRED") {
+      message = "Please verify your email address to continue.";
+    }
     throw new Error(typeof message === "string" ? message : "Request failed");
   }
   return data as T;

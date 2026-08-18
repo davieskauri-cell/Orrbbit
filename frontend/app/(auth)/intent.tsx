@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "@/src/lib/api";
+import { showAlert } from "@/src/lib/alert";
 import { useAuth } from "@/src/context/AuthContext";
 import { STRINGS } from "@/src/lib/strings";
 import { colors, spacing, radius, font } from "@/src/theme";
@@ -28,8 +29,11 @@ export default function IntentScreen() {
     try {
       const updated = await api("/users/me/state", { method: "PUT", body: { intent } });
       setUser(updated as any);
-    } catch {}
-    router.push("/(auth)/profile-setup");
+      router.push("/(auth)/profile-setup");
+    } catch (e: any) {
+      showAlert("Couldn't save your choice", e?.message || "Please check your connection and try again.");
+    }
+    setBusy(null);
   };
 
   return (

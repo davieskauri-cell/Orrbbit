@@ -135,7 +135,9 @@ export default function PrivacyScreen() {
         });
       }
       router.back();
-    } catch {}
+    } catch (e: any) {
+      showAlert("Couldn't save your settings", e?.message || "Please check your connection and try again.");
+    }
     setBusy(false);
   };
 

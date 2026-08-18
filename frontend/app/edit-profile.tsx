@@ -106,7 +106,9 @@ export default function EditProfile() {
         const updated: any = await removePhoto(index);
         setUser(updated);
         setPhotos(updated.photos || []);
-      } catch {}
+      } catch (e: any) {
+        setError(e?.message || "Couldn't remove that photo. Please try again.");
+      }
     };
     if (photos.length === 2 && user?.people_discoverable) {
       showAlert(
@@ -123,6 +125,7 @@ export default function EditProfile() {
   };
 
   const reorder = async (from: number, to: number) => {
+    const prev = [...photos];
     const next = [...photos];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
@@ -131,7 +134,10 @@ export default function EditProfile() {
       const updated: any = await updateProfile({ photos: next });
       setUser(updated);
       setPhotos(updated.photos || next);
-    } catch {}
+    } catch (e: any) {
+      setPhotos(prev); // revert — the new order was not persisted
+      setError(e?.message || "Couldn't reorder your photos. Please try again.");
+    }
   };
 
   const addPrompt = (p: string) => {
@@ -167,7 +173,9 @@ export default function EditProfile() {
       });
       setUser(updated as any);
       router.back();
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message || "Couldn't save your profile. Please check your connection and try again.");
+    }
     setBusy(false);
   };
 

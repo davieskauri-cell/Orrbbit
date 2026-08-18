@@ -61,9 +61,11 @@ export default function RadiusSheet({
       const updated = await api("/users/me/state", { method: "PUT", body: { radius: r } });
       setUser(updated as any);
       track("radius_changed");
-    } catch {}
-    onClose();
-    onChanged?.();
+      onClose();
+      onChanged?.();
+    } catch (e: any) {
+      showAlert("Couldn't update your radius", e?.message || "Please check your connection and try again.");
+    }
   };
 
   return (

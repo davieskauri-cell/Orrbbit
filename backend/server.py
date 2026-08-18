@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import math
+import re
 import logging
 import uuid
 import jwt
@@ -977,15 +978,25 @@ BANNED_OPPORTUNITY_TERMS = [
     "viagra", "onlyfans", "get rich quick", "crypto pump", "bitcoin investment",
 ]
 
+# Whole-word matching only — substring checks wrongly flagged innocent text
+# (e.g. "something" contains "meth", "begun" contains "gun").
+_BANNED_TERMS_RE = re.compile(
+    r"\b(" + "|".join(re.escape(t) for t in BANNED_OPPORTUNITY_TERMS) + r")\b", re.IGNORECASE
+)
+
+
+def contains_banned_terms(text: str) -> bool:
+    return bool(_BANNED_TERMS_RE.search(text or ""))
+
 
 @api_router.put("/users/me/vibe-details")
 async def update_vibe_details(body: VibeDetailsIn, user: dict = Depends(get_current_user)):
     details = {k: v for k, v in body.details.items() if v not in (None, "", [])}
-    text = " ".join(str(details.get(k, "")) for k in ("public_summary", "private_details", "intent", "context")).lower()
-    if any(t in text for t in BANNED_OPPORTUNITY_TERMS):
+    text = " ".join(str(details.get(k, "")) for k in ("public_summary", "private_details", "intent", "context"))
+    if contains_banned_terms(text):
         raise HTTPException(
             status_code=400,
-            detail="This opportunity isn't allowed on Orrbbit. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.",
+            detail="These details aren't allowed on Orrbbit. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.",
         )
     await db.users.update_one({"id": user["id"]}, {"$set": {"vibe_details": details}})
     user = await db.users.find_one({"id": user["id"]})
@@ -2411,8 +2422,8 @@ class VerificationDecisionIn(BaseModel):
 
 
 def _check_banned(*texts: str):
-    joined = " ".join(t or "" for t in texts).lower()
-    if any(t in joined for t in BANNED_OPPORTUNITY_TERMS):
+    joined = " ".join(t or "" for t in texts)
+    if contains_banned_terms(joined):
         raise HTTPException(status_code=400, detail="This content isn't allowed on Orrbbit. Weapons, drugs, adult services, gambling, investment schemes and medical claims are prohibited.")
 
 

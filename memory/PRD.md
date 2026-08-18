@@ -501,3 +501,10 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Test maintenance: tests/conftest.py verify_email fixture; stale suites revived (DOB/accept_policies contracts, rotated admin password, 58 templates, logo v2, delete reauth body, bootstrap-pw skip, reauth reset). 245 tests green: iter26/26b/27/30/32/33/34/36/37/39/40/42/43 + control_center + email_prod_cutover. Legacy pre-DOB suites (iter4-25, backend_test, new_features) remain stale/out of scope.
 - Testing agent iteration_43: FULL PASS — backend 17/17, frontend 5/5 flows, admin verified. No bugs, no regressions.
 - Verdict: EMAIL + VERIFICATION COMPLETE — REAL DEVICE QA REQUIRED (email open + orrbbit:// deep link on physical iOS/Android after owner redeploys Production).
+
+## Iter44 — Save Vibe Details fix + full button/CTA audit (Aug 2026) — COMPLETE (Preview; user must redeploy)
+- Root cause: substring banned-terms filter ("something" contains "meth", "begun" contains "gun") returned 400; frontend catch{} swallowed it silently. Fixed with word-boundary regex (contains_banned_terms) applied to vibe-details and help-request checks; real banned words still blocked.
+- All user-initiated save/submit actions now show visible errors and allow retry (inline error on vibe-details, alerts elsewhere); photo reorder reverts on failure; intent no longer navigates on failure; RadiusSheet stays open on failure; api.ts safe JSON parse + friendly verification-gate message; done() canGoBack fallback.
+- Audit result: ~40 empty catches reviewed — user-action silent failures fixed (13 handlers across 10 files); background polls/loads left silent by design; backdrop no-op onPress are intentional tap-eaters; PrimaryButton loading/disabled prevents duplicate submits; chat/pings/connect/verification-upload already had proper handling.
+- Tests: tests/test_iter44_buttons.py 7/7; maintained regression 141 green; testing agent iteration_44 full pass, zero regressions.
+- Pending: user redeploys to production, then real-device iOS check (keyboard open/closed) on vibe-details.

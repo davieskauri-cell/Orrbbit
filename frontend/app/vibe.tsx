@@ -37,10 +37,14 @@ export default function ChangeVibeModal() {
       });
       setUser(updated as any);
       track("relationship_age_preference_saved", { min_age: relMin, max_age: relMax });
-    } catch {}
+      setRelBusy(false);
+      setShowRelPrompt(false);
+      router.back();
+      return;
+    } catch (e: any) {
+      showAlert("Couldn't save your preference", e?.message || "Please check your connection and try again.");
+    }
     setRelBusy(false);
-    setShowRelPrompt(false);
-    router.back();
   };
 
   const skipRelPreference = async () => {
@@ -76,7 +80,9 @@ export default function ChangeVibeModal() {
       } else {
         router.back();
       }
-    } catch {}
+    } catch (e: any) {
+      showAlert("Couldn't update your vibe", e?.message || "Please check your connection and try again.");
+    }
     setBusy(false);
   };
 

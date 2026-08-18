@@ -72,7 +72,9 @@ export default function ProfileSetup() {
       const updated: any = await removePhoto(index);
       setUser(updated);
       setPhotos(updated.photos || []);
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message || "Couldn't remove that photo. Please try again.");
+    }
   };
 
   const next = async () => {
@@ -86,7 +88,9 @@ export default function ProfileSetup() {
       const updated = await updateProfile({ bio, interests: selected });
       setUser(updated as any);
       router.push("/(auth)/choose-vibe");
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message || "Couldn't save your profile. Please check your connection and try again.");
+    }
     setBusy(false);
   };
 

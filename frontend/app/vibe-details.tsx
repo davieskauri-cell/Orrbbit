@@ -23,6 +23,7 @@ export default function VibeDetailsScreen() {
   const fields = VIBE_FORMS[vibeKey] || VIBE_FORMS.open_to_chat;
   const [details, setDetails] = useState<Record<string, any>>(user?.vibe_details || {});
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   // Opportunity has its own dedicated details screen
   useEffect(() => {
@@ -34,7 +35,8 @@ export default function VibeDetailsScreen() {
 
   const done = () => {
     if (next === "tabs") router.replace("/etiquette?next=tabs");
-    else router.back();
+    else if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)"); // deep link / no history — never strand the user
   };
 
   const set = (key: string, value: any) => setDetails((d) => ({ ...d, [key]: value }));
@@ -46,6 +48,7 @@ export default function VibeDetailsScreen() {
     });
 
   const save = async () => {
+    setError("");
     setBusy(true);
     try {
       const payload: Record<string, any> = { ...details };
@@ -66,7 +69,9 @@ export default function VibeDetailsScreen() {
       setUser(updated as any);
       await refresh();
       done();
-    } catch {}
+    } catch (e: any) {
+      setError(e?.message || "Couldn't save your Vibe Details. Please check your connection and try again.");
+    }
     setBusy(false);
   };
 
@@ -165,6 +170,9 @@ export default function VibeDetailsScreen() {
 
         {renderField({ key: "visibility", label: "Who can see your Vibe Details?", type: "single", options: ["public", "after_view", "after_accept", "hidden"] })}
 
+        {!!error && (
+          <Text style={styles.error} testID="vd-error">{error}</Text>
+        )}
         <PrimaryButton testID="vd-save" title="Save Vibe Details" onPress={save} loading={busy} style={{ marginTop: spacing.xl }} />
         <SecondaryButton testID="vd-skip" title="Skip for now" onPress={done} style={{ marginTop: spacing.sm, borderWidth: 0 }} />
       </ScrollView>
@@ -223,4 +231,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   safetyText: { color: colors.text, fontSize: font.sm, flex: 1 },
+  error: { color: colors.pink, fontSize: font.sm, fontWeight: "600", marginTop: spacing.lg, lineHeight: 19 },
 });

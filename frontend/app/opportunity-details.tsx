@@ -42,7 +42,8 @@ export default function OpportunityDetailsScreen() {
 
   const done = () => {
     if (next === "tabs") router.replace("/etiquette?next=tabs");
-    else router.back();
+    else if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)"); // deep link / no history — never strand the user
   };
 
   const save = async () => {
@@ -89,7 +90,9 @@ export default function OpportunityDetailsScreen() {
             setUser(updated as any);
             await refresh();
             router.back();
-          } catch {}
+          } catch (e: any) {
+            setError(e?.message || "Couldn't delete your opportunity. Please try again.");
+          }
         },
       },
     ]);
