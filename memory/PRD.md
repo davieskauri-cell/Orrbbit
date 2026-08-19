@@ -516,3 +516,10 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Entitlement rules unchanged & backend-authoritative (250/500/1000m); public sandbox purchase 403 "Paid subscriptions aren't available yet"; radius clamp intact; demo/QA sandbox purchase modal isolated to is_demo users.
 - Subscription page: current plan + Plan comparison rows with "Payments not yet enabled" on paid rows; rows deep-link to /plans.
 - Verdict: PLAN EXPERIENCE ACTIVE — PAYMENTS NOT ENABLED. Testing agent iteration_45 all 8 flows pass.
+
+## Iter46 — Demo Mode full profile data refresh (Aug 2026) — COMPLETE (Preview; user must redeploy)
+- All 80 demo accounts aligned to current_profile_v2: primaries fully rich (3 same-person photos, bios, Melbourne + varied home cities, occupation/education/languages, interests w/ real mutual overlaps, prompts, DOB==age, email verified); radar/global crowd enriched deterministically (no repetitive legacy data); ezra/luna tagged intentional incomplete fixtures; Alex demo persona enriched.
+- Professional demo credentials cover every annual-review state (current / due soon +14d / overdue -31d / nearing 24-month max validity) plus expiring/expired/pending/rejected; credential doc expiry takes precedence.
+- Seed idempotent (DEMO_ENV_VERSION=4; reset keeps exactly 80, zero dupes); demo_schema_version + demo_fixture tags on every record; real users 100% untouched; demo excluded from metrics as before.
+- Tests: test_iter46_demo_data.py 14/14, 117 regression green, testing agent all 8 UI flows pass (profile, crowd, age filter, professional review states, chat, edit profile, admin, reset).
+- VERDICT: ALL DEMO ACCOUNTS ALIGNED TO CURRENT ORRBBIT PROFILE EXPERIENCE.

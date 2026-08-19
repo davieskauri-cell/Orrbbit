@@ -690,59 +690,138 @@ DEMO_VIBE_DETAILS = {
 # Rich-profile demo data (About + prompts) so Demo Mode showcases the full profile system.
 DEMO_PROFILE_EXTRAS = {
     "kauri@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Auckland, New Zealand", "occupation": "Founder", "education": "University of Auckland",
         "languages": "English, Te Reo Māori",
+        "interests": ["Business", "Startups", "Golf", "Fitness", "Hiking", "Coffee"],
         "prompts": [
             {"prompt": "Ask me about...", "answer": "Starting a business while working full-time."},
             {"prompt": "My ideal weekend is...", "answer": "Golf in the morning, good food and something spontaneous afterwards."},
         ],
     },
     "james@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Sydney, Australia", "occupation": "Fintech founder", "education": "UNSW",
         "languages": "English",
-        "prompts": [{"prompt": "Currently obsessed with...", "answer": "Payments infrastructure and long trail runs along the Yarra."}],
+        "interests": ["Startups", "Finance", "Running", "Golf", "Business"],
+        "prompts": [
+            {"prompt": "Currently obsessed with...", "answer": "Payments infrastructure and long trail runs along the Yarra."},
+            {"prompt": "Something I'm working towards...", "answer": "Our Series A — and breaking 90 minutes in the half marathon."},
+        ],
     },
     "sarah@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Brisbane, Australia", "occupation": "Junior analyst", "education": "QUT",
         "languages": "English",
+        "interests": ["Books", "Art", "Volunteering", "Travel"],
         "prompts": [{"prompt": "I'd love to meet people who...", "answer": "Have made a big career change and lived to tell the story."}],
     },
     "olivia@intro.demo": {
-        "home_city": "Melbourne, Australia", "occupation": "Marketing manager", "education": "RMIT",
+        "current_city": "Melbourne, Australia",
+        "home_city": "Adelaide, Australia", "occupation": "Marketing manager", "education": "RMIT",
         "languages": "English, Italian",
-        "prompts": [{"prompt": "The easiest way to start a conversation with me is...", "answer": "Ask for a coffee recommendation — I have strong opinions."}],
+        "interests": ["Design", "Live music", "Business", "Food", "Coffee"],
+        "prompts": [
+            {"prompt": "The easiest way to start a conversation with me is...", "answer": "Ask for a coffee recommendation — I have strong opinions."},
+            {"prompt": "My favourite hidden food spots in Melbourne...", "answer": "A tiny cannoli window in Carlton I'll only reveal in person."},
+        ],
     },
     "jake@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Perth, Australia", "occupation": "Sound engineer", "languages": "English",
+        "interests": ["Live music", "Photography", "Gaming", "Surfing"],
         "prompts": [{"prompt": "You'll probably find me...", "answer": "At a gig on Friday night or hunting new coffee spots on Saturday."}],
     },
     "mia@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Wellington, New Zealand", "occupation": "Physiotherapist", "education": "University of Otago",
         "languages": "English",
+        "interests": ["Fitness", "Hiking", "Food", "Travel", "Running"],
         "prompts": [
             {"prompt": "My ideal weekend is...", "answer": "A morning hike, a farmers market and dinner somewhere new."},
             {"prompt": "I moved here from...", "answer": "Wellington — still adjusting to Melbourne weather being even windier."},
         ],
     },
     "liam@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Geelong, Australia", "occupation": "Personal trainer", "languages": "English",
+        "interests": ["Fitness", "Running", "Football", "Basketball"],
         "prompts": [{"prompt": "I'm always up for...", "answer": "A 6am session, a parkrun or trying any new sport once."}],
     },
     "sophie@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Auckland, New Zealand", "occupation": "UX designer", "education": "AUT",
         "languages": "English, French",
+        "interests": ["Design", "Art", "Photography", "Hiking", "Coffee"],
         "prompts": [{"prompt": "A random fact about me...", "answer": "I've sketched strangers in 14 different airports."}],
     },
     "ryan@intro.demo": {
-        "home_city": "Melbourne, Australia", "occupation": "Business owner", "languages": "English",
+        "current_city": "Melbourne, Australia",
+        "home_city": "London, United Kingdom", "occupation": "Business owner", "languages": "English",
+        "interests": ["Business", "Golf", "Football", "Travel"],
         "prompts": [{"prompt": "Something I'm working towards...", "answer": "Opening a second site and finally taking a real holiday."}],
     },
     "emily@intro.demo": {
+        "current_city": "Melbourne, Australia",
         "home_city": "Hobart, Australia", "occupation": "Food writer", "education": "University of Tasmania",
         "languages": "English",
+        "interests": ["Food", "Books", "Community", "Travel", "Coffee"],
         "prompts": [{"prompt": "Ask me about...", "answer": "The best cheap eats within 500 m of wherever we're standing."}],
     },
 }
+
+# ---- Iter46 demo enrichment: varied, deterministic fixture data (no repetition) ----
+DEMO_SCHEMA_VERSION = "current_profile_v2"
+_DEMO_HOME_CITIES = [
+    "Auckland, New Zealand", "Perth, Australia", "Sydney, Australia", "Wellington, New Zealand",
+    "Brisbane, Australia", "Christchurch, New Zealand", "Adelaide, Australia", "London, United Kingdom",
+    "Vancouver, Canada", "Singapore", "Melbourne, Australia", "Hobart, Australia",
+]
+_DEMO_INTEREST_POOL = [
+    "Coffee", "Golf", "Running", "Fitness", "Live music", "Design", "Business", "Startups",
+    "Hiking", "Photography", "Food", "Travel", "Books", "Gaming", "Art", "Surfing",
+    "Community", "Volunteering", "Technology", "Football", "Basketball",
+]
+_DEMO_BIO_HOOKS = [
+    "Weekends are for the farmers market and a long walk along the river.",
+    "Training for my first triathlon and regretting it already.",
+    "Happiest with live music, good company and a late-night kebab.",
+    "Slowly working through every dumpling spot in the CBD.",
+    "Learning film photography one badly exposed roll at a time.",
+    "Five-a-side on Tuesdays, couch and a good series most other nights.",
+    "Volunteering at the community garden most Sundays.",
+    "Renovating a fixer-upper and collecting stories about what went wrong.",
+    "Big on day hikes, small on early alarms.",
+    "Always keen for a pick-up basketball game.",
+    "Trying to read more books than I buy this year. Failing.",
+    "Ask me for a podcast recommendation — I have too many.",
+]
+_DEMO_PROMPT_BANK = [
+    {"prompt": "Ask me about...", "answer": "My favourite hidden food spots in Melbourne."},
+    {"prompt": "My ideal weekend is...", "answer": "Morning run, good brunch and something spontaneous."},
+    {"prompt": "Something I'm working towards...", "answer": "Building a business that gives me more freedom to travel."},
+    {"prompt": "You'll probably find me...", "answer": "At the market on Saturday morning or a gig by night."},
+    {"prompt": "I'm always up for...", "answer": "A walk along the river and a proper chat."},
+    {"prompt": "A random fact about me...", "answer": "I once cycled from Melbourne to Adelaide. Never again."},
+    {"prompt": "The easiest way to start a conversation with me is...", "answer": "Ask what I'm reading at the moment."},
+    {"prompt": "Currently obsessed with...", "answer": "Finding the best banh mi within walking distance."},
+]
+
+
+def _demo_enrich(name: str) -> dict:
+    """Deterministic per-persona enrichment for background demo fixtures."""
+    h = sum(ord(c) for c in name.lower())
+    interests = [_DEMO_INTEREST_POOL[(h + i * 7) % len(_DEMO_INTEREST_POOL)] for i in range(4)]
+    interests = list(dict.fromkeys(interests))[:4]
+    while len(interests) < 3:
+        interests.append(_DEMO_INTEREST_POOL[(h + len(interests) * 3 + 1) % len(_DEMO_INTEREST_POOL)])
+        interests = list(dict.fromkeys(interests))
+    return {
+        "interests": interests,
+        "home_city": _DEMO_HOME_CITIES[h % len(_DEMO_HOME_CITIES)],
+        "bio_hook": _DEMO_BIO_HOOKS[h % len(_DEMO_BIO_HOOKS)],
+        "prompt": _DEMO_PROMPT_BANK[h % len(_DEMO_PROMPT_BANK)],
+    }
 
 
 
@@ -3074,7 +3153,7 @@ async def seed_professional_demo():
 
 
 # ===================== Full Demo Environment (demo_env) =====================
-DEMO_ENV_VERSION = 3
+DEMO_ENV_VERSION = 4  # iter46: current_profile_v2 fixture refresh
 DEMO_PERSONA_EMAIL = "demo@intro.demo"
 
 # (radar_email_name, profession_title, profession_key, categories, state, docs)
@@ -3172,7 +3251,10 @@ async def seed_demo_environment(force: bool = False):
         "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "age": 29, "vibe": "networking",
         "date_of_birth": _dob_for_age(29), "email_verified": True,
         "bio": "Demo explorer account — look around, everything here is seeded sample data.",
-        "interests": ["Business", "Coffee", "Fitness", "Tech"],
+        "interests": ["Business", "Coffee", "Fitness", "Technology"],
+        "current_city": "Melbourne, Australia", "home_city": "Melbourne, Australia",
+        "prompts": [{"prompt": "Ask me about...", "answer": "Anything — I'm the demo account, I've seen it all."}],
+        "demo_schema_version": DEMO_SCHEMA_VERSION, "demo_fixture": "persona",
         "photo_url": "https://randomuser.me/api/portraits/lego/1.jpg",
         "photos": ["https://randomuser.me/api/portraits/lego/1.jpg"],
         "demo_dist": 0, "demo_bearing": 0, "demo_minutes_ago": 1,
@@ -3229,6 +3311,17 @@ async def seed_demo_environment(force: bool = False):
             history.append({"action": "reject", "by": "intro-admin", "note": "Document unreadable — please re-upload.", "at": now_iso()})
         elif status == "Expired":
             history += [{"action": "approve", "by": "intro-admin", "at": now_iso()}, {"action": "auto-expired", "by": "system", "at": now_iso()}]
+        # ---- annual credential review fixtures (12-month cycle, 24-month max validity,
+        #      real credential expiry always takes precedence) ----
+        review_offsets_days = {  # name -> days since credential was verified
+            "tom": 60,        # review current (next review in ~10 months)
+            "grace": 350,     # annual review DUE SOON (next review in ~15 days)
+            "oscar": 395,     # annual review OVERDUE (next review ~30 days ago)
+            "lucas": 660,     # nearing 24-month max validity without renewed evidence
+        }
+        verified_days_ago = review_offsets_days.get(name, 90)
+        cred_verified_at = (now - timedelta(days=verified_days_ago)).isoformat()
+        cred_next_review = (now - timedelta(days=verified_days_ago) + timedelta(days=365)).isoformat()
         await db.verification_submissions.insert_one({
             "id": str(uuid.uuid4()), "user_id": uid, "profession": prof_key, "categories": cats,
             "category": PROFESSION_BROAD.get(prof_key, "Other"),
@@ -3236,6 +3329,8 @@ async def seed_demo_environment(force: bool = False):
             "documents": _demo_docs(title, ndocs, expiry),
             "status": status, "submitted_at": now_iso(),
             "reviewed_at": now_iso() if status in ("Approved", "Rejected", "Expired") else None,
+            "credential_verified_at": cred_verified_at if status == "Approved" else None,
+            "credential_next_review_at": cred_next_review if status == "Approved" else None,
             "reviewer": "intro-admin" if status != "Pending Review" else None,
             "public_note": "Document unreadable — please re-upload." if status == "Rejected" else "",
             "notes": [], "reminders_sent": [90] if state == "expiring" and name == "hugo" else [],
@@ -3485,6 +3580,7 @@ async def seed_demo_accounts():
     for acc in DEMO_ACCOUNTS:
         doc = {
             "email": acc["email"], "name": acc["name"], "age": acc["age"], "vibe": acc["vibe"],
+            "date_of_birth": _dob_for_age(acc["age"]),
             "bio": acc["bio"], "interests": acc["interests"], "photo_url": acc["photo_url"],
             "photos": [
                 acc["photo_url"],
@@ -3493,6 +3589,8 @@ async def seed_demo_accounts():
                 f"https://picsum.photos/seed/{acc['email']}-c/400/400",
             ],
             "email_verified": True,
+            "current_city": "Melbourne, Australia",
+            "demo_schema_version": DEMO_SCHEMA_VERSION, "demo_fixture": "primary",
             **DEMO_PROFILE_EXTRAS.get(acc["email"], {}),
             "demo_dist": acc["dist"], "demo_bearing": acc["bearing"], "demo_minutes_ago": acc["minutes_ago"],
             "visible": True,
@@ -3517,10 +3615,13 @@ async def seed_demo_accounts():
     # extra Melbourne radar demo people (Pro 500m demo state)
     for i, (name, age, vibe, dist, brg, portrait, bio) in enumerate(RADAR_DEMO_USERS):
         email = f"{name.lower()}@radar.intro.demo"
+        enrich = _demo_enrich(name)
         doc = {
             "email": email, "name": name, "age": age, "vibe": vibe,
             "date_of_birth": _dob_for_age(age),
-            "bio": bio, "interests": ["Coffee", "Melbourne"],
+            "bio": f"{bio} {enrich['bio_hook']}" if len(bio) < 60 else bio,
+            "interests": enrich["interests"],
+            "prompts": [enrich["prompt"]],
             "photo_url": f"https://randomuser.me/api/portraits/{portrait}.jpg",
             "photos": [
                 f"https://randomuser.me/api/portraits/{portrait}.jpg",
@@ -3528,7 +3629,9 @@ async def seed_demo_accounts():
                 f"https://picsum.photos/seed/{email}-b/400/400",
             ],
             "demo_dist": dist, "demo_bearing": brg, "demo_minutes_ago": 5 + i * 3,
-            "email_verified": True, "home_city": "Melbourne, Australia",
+            "email_verified": True,
+            "current_city": "Melbourne, Australia", "home_city": enrich["home_city"],
+            "demo_schema_version": DEMO_SCHEMA_VERSION, "demo_fixture": "radar_crowd",
             "visible": True, "radius": 100, "ghost_mode": False, "paused": False, "quiet_mode": False,
             "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
             "visible_for": 60, "verified": i % 3 == 0, "active_now": i % 4 != 3, "is_demo": True,
@@ -3550,10 +3653,15 @@ async def seed_demo_accounts():
     logger.info("Seeded %d radar demo users", len(RADAR_DEMO_USERS))
     # global demo users (same rules: <=100m within their own city)
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
+        enrich = _demo_enrich(name + "g")
         doc = {
             "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
             "date_of_birth": _dob_for_age(age),
-            "bio": f"{name} is exploring Orrbbit in {city}.", "interests": ["Coffee", "Travel"],
+            "bio": f"{city.split(',')[0]} local. {enrich['bio_hook']}",
+            "interests": enrich["interests"],
+            "prompts": [enrich["prompt"]],
+            "current_city": city, "home_city": city,
+            "demo_schema_version": DEMO_SCHEMA_VERSION, "demo_fixture": "global_crowd",
             "photo_url": f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
             "photos": [
                 f"https://randomuser.me/api/portraits/{GLOBAL_PHOTOS[i]}.jpg",
@@ -3578,6 +3686,16 @@ async def seed_demo_accounts():
     # mark Kauri as Melbourne ambassador
     await db.users.update_one({"email": "kauri@intro.demo"}, {"$set": {"ambassador": True}})
     logger.info("Seeded %d global demo users", len(GLOBAL_DEMO_USERS))
+    # ---- intentional incomplete-profile test fixtures (clearly tagged, not stale data) ----
+    await db.users.update_one({"email": "ezra@radar.intro.demo"}, {"$set": {
+        "demo_fixture": "incomplete_profile_a",  # 1 photo, minimal bio — below discoverability
+        "bio": "Just having a look around.", "prompts": [], "interests": ["Coffee"],
+    }})
+    await db.users.update_one({"email": "luna@radar.intro.demo"}, {"$set": {
+        "demo_fixture": "incomplete_profile_b",  # missing home city — partially complete
+    }, "$unset": {"home_city": ""}})
+    # ---- schema-version stamp for every demo record (identifies stale fixtures later) ----
+    await db.users.update_many({"is_demo": True}, {"$set": {"demo_schema_version": DEMO_SCHEMA_VERSION}})
     await migrate_opportunity_records()
     await seed_professional_demo()
     await seed_demo_environment()

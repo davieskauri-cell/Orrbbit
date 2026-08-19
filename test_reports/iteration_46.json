@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 46 RETEST — Orrbbit demo-mode full profile data refresh browser flows executed on public preview URL. FLOW 1 (Olivia profile render): PASS — [data-testid=profile-gallery] visible, exactly 3 gallery-photo-* tiles, about-card shows 'Lives in Melbourne, Australia', 'From Adelaide, Australia', 'Occupation Marketing manager', 'Education RMIT', 'Languages English, Italian', mutual-interests chips render exactly 'Business' + 'Coffee', 2 profile-prompt-* cards (coffee recommendation + hidden cannoli). FLOW 2 (Nearby crowd): PASS — /nearby shows 45 user-row-* items (57 via API), bios are all unique across the first 8, ages sample [27,24,28,30,30,27,29,28,25,35,...], initials-avatars for photo-less crowd confirmed acceptable. FLOW 3 (Age filter 25-35 strict): PASS — PUT /api/users/me/state {people_min_age:25, people_max_age:35, people_allow_age_expansion:false} returned 200, follow-up /api/nearby returned 36 users all with age in [25,35] (zero out-of-range), age_filter meta echoed {min:25,max:35,expansion:false}; defaults 18-65/expansion:true restored successfully. FLOW 4 (Professional mode + credential state): API PASS — /api/professionals?lat=..&lng=.. returned 9 pros (Tom, Grace, Dev, Lucas, Iris, …); GET /api/verification/status for grace@radar.intro.demo → Approved, credential_next_review_at=2026-09-03 (~14d), review_due=false; oscar@radar.intro.demo → Approved, credential_next_review_at=2026-07-20 (past), review_due=true. UI caveat noted below. FLOW 5 (connections/chat as demo@intro.demo): pings tab rendered 17 items with valid persona names + avatars (Finn, Aria, Lucas, Daisy, Felix, Rory, Nora, Maya, Dev) — zero 'unknown'/'undefined' strings; however GET /api/matches returned 405 for the demo persona (see minor). FLOW 6 (Edit Profile as kauri): PASS — 3 photos loaded in slots, First name 'Kauri', bio pre-populated, cities/occupation/education/languages fields present with values, 2 conversation prompts filled, interest 'Coffee' visible in chips. FLOW 7 (Control Centre /control): PASS — qa-admin login ok, /control/users table renders columns USER | EMAIL | EMAIL STATUS | CITY | MODE | PLAN | STATUS | JOINED with DEMO badges + Verified email status per row; Kauri detail page renders photo, name, Melbourne, People mode, plan: pro, DEMO badge, full bio, no blank legacy fields. FLOW 8 (POST /api/demo/reset as kauri): PASS — 200 with body {ok:true, counts:{people:80, professionals:23, help_requests:13, connections:13, pending_requests:7, verifications:20, notifications:6}}; kauri profile intact afterwards (3 photos, bio, city Melbourne, home_city Auckland, 2 prompts). Kauri restored to People mode / visible / default age prefs at end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/matches", "issue": "Returns 405 Method Not Allowed for demo@intro.demo (Alex Demo) — demo seed advertises '13 persona connections' but there is no reachable GET listing endpoint for the connections/matches list on that persona. /api/pings (17) works and drives the Pings tab; a connections/chat list endpoint might be missing or named differently. Non-blocking for iteration 46 acceptance (backend was pre-verified 14/14 + 117 regression)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Professional mode switch via API", "issue": "PUT /api/users/me/mode {app_mode:'professional'} returns 200 and /api/auth/me reflects the change, but the (tabs)/nearby screen keeps rendering People-mode UserRows until the app is fully reloaded / user re-authenticates. AuthContext does not automatically re-fetch after a mode change made outside the in-app switcher, so a hard page reload is needed to see ProfessionalNearby. Not a regression against iteration 46 spec (which drives verification through API), but worth calling out.", "affected_testIDs": ["user-row-*", "nearby-pro-*", "nearby-req-*"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter46_demo_data.py"
+  ],
+  "action_items": [
+    "Optional: expose a GET /api/matches (or /api/connections) listing endpoint so demo@intro.demo's 13 seeded persona connections are reachable from the app — currently only /api/pings surfaces them.",
+    "Optional: refresh AuthContext when app_mode changes so the in-app Nearby tab switches to ProfessionalNearby without a hard reload."
+  ],
+  "critical_code_review_comments": [
+    "person/[id].tsx line 65-78: when the user is not present in the AppContext cache (e.g. direct deep link into /person/{id} before /nearby is visited), the screen falls back to the 'Out of range' EmptyState. This is defensive but a bit confusing when the target user is actually reachable — a lazy fetch to /api/user/{id} could smooth the deep-link path.",
+    "nearby.tsx line 74-76: relies on `appMode` from useApp() to switch to ProfessionalNearby — no explicit dependency on /auth/me refresh, so external mode changes stay stale. Consider re-fetching auth on tab focus."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (per iteration 46 pytest 14/14 + 117 regression pre-verified)", "frontend": "8/8 flows verified (Flow 4 UI caveat + Flow 5 minor endpoint gap are non-blocking)"},
+  "seed_data_creation": "None — mutations reverted: kauri age prefs reset to 18-65 + expansion:true, kauri app_mode restored to People, POST /api/demo/reset called at the end (counts restored to {people:80, professionals:23, ...}).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "1) /api/nearby REQUIRES lat & lng query params — Melbourne CBD (-37.8136, 144.9631) works for all @intro.demo personas. 2) Age preference fields are people_min_age / people_max_age / people_allow_age_expansion (NOT age_min_pref/age_max_pref). 3) Person page uses AppContext.findUser(id) so you MUST visit /nearby before deep-linking /person/{id}. 4) Web auth token MUST be JSON.stringify'd in localStorage['auth_token']. 5) demo@intro.demo has no reachable /api/matches list — use /api/pings for its connection-adjacent UI. 6) Olivia's user_id = 5eaf9d14-20dc-45f7-84d3-7b51864a0e8e (fixed via demo seed).",
+  "rca_of_issue": "N/A — no blocking defects observed for iteration 46 spec. Two low-severity observations documented (matches list endpoint missing for demo persona; AuthContext mode refresh)."
+}
