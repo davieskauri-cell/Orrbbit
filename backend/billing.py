@@ -72,6 +72,10 @@ class VerifyIn(BaseModel):
     receipt: str
 
 
+class PlanInterestIn(BaseModel):
+    plan: str
+
+
 def bind(server):
     db = server.db
     get_current_user = server.get_current_user
@@ -177,15 +181,30 @@ def bind(server):
         await db.users.update_one({"id": user["id"]}, {"$unset": {"radius_migration_notice": ""}})
         return {"ok": True}
 
+    # ---------------- pre-launch plan interest (privacy-safe, no marketing opt-in) ----------------
+    @billing_router.post("/billing/interest")
+    async def plan_interest(body: PlanInterestIn, user: dict = Depends(get_current_user)):
+        plan = (body.plan or "").lower()
+        if plan not in ("plus", "pro"):
+            raise HTTPException(status_code=400, detail="Unknown plan")
+        now = _iso(_now())
+        await db.plan_interest.update_one(
+            {"user_id": user["id"], "plan": plan},
+            {"$setOnInsert": {"user_id": user["id"], "plan": plan, "created_at": now},
+             "$set": {"updated_at": now}},
+            upsert=True,
+        )
+        return {"ok": True, "message": "We'll let you know when subscriptions are available."}
+
     # ---------------- sandbox (test) purchases ----------------
     @billing_router.post("/billing/sandbox/purchase")
     async def sandbox_purchase(body: SandboxPurchaseIn, user: dict = Depends(get_current_user)):
         if BILLING_MODE == "disabled":
-            raise HTTPException(status_code=403, detail="Subscriptions are coming soon")
+            raise HTTPException(status_code=403, detail="Paid subscriptions aren't available yet")
         if BILLING_MODE == "native":
             raise HTTPException(status_code=400, detail="Use the store purchase flow")
         if not _sandbox_allowed(user, body.test_code):
-            raise HTTPException(status_code=403, detail="Subscriptions are coming soon")
+            raise HTTPException(status_code=403, detail="Paid subscriptions aren't available yet")
         plan = (body.plan or "").lower()
         if plan not in PRODUCTS:
             raise HTTPException(status_code=400, detail="Unknown plan")

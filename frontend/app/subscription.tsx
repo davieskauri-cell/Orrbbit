@@ -13,6 +13,11 @@ import { colors, spacing, radius, font } from "@/src/theme";
 const NAVY = "#0B2545";
 const PLAN_NAMES: Record<string, string> = { free: "Orrbbit Free", plus: "Orrbbit Plus", pro: "Orrbbit Pro" };
 const PLAN_RADIUS: Record<string, string> = { free: "Up to 250 m", plus: "Up to 500 m", pro: "Up to 1 km" };
+const COMPARISON = [
+  { key: "free", name: "Orrbbit Free", price: "Free", radius: "Up to 250 m" },
+  { key: "plus", name: "Orrbbit Plus", price: "$6.99/month", radius: "Up to 500 m" },
+  { key: "pro", name: "Orrbbit Pro", price: "$11.99/month", radius: "Up to 1 km" },
+];
 
 type Sub = {
   plan: string;
@@ -30,10 +35,12 @@ export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const { setUser } = useAuth();
   const [sub, setSub] = useState<Sub | null>(null);
+  const [canPurchase, setCanPurchase] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api<Sub>("/users/me/subscription").then(setSub).catch(() => {});
+    api("/billing/config").then((c: any) => setCanPurchase(!!c?.sandbox_eligible)).catch(() => setCanPurchase(false));
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -132,6 +139,34 @@ export default function SubscriptionScreen() {
         </View>
       </View>
 
+      <View style={styles.compareCard} testID="sub-compare">
+        <Text style={styles.compareTitle}>Plan comparison</Text>
+        {COMPARISON.map((p) => {
+          const isCur = sub.plan === p.key;
+          return (
+            <Pressable
+              key={p.key}
+              testID={`sub-compare-${p.key}`}
+              style={[styles.compareRow, isCur && styles.compareRowCurrent]}
+              onPress={() => router.push(`/plans?plan=${p.key}`)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.compareName}>{p.name}</Text>
+                <Text style={styles.compareRadius}>{p.radius}</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.comparePrice}>{p.price}</Text>
+                {isCur ? (
+                  <Text style={styles.compareCurrent}>Current plan</Text>
+                ) : p.key !== "free" && !canPurchase ? (
+                  <Text style={styles.compareNote}>Payments not yet enabled</Text>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <View style={styles.menu}>
         {sub.plan !== "pro" && (
           <Pressable testID="sub-upgrade" style={styles.row} onPress={() => router.push(`/plans?plan=${sub.plan === "free" ? "plus" : "pro"}`)}>
@@ -181,6 +216,15 @@ const styles = StyleSheet.create({
   renewal: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2 },
   sandboxTag: { backgroundColor: "#FFF4EC", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
   sandboxText: { color: colors.orange, fontSize: 10, fontWeight: "800" },
+  compareCard: { marginHorizontal: spacing.xl, marginTop: spacing.lg, backgroundColor: "#FFF", borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg },
+  compareTitle: { color: NAVY, fontSize: font.lg, fontWeight: "800", marginBottom: spacing.sm },
+  compareRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md, borderTopWidth: 1, borderColor: colors.border, minHeight: 52 },
+  compareRowCurrent: { backgroundColor: colors.tealSoft, borderRadius: radius.md, paddingHorizontal: spacing.sm, borderTopWidth: 0 },
+  compareName: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  compareRadius: { color: colors.teal, fontSize: font.sm, fontWeight: "700", marginTop: 1 },
+  comparePrice: { color: NAVY, fontSize: font.base, fontWeight: "800" },
+  compareCurrent: { color: colors.teal, fontSize: 11, fontWeight: "800", marginTop: 2 },
+  compareNote: { color: colors.textTertiary, fontSize: 11, fontWeight: "600", marginTop: 2 },
   menu: { marginHorizontal: spacing.xl, marginTop: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderColor: colors.border, minHeight: 52 },
   rowLabel: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "600" },

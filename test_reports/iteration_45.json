@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 45 fully verified end-to-end. Backend pytest suite (test_iter45_plans.py) is 7/7 green. All 8 requested UI flows pass on the public @example.com user (email-verified via Mongo) and the demo user kauri@intro.demo. /plans shows 3 fully selectable cards (Free/Plus/Pro), badges Included / Most Popular / Best Reach, prices Free / $6.99 per month / $11.99 per month, and NO 'Coming Soon' string anywhere. CTA titles behave exactly as spec: 'Continue with Free' / 'Choose Plus' / 'Choose Pro'. Choose Plus/Pro for the public user opens the branded almost-ready bottom sheet (title 'Orrbbit Plus/Pro is almost ready', body contains 'not yet available in this build'); Notify me hits POST /billing/interest, shows 'Thanks!' alert with correct copy, closes the sheet, and NEVER grants entitlement (auth/me plan stays 'free', users/me/subscription plan=free max_radius_m=250 entitlement=null). Mongo db.plan_interest contains exactly one doc per plan per user (idempotent across repeat taps) with only user_id/plan/created_at/updated_at (no email/marketing leakage). Not now correctly dismisses the sheet with no side effects. Radius chips gate as expected: Free = 250m teal only, Plus = 250m+500m teal (750m/1km locked), Pro = all four teal. /subscription shows Orrbbit Free 'Up to 250 m', a 'Plan comparison' block (sub-compare) with three rows carrying the correct prices/radii, 'Current plan' marker only on the Free row, and 'Payments not yet enabled' text only on Plus & Pro rows; tapping sub-compare-plus deep-links to /plans?plan=plus with the CTA preselected as 'Choose Plus'. Demo isolation preserved: kauri@intro.demo sees the SANDBOX purchase-confirm modal (with sandbox-label 'Test purchase (sandbox) — no money is charged'), Not now cancels cleanly, and kauri's plan stays 'pro'. Backend spot-checks: GET /billing/config sandbox_eligible=false for public user; POST /billing/sandbox/purchase → 403 \"Paid subscriptions aren't available yet\"; PUT /users/me/state {radius:1000} on a free user clamps to 250.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter45_plans.py",
+    "/app/test_reports/pytest/pytest_iter45.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "plans.tsx line 297: static string 'shadow*' style prop deprecation warning surfaces in web console — not blocking but worth migrating to boxShadow (react-native-web >= 0.19).",
+    "plans.tsx almost-ready sheet content extends below viewport on 390x844 (Notify/Not now sit off-screen without scrolling the sheet). Users on small viewports need to scroll the sheet to reach the CTAs — consider ScrollView inside the sheet or reducing padding so both buttons are visible without scroll."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "100% (8/8 flows)"},
+  "seed_data_creation": "Created one fresh test user iter45ui_3c437077@example.com (email_verified forced true in Mongo) and generated 2 plan_interest docs (plus + pro) for that user during Notify testing. Kauri demo user left with plan=pro unchanged.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public @example.com users need Mongo users.email_verified=true after /api/auth/register to bypass the email gate. Web auth token must be JSON.stringified in localStorage['auth_token']. showAlert uses window.alert on web — hook via page.on('dialog', d => d.accept()). Almost-ready sheet Notify/Not now buttons render below the visible viewport on 390x844; use scrollIntoView + dispatch_event('click') or expand viewport height to interact. sandbox_eligible is server-restricted to is_demo users, so public users always get the almost-ready sheet, and kauri@intro.demo always gets the sandbox purchase-confirm modal.",
+  "rca_of_issue": "N/A — no defects observed. Iteration 45 acceptance criteria met on both backend and frontend."
+}

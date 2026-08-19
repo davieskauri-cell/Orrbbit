@@ -92,6 +92,8 @@ export default function PlansScreen() {
   );
   const [billing, setBilling] = useState<{ purchases_available: boolean; sandbox_eligible: boolean; billing_mode: string } | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [almostVisible, setAlmostVisible] = useState(false);
+  const [notifyBusy, setNotifyBusy] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -119,8 +121,7 @@ export default function PlansScreen() {
   const ctaTitle = () => {
     if (isCurrent) return currentIsPaid ? "Current Plan" : "Continue with Free";
     if (selected === "free") return currentIsPaid ? "Manage Subscription" : "Continue with Free";
-    if (!canPurchase) return "Coming Soon";
-    return selected === "plus" ? "Upgrade to Plus" : "Upgrade to Pro";
+    return selected === "plus" ? "Choose Plus" : "Choose Pro";
   };
 
   const onCta = async () => {
@@ -134,10 +135,26 @@ export default function PlansScreen() {
       return done();
     }
     if (!canPurchase) {
-      showAlert("Coming soon", "Orrbbit Plus and Pro subscriptions will be available soon. You have the full Orrbbit experience up to 250 m on Free.");
+      // Payments not enabled for this account/build — branded pre-launch sheet, never a fake checkout.
+      track(selected === "plus" ? "plus_interest_viewed" : "pro_interest_viewed");
+      setAlmostVisible(true);
       return;
     }
     setConfirmVisible(true);
+  };
+
+  const notifyMe = async () => {
+    if (notifyBusy) return;
+    setNotifyBusy(true);
+    try {
+      track(selected === "plus" ? "plus_interest" : "pro_interest");
+      const res: any = await api("/billing/interest", { method: "POST", body: { plan: selected } });
+      setAlmostVisible(false);
+      showAlert("Thanks!", res?.message || "We'll let you know when subscriptions are available.");
+    } catch (e: any) {
+      showAlert("Couldn't save that", e?.message || "Please try again.");
+    }
+    setNotifyBusy(false);
   };
 
   const confirmPurchase = async () => {
@@ -281,9 +298,31 @@ export default function PlansScreen() {
           onPress={onCta}
           loading={busy}
           color={colors.teal}
-          disabled={ctaTitle() === "Coming Soon" || (isCurrent && currentIsPaid)}
+          disabled={isCurrent && currentIsPaid}
         />
       </View>
+
+      <Modal visible={almostVisible} transparent animationType="slide" onRequestClose={() => setAlmostVisible(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setAlmostVisible(false)}>
+          <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md }]} onPress={() => {}} testID="almost-ready-sheet">
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetIconWrap}>
+              <Ionicons name={selected === "pro" ? "radio" : "people"} size={26} color={selected === "pro" ? NAVY : colors.teal} />
+            </View>
+            <Text style={styles.sheetTitle} testID="almost-ready-title">
+              {selected === "pro" ? "Orrbbit Pro is almost ready" : "Orrbbit Plus is almost ready"}
+            </Text>
+            <Text style={styles.sheetBody}>
+              Paid subscriptions are not yet available in this build. You can explore the plan now,
+              and we{"'"}ll let you know when subscriptions are available.
+            </Text>
+            <PrimaryButton testID="almost-notify-btn" title="Notify me" onPress={notifyMe} loading={notifyBusy} color={colors.teal} />
+            <Pressable testID="almost-notnow-btn" style={styles.cancelBtn} onPress={() => setAlmostVisible(false)}>
+              <Text style={styles.cancelText}>Not now</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => { track("purchase_cancelled"); setConfirmVisible(false); }}>
         <View style={styles.overlay}>
@@ -387,4 +426,10 @@ const styles = StyleSheet.create({
   legalDot: { color: colors.textTertiary },
   cancelBtn: { alignItems: "center", paddingVertical: 10, minHeight: 42, justifyContent: "center" },
   cancelText: { color: colors.textSecondary, fontWeight: "600" },
+  sheetOverlay: { flex: 1, backgroundColor: "rgba(8,26,53,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#FFF", borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.sm, maxHeight: "80%" },
+  sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 4 },
+  sheetIconWrap: { alignSelf: "center", width: 48, height: 48, borderRadius: 24, backgroundColor: colors.tealSoft, alignItems: "center", justifyContent: "center" },
+  sheetTitle: { color: NAVY, fontSize: font.lg, fontWeight: "800", textAlign: "center" },
+  sheetBody: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 20, textAlign: "center", marginBottom: spacing.sm },
 });

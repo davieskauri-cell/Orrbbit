@@ -508,3 +508,11 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Audit result: ~40 empty catches reviewed — user-action silent failures fixed (13 handlers across 10 files); background polls/loads left silent by design; backdrop no-op onPress are intentional tap-eaters; PrimaryButton loading/disabled prevents duplicate submits; chat/pings/connect/verification-upload already had proper handling.
 - Tests: tests/test_iter44_buttons.py 7/7; maintained regression 141 green; testing agent iteration_44 full pass, zero regressions.
 - Pending: user redeploys to production, then real-device iOS check (keyboard open/closed) on vibe-details.
+
+## Iter45 — Plus/Pro presentation live, payments disabled (Aug 2026) — COMPLETE (Preview; user must redeploy)
+- No more "Coming Soon" button: all 3 plan cards selectable/launch-ready (Included / Most Popular / Best Reach), approved pricing kept (Free / $6.99 / $11.99), radius chips per plan (Free 250✓; Plus 250✓500✓ 750🔒1km🔒; Pro all ✓).
+- Paid CTA "Choose Plus"/"Choose Pro" → branded "almost ready" sheet (Notify me / Not now). No fake checkout/success/receipt/subscription status.
+- Notify me: privacy-safe POST /billing/interest (idempotent per user+plan, no email/marketing storage) + plus_interest/pro_interest analytics. Copy: "We'll let you know when subscriptions are available."
+- Entitlement rules unchanged & backend-authoritative (250/500/1000m); public sandbox purchase 403 "Paid subscriptions aren't available yet"; radius clamp intact; demo/QA sandbox purchase modal isolated to is_demo users.
+- Subscription page: current plan + Plan comparison rows with "Payments not yet enabled" on paid rows; rows deep-link to /plans.
+- Verdict: PLAN EXPERIENCE ACTIVE — PAYMENTS NOT ENABLED. Testing agent iteration_45 all 8 flows pass.

@@ -95,7 +95,7 @@ class TestRealUserSandboxDenied:
                           json={"plan": "plus", "platform": "ios"},
                           headers=_headers(token))
         assert r.status_code == 403
-        assert "coming soon" in r.json().get("detail", "").lower()
+        assert "aren't available yet" in r.json().get("detail", "").lower()
 
 
 # ---------------- billing/config + verify + subscription shape ----------------
