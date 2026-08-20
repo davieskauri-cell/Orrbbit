@@ -523,3 +523,12 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Seed idempotent (DEMO_ENV_VERSION=4; reset keeps exactly 80, zero dupes); demo_schema_version + demo_fixture tags on every record; real users 100% untouched; demo excluded from metrics as before.
 - Tests: test_iter46_demo_data.py 14/14, 117 regression green, testing agent all 8 UI flows pass (profile, crowd, age filter, professional review states, chat, edit profile, admin, reset).
 - VERDICT: ALL DEMO ACCOUNTS ALIGNED TO CURRENT ORRBBIT PROFILE EXPERIENCE.
+
+## Iter47 — Final hardening + developer handover (Aug 2026) — COMPLETE (Preview; user must redeploy)
+- Privacy audit: no public email/DOB/exact-coords anywhere; own_user = self-only serializer; real-user distance/bearing quantized 10m/10°.
+- Sessions: token versioning (revoke on password reset / logout-all), banned=403 immediately, deleted=401; impersonation short-lived + audited.
+- Discovery correctness bug fixed (500-doc scan cap) + query-level filtering + core DB indexes (query-justified).
+- Deep-link profiles: GET /people/{id} through full discovery privacy pipeline + frontend fallback.
+- Security incident flagged: real secrets in git history → rotation required before release (HANDOVER §22). .env untracked.
+- Deliverable: /app/HANDOVER.md. Deferred: server.py split (documented), internal intro identifiers.
+- VERDICT: DEVELOPER HANDOVER READY — INDEPENDENT SECURITY/NATIVE REVIEW REQUIRED.
