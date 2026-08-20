@@ -104,7 +104,8 @@ def bind(server):
             raise invalid
         await db.users.update_one(
             {"email": email},
-            {"$set": {"hashed_password": server.pwd_context.hash(body.new_password)}},
+            {"$set": {"hashed_password": server.pwd_context.hash(body.new_password)},
+             "$inc": {"token_version": 1}},  # revoke every previously issued session token
         )
         await db.password_resets.delete_many({"email": email})
         _es_fire(server.email_service.send("password_changed", user=user))

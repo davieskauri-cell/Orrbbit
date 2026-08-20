@@ -203,16 +203,17 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def create_token(user_id: str) -> str:
+def create_token(user_id: str, tv: int = 0) -> str:
     payload = {
         "sub": user_id,
+        "tv": tv,  # token version — bumping user.token_version revokes all previously issued tokens
         "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS),
         "iat": datetime.now(timezone.utc),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-MAX_RADIUS = 100  # base hard cap; Pro extends discovery up to 500m (still approximate only)
+# (legacy MAX_RADIUS=100 hard cap removed — plan_max_radius() is the only radius authority)
 
 PLAN_LIMITS = {
     "free": {"max_radius": 250, "radius_options": [100, 250]},
@@ -354,7 +355,11 @@ def is_discoverable(u: dict) -> bool:
     return completion_checklist(u)[2]
 
 
-def public_user(u: dict) -> dict:
+def own_user(u: dict) -> dict:
+    """OWN-ACCOUNT serializer — returned only to the authenticated user themself
+    (auth/register/login/me and /users/me/* updates). Includes the user's own email.
+    NEVER use for another user: discovery/pings/matches/profiles build minimal
+    public payloads inline (no email, no DOB, no coordinates, no tokens)."""
     return {
         "id": u["id"],
         "email": u["email"],
@@ -427,6 +432,12 @@ async def get_current_user(cred: Optional[HTTPAuthorizationCredentials] = Depend
     user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # server-side revocation: password reset/change or "log out everywhere" bumps token_version
+    if payload.get("tv", 0) != user.get("token_version", 0):
+        raise HTTPException(status_code=401, detail="SESSION_REVOKED")
+    # banned accounts lose API access immediately, regardless of token expiry
+    if user.get("admin_status") == "banned":
+        raise HTTPException(status_code=403, detail="ACCOUNT_BANNED")
     if payload.get("imp"):
         user["_impersonated_by"] = payload["imp"]  # admin impersonation session (Control Centre)
     return user
@@ -893,7 +904,7 @@ async def register(body: RegisterIn):
                                 ctx={"name": user["name"]}))
     _es_fire(email_service.send("welcome", user=user, entity_id=user["id"],
                                 ctx={"name": user["name"]}))
-    return {"access_token": create_token(user["id"]), "user": public_user(user)}
+    return {"access_token": create_token(user["id"], user.get("token_version", 0)), "user": own_user(user)}
 
 
 @api_router.post("/auth/login")
@@ -905,7 +916,14 @@ async def login(body: LoginIn, request: Request):
     ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "") or "").split(",")[0].strip()
     ua = request.headers.get("user-agent", "")
     _es_fire(_login_security(db, email_service, user, ip, ua))
-    return {"access_token": create_token(user["id"]), "user": public_user(user)}
+    return {"access_token": create_token(user["id"], user.get("token_version", 0)), "user": own_user(user)}
+
+
+@api_router.post("/auth/logout-all")
+async def logout_all(user: dict = Depends(get_current_user)):
+    """Log out everywhere: bumps token_version so every issued token is revoked."""
+    await db.users.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
+    return {"ok": True, "message": "Signed out on all devices."}
 
 
 @api_router.post("/auth/demo-login")
@@ -914,12 +932,12 @@ async def demo_login(body: DemoLoginIn):
     user = await db.users.find_one({"email": email, "is_demo": True})
     if not user:
         raise HTTPException(status_code=404, detail="Demo account not found")
-    return {"access_token": create_token(user["id"]), "user": public_user(user)}
+    return {"access_token": create_token(user["id"], user.get("token_version", 0)), "user": own_user(user)}
 
 
 @api_router.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
-    return public_user(user)
+    return own_user(user)
 
 
 @api_router.delete("/users/me")
@@ -994,7 +1012,7 @@ async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_u
     if fields:
         await db.users.update_one({"id": user["id"]}, {"$set": fields})
         user = await db.users.find_one({"id": user["id"]})
-    return public_user(user)
+    return own_user(user)
 
 
 MAX_PHOTOS = 6
@@ -1033,7 +1051,7 @@ async def add_photo(body: PhotoIn, user: dict = Depends(get_current_user)):
     photos.append(_validate_photo_url(body.photo_url))
     await db.users.update_one({"id": user["id"]}, {"$set": {"photos": photos, "photo_url": photos[0]}})
     user = await db.users.find_one({"id": user["id"]})
-    return public_user(user)
+    return own_user(user)
 
 
 @api_router.delete("/users/me/photos/{index}")
@@ -1047,7 +1065,7 @@ async def remove_photo(index: int, user: dict = Depends(get_current_user)):
         {"$set": {"photos": photos, "photo_url": photos[0] if photos else None}},
     )
     user = await db.users.find_one({"id": user["id"]})
-    return public_user(user)
+    return own_user(user)
 
 
 BANNED_OPPORTUNITY_TERMS = [
@@ -1079,7 +1097,7 @@ async def update_vibe_details(body: VibeDetailsIn, user: dict = Depends(get_curr
         )
     await db.users.update_one({"id": user["id"]}, {"$set": {"vibe_details": details}})
     user = await db.users.find_one({"id": user["id"]})
-    return public_user(user)
+    return own_user(user)
 
 
 # ----------------------------- Saved for later -----------------------------
@@ -1159,7 +1177,7 @@ async def update_state(body: StateUpdate, user: dict = Depends(get_current_user)
     fields["last_active"] = now_iso()
     await db.users.update_one({"id": user["id"]}, {"$set": fields})
     user = await db.users.find_one({"id": user["id"]})
-    return public_user(user)
+    return own_user(user)
 
 
 # ----------------------------- Nearby radar -----------------------------
@@ -1316,7 +1334,14 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
     my_interests = _lset(user.get("interests"))
     results = []
     age_expansion_pool = []  # conservative outside-preference fallback candidates
-    others = await db.users.find({"id": {"$ne": user["id"]}}, {"hashed_password": 0, "_id": 0}).to_list(500)
+    # query-level candidate filter (city + visible) — previously a raw 500-doc scan that
+    # silently dropped users once the collection grew past 500 (discovery correctness bug)
+    my_city = user.get("city", "Melbourne")
+    city_q = [{"city": my_city}] + ([{"city": {"$exists": False}}] if my_city == "Melbourne" else [])
+    others = await db.users.find(
+        {"id": {"$ne": user["id"]}, "visible": {"$ne": False}, "$or": city_q},
+        {"hashed_password": 0, "_id": 0},
+    ).to_list(2000)
     for o in others:
         if o["id"] in blocked:
             continue
@@ -1381,6 +1406,11 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
         shown_details = ovd if vis == "public" else ({"intent": ovd.get("intent")} if vis in ("after_view", "after_accept") else {})
         # opportunity private details unlock only after a mutual connection — never in discovery
         shown_details = {k: v for k, v in shown_details.items() if k != "private_details"}
+        # location privacy: real users get quantized distance (10 m) + bearing (10°) so exact
+        # coordinates can never be triangulated from radar responses. Demo positions are synthetic.
+        if not o.get("is_demo"):
+            dist = max(round(dist / 10) * 10, 10)
+            brg = (round(brg / 10) * 10) % 360
         payload = {
             "id": o["id"],
             "name": o.get("name"),
@@ -1608,6 +1638,20 @@ async def create_match_endpoint(body: MatchIn, user: dict = Depends(get_current_
     return await request_connection(body, user)
 
 
+@api_router.get("/people/{user_id}")
+async def get_person_profile(user_id: str, user: dict = Depends(get_current_user)):
+    """Direct profile load (deep links / notifications / restored navigation).
+    Reuses the full discovery pipeline so every privacy, visibility, block,
+    realm and entitlement rule applies identically — a profile only resolves
+    if it would legitimately appear in the viewer's discovery."""
+    lat = user.get("lat") if user.get("lat") is not None else -37.8136
+    lng = user.get("lng") if user.get("lng") is not None else 144.9631
+    for r in await compute_nearby(user, lat, lng):
+        if r["id"] == user_id:
+            return r
+    raise HTTPException(status_code=404, detail="This profile isn't available right now")
+
+
 async def _validate_connect_target(me: dict, target_id: str) -> dict:
     if target_id == me["id"]:
         raise HTTPException(status_code=400, detail="You can't connect with yourself")
@@ -1821,7 +1865,9 @@ async def encounters(user: dict = Depends(get_current_user)):
         if o["id"] in blocked:
             continue
         d = o.get("demo_dist")
-        if d is None or d > MAX_RADIUS:
+        # encounters respect the viewer's backend-entitled effective radius (250/500/1000)
+        eff_radius = min(user.get("radius", 250) or 250, plan_max_radius(user))
+        if d is None or d > eff_radius:
             continue
         mins = o.get("demo_minutes_ago", 30)
         out.append({
@@ -1937,16 +1983,16 @@ async def join_event_code(body: EventCodeIn, user: dict = Depends(get_current_us
     if code not in EVENT_CODES:
         raise HTTPException(status_code=404, detail="Event code not found.")
     await db.users.update_one({"id": user["id"]}, {"$set": {"event_code": code, "event_name": EVENT_CODES[code]}})
-    await db.analyticsEvents.insert_one({"id": str(uuid.uuid4()), "user_id": user["id"], "event": "event_join", "code": code, "created_at": now_iso()})
+    await db.analytics_events.insert_one({"id": str(uuid.uuid4()), "user_id": user["id"], "event": "event_join", "code": code, "created_at": now_iso()})  # unified analytics collection (legacy analyticsEvents retired)
     user = await db.users.find_one({"id": user["id"]})
-    return {"ok": True, "event_name": EVENT_CODES[code], "user": public_user(user)}
+    return {"ok": True, "event_name": EVENT_CODES[code], "user": own_user(user)}
 
 
 @api_router.post("/events/leave")
 async def leave_event(user: dict = Depends(get_current_user)):
     await db.users.update_one({"id": user["id"]}, {"$set": {"event_code": None, "event_name": None}})
     user = await db.users.find_one({"id": user["id"]})
-    return {"ok": True, "user": public_user(user)}
+    return {"ok": True, "user": own_user(user)}
 
 
 # ----------------------------- Profile completion -----------------------------
@@ -2004,7 +2050,7 @@ async def admin_dashboard(user: dict = Depends(get_current_user)):
             "active_by_city": by_city,
             "active_by_event": {name: sum(1 for u in active if u.get("event_code") == code) for code, name in EVENT_CODES.items() if any(u.get("event_code") == code for u in active)},
             "pings_sent": await db.pings.count_documents({}),
-            "profiles_viewed": await db.analyticsEvents.count_documents({"event": "profile_view"}),
+            "profiles_viewed": await db.analytics_events.count_documents({"event": "profile_view"}),
             "mutual_accepts": await db.pings.count_documents({"status": "accepted"}),
             "meetups_started": await db.meetups.count_documents({}),
             "meetups_completed": await db.meetups.count_documents({"active": False}),
@@ -3255,8 +3301,8 @@ async def seed_demo_environment(force: bool = False):
         "current_city": "Melbourne, Australia", "home_city": "Melbourne, Australia",
         "prompts": [{"prompt": "Ask me about...", "answer": "Anything — I'm the demo account, I've seen it all."}],
         "demo_schema_version": DEMO_SCHEMA_VERSION, "demo_fixture": "persona",
-        "photo_url": "https://randomuser.me/api/portraits/lego/1.jpg",
-        "photos": ["https://randomuser.me/api/portraits/lego/1.jpg"],
+        "photo_url": "/api/demo-assets/alexdemo.jpg",
+        "photos": ["/api/demo-assets/alexdemo.jpg"],
         "demo_dist": 0, "demo_bearing": 0, "demo_minutes_ago": 1,
         "visible": True, "radius": 500, "ghost_mode": False, "paused": False, "quiet_mode": False,
         "only_same_vibe": False, "verified_only": False, "who_can_see": "everyone",
@@ -3544,6 +3590,51 @@ _control_email.set_service(email_service)
 app.include_router(_email_mod.email_user_router)
 app.include_router(_control_email.control_email_router)
 app.include_router(_control_email.resend_webhook_router)
+
+
+@app.on_event("startup")
+async def ensure_core_indexes():
+    """Query-driven production indexes (iter47 review). Justifications:
+    - users.id: every authenticated request resolves the user by id.
+    - users.email: login/registration lookups (unique).
+    - users city+visible: discovery pre-filter.
+    - pings to_user+status / from_user+to_user: inbox + duplicate checks.
+    - matches user_a+user_b / user_b: connection lookups both directions.
+    - blocks/hides user_id: per-request block list fetch.
+    - notifications user_id+created_at: inbox sorted feed.
+    - verification_submissions user_id+submitted_at, status: owner status + admin queue.
+    - professional_profiles user_id: profile join in professional discovery.
+    - reports reported_id+created_at / status: admin moderation queues.
+    - entitlements/consent_records user_id: per-user lookups.
+    - analytics_events event+created_at: dashboard aggregates.
+    - login_failures email+created_at: brute-force window counts.
+    Write cost: low — modest write volumes, simple b-trees. No geo 2dsphere needed:
+    discovery is city-scoped in-memory haversine over <=500 candidates by design."""
+    try:
+        await db.users.create_index("id", unique=True)
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index([("city", 1), ("visible", 1)])
+        await db.pings.create_index([("to_user_id", 1), ("status", 1)])
+        await db.pings.create_index([("from_user_id", 1), ("to_user_id", 1)])
+        await db.matches.create_index([("user_a", 1), ("user_b", 1)])
+        await db.matches.create_index("user_b")
+        await db.blocks.create_index("user_id")
+        await db.hides.create_index("user_id")
+        await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+        await db.verification_submissions.create_index([("user_id", 1), ("submitted_at", -1)])
+        await db.verification_submissions.create_index("status")
+        await db.professional_profiles.create_index("user_id")
+        await db.reports.create_index([("reported_id", 1), ("created_at", -1)])
+        await db.reports.create_index("status")
+        await db.entitlements.create_index("user_id")
+        await db.consent_records.create_index("user_id")
+        await db.analytics_events.create_index([("event", 1), ("created_at", -1)])
+        await db.login_failures.create_index([("email", 1), ("created_at", -1)])
+        await db.password_resets.create_index("email")
+        await db.saved.create_index("user_id")
+        await db.help_requests.create_index([("user_id", 1), ("status", 1)])
+    except Exception as e:  # never block startup on index conflicts
+        logger.warning("ensure_core_indexes: %s", e)
 
 
 @app.on_event("startup")

@@ -1,6 +1,6 @@
 import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, useWindowDimensions, ActivityIndicator } from "react-native";
 import { showAlert } from "@/src/lib/alert";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,7 +36,17 @@ export default function PersonPreview() {
   const [failed, setFailed] = useState<Record<number, boolean>>({});
   const { width } = useWindowDimensions();
   const pageW = width - spacing.lg * 2; // fitted photo-card width (rounded Orrbbit card)
-  const user = findUser(id!);
+  const cached = findUser(id!);
+  const [fetched, setFetched] = useState<any | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const user = cached || fetched;
+
+  // Deep link / direct route: profile must load by ID even if Nearby was never visited
+  useEffect(() => {
+    if (!cached && id && !fetched && !loadFailed) {
+      api(`/people/${id}`).then(setFetched).catch(() => setLoadFailed(true));
+    }
+  }, [cached, id, fetched, loadFailed]);
 
   const DISMISS_REASONS = [
     "Wrong vibe", "Too far", "Not enough info", "Not interested",
@@ -68,12 +78,18 @@ export default function PersonPreview() {
         <Pressable testID="person-close" onPress={() => router.back()} style={styles.closeFloat}>
           <Ionicons name="close" size={24} color={colors.text} />
         </Pressable>
-        <EmptyState
-          testID="person-out-of-range"
-          icon="location"
-          title="Out of range"
-          text="They're outside your visible radius right now. Try increasing your radius."
-        />
+        {!loadFailed ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <ActivityIndicator color={colors.teal} size="large" testID="person-loading" />
+          </View>
+        ) : (
+          <EmptyState
+            testID="person-out-of-range"
+            icon="location"
+            title="Out of range"
+            text="They're outside your visible radius right now. Try increasing your radius."
+          />
+        )}
       </View>
     );
   }

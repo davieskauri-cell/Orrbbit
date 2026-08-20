@@ -635,7 +635,7 @@ async def impersonate_user(user_id: str, request: Request, admin: dict = Depends
     from server import JWT_SECRET, JWT_ALGO  # lazy import
     import jwt as pyjwt
     token = pyjwt.encode({
-        "sub": user_id, "imp": admin["email"],
+        "sub": user_id, "imp": admin["email"], "tv": u.get("token_version", 0),
         "exp": now() + timedelta(minutes=30), "iat": now(),
     }, JWT_SECRET, algorithm=JWT_ALGO)
     ip, _ = _client_info(request)
