@@ -17,8 +17,15 @@ load_dotenv(Path(__file__).parent / ".env")
 # file is the source of truth.
 _FILE_ENV = dotenv_values(Path(__file__).parent / ".env")
 
+# SECRETS must come from the deployment secret store (process env) first:
+# production injects rotated keys as OS env vars, which a stale baked .env
+# file must never shadow. URL/branding config stays file-first (see above).
+_PROCESS_ENV_FIRST = {"RESEND_API_KEY"}
+
 
 def env_cfg(key: str, default: str = "") -> str:
+    if key in _PROCESS_ENV_FIRST:
+        return os.environ.get(key) or _FILE_ENV.get(key) or default
     return _FILE_ENV.get(key) or os.environ.get(key) or default
 
 
