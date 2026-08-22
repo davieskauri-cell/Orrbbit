@@ -24,7 +24,7 @@ def demo_sarah():
 @pytest.fixture(scope="module")
 def admin_token():
     r = requests.post(f"{API}/control/auth/login",
-                      json={"email": "qa-admin@intro.control", "password": "QawqvEcQ-eOdWT!7"})
+                      json={"email": "qa-admin@intro.control", "password": "Qa!hpgOlIndvj0UbVWk"})
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

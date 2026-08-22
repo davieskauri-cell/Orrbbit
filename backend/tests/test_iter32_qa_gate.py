@@ -32,7 +32,7 @@ def _read_test_mode_code():
 
 CORRECT_CODE = _read_test_mode_code()
 OLD_QA_PASSWORD = "QaControl!2026x"  # explicitly must fail per review request
-NEW_QA_PASSWORD = "QawqvEcQ-eOdWT!7"  # from /app/memory/test_credentials.md line 91
+NEW_QA_PASSWORD = "Qa!hpgOlIndvj0UbVWk"  # from /app/memory/test_credentials.md line 91
 QA_EMAIL = "qa-admin@intro.control"
 
 

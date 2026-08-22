@@ -29,7 +29,7 @@ BASE_URL = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/") if os.environ.get("
 API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
+ADMIN_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 EXPECTED_FROM = "ORRBBIT <notifications@updates.orrbbit.com>"
 EXPECTED_REPLY_TO = "support@orrbbit.com"

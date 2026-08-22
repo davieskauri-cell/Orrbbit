@@ -64,7 +64,7 @@ def fresh_user(s, verify_email):
 @pytest.fixture(scope="session")
 def admin_token(s):
     r = s.post(f"{API}/control/auth/login", json={
-        "email": "qa-admin@intro.control", "password": "QawqvEcQ-eOdWT!7"})
+        "email": "qa-admin@intro.control", "password": "Qa!hpgOlIndvj0UbVWk"})
     assert r.status_code == 200, f"admin login failed: {r.text}"
     tok = r.json().get("access_token") or r.json().get("token")
     assert tok

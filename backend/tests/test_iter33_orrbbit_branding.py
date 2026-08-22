@@ -41,7 +41,7 @@ def _read_env(key: str) -> str:
 
 
 QA_EMAIL = "qa-admin@intro.control"
-QA_PASSWORD = "QawqvEcQ-eOdWT!7"
+QA_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 
 
 @pytest.fixture

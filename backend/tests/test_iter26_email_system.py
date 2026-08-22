@@ -24,7 +24,7 @@ API = f"{BASE}/api"
 
 # QA control admin creds
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
+ADMIN_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 
 
 # ------------------------------------------------------- fixtures

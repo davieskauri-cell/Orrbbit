@@ -149,7 +149,7 @@ def test_unverified_user_hidden_from_nearby():
 def _admin_login():
     r = requests.post(f"{API}/control/auth/login",
                       json={"email": "qa-admin@intro.control",
-                            "password": "QawqvEcQ-eOdWT!7"})
+                            "password": "Qa!hpgOlIndvj0UbVWk"})
     assert r.status_code == 200, r.text
     return r.json()["token"]
 

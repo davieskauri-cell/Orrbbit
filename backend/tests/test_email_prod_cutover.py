@@ -26,7 +26,7 @@ PREVIEW_BASE = os.environ.get("EXPO_PUBLIC_BACKEND_URL",
 PROD_BASE = "https://nearby-connect-93.emergent.host"
 
 QA_ADMIN_EMAIL = "qa-admin@intro.control"
-QA_ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
+QA_ADMIN_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 
 RESEND_API_KEY = BACKEND_ENV.get("RESEND_API_KEY")
 EXPECTED_LOGO_URL = "nearby-connect-93.emergent.host/api/email-assets/orrbbit-logo-v2.png"

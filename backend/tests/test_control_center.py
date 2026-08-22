@@ -5,7 +5,7 @@ import requests
 
 BASE_URL = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/") + "/api/control"
 QA_EMAIL = "qa-admin@intro.control"
-QA_PW = "QawqvEcQ-eOdWT!7"
+QA_PW = "Qa!hpgOlIndvj0UbVWk"
 BOOTSTRAP_EMAIL = "k97davies@icloud.com"
 BOOTSTRAP_PW = "Kau09123!"
 

@@ -125,7 +125,7 @@ function PeoplePingsScreen() {
                     return (
                       <View key={p.id} style={styles.row} testID={`ping-row-${p.id}`}>
                         <Avatar uri={p.user.photo_url} name={p.user.name} size={52} ringColor={vibe?.color} />
-                        <View style={{ flex: 1, gap: 4 }}>
+                        <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
                           <Text style={styles.headline}>
                             <Text style={{ fontWeight: "800" }}>{p.user.name}</Text>{" "}
                             {isRequest
@@ -200,7 +200,7 @@ function PeoplePingsScreen() {
               return (
                 <View key={r.id} style={styles.row} testID={`sent-request-${r.id}`}>
                   <Avatar uri={r.user.photo_url} name={r.user.name} size={44} />
-                  <View style={{ flex: 1, gap: 4 }}>
+                  <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
                     <Text style={styles.headline}>
                       <Text style={{ fontWeight: "800" }}>{r.user.name}</Text>
                       {r.about === "opportunity" ? " · Opportunity" : ""}
@@ -246,10 +246,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
-  headline: { color: colors.text, fontSize: font.base },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  headline: { color: colors.text, fontSize: font.base, flexShrink: 1 },
+  // wrap long vibe labels / distances onto the next line inside the content column
+  // instead of overflowing beneath the actions column (RN children default flexShrink:0)
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   meta: { color: colors.textSecondary, fontSize: font.sm },
-  actions: { alignItems: "flex-end", gap: 6 },
+  actions: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
   viewBtn: {
     backgroundColor: colors.orange,
     paddingHorizontal: spacing.lg,

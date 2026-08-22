@@ -24,7 +24,7 @@ BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
 API = f"{BASE}/api"
 
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PASSWORD = "QawqvEcQ-eOdWT!7"
+ADMIN_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 
 # Emails sent budget: keep <=4 real live sends
 # 1) control test-send to delivered@resend.dev (welcome)
