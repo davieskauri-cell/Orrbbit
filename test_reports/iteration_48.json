@@ -1,0 +1,27 @@
+{
+  "summary": "Iteration 48 frontend verification of Pings overlap fix (metaRow flexWrap + actions flexShrink:0 + content minWidth:0). Tested kauri@intro.demo Pings tab across 3 viewports (375x667, 390x844, 320x568) after POST /api/demo/reset. Bounding-box intersection check on 79 ping rows per viewport (New + Recent + Dismissed sections, mixing vibes need_advice/networking/open_to_chat/opportunity across dismissed distances up to 490m): ZERO overlaps between the orange View/Accept button (testIDs ping-view-*, request-accept-*) and any text node in the content column (name, meta pill, distance, time-ago). Button never clipped by viewport. Long-name stress at 320px width, injecting 'Alexandra-Josephine Montgomery-Fitzherbert' into first row: name wrapped to 4 lines inside content column, button remained on right edge, 0 overlap (avoided Mongo write since DOM injection was equivalent, then POST /api/demo/reset run at end to restore state). Functional regression: ping-view-* click navigates to /person/{user_id} (confirmed 200 nav, url contains /person/); ping-dismiss-* moves the row to Dismissed section (row still present as ping-row-{id}). Auth sanity post-rotation: kauri login 200, qa-admin@intro.control login 200 with current password from /app/memory/test_credentials.md, garbage bearer tokens against /api/auth/me and /api/control/admins return 401. Screenshots captured at 375px and 320px including Dismissed section and long-name row.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/tmp/pings_iPhoneSE_375x667.jpg",
+    "/tmp/pings_Narrow_320x568.jpg",
+    "/tmp/pings_longname_320x568.jpg"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "pings.tsx style change is minimal and correct: metaRow flexWrap:'wrap', headline flexShrink:1, content column minWidth:0, actions flexShrink:0 — matches RN best-practice for text/CTA row layouts and preserves the existing visual style.",
+    "Sent Requests section (styles.actions applied identically) also correctly separated from content column; no overlap observed even though no outgoing pending requests seeded for kauri at test time."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (6/6 flows passing)"},
+  "seed_data_creation": "None persisted. POST /api/demo/reset issued at start and end as kauri to restore seeded state. Long-name stress was DOM-only (no Mongo write).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Pings overlap bug is fully fixed. If retesting, log in as kauri@intro.demo (Intro123!), scroll Pings to reveal Dismissed section (kauri has ~73 dismissed pings after reset), and check bounding-box intersection between [data-testid^=ping-view-] and any text span in ping-row-* content column at widths 320/375/390. QA admin password shown in /app/memory/test_credentials.md line 91 (Qa!hpgOlIndvj0UbVWk) is current and valid post-rotation.",
+  "rca_of_issue": "Original bug: metaRow children (VibePill + distance + time) with RN default flexShrink:0 and no wrap, plus headline without flexShrink, caused long vibe labels (e.g. 'Looking for a Relationship') to push meta content out of the flex:1 content column and under the actions column, visually overlapping the orange View CTA. Fix applied by main agent: metaRow{flexWrap:'wrap'}, headline{flexShrink:1}, content column {minWidth:0} so flex parent allows shrinking, actions{flexShrink:0} to reserve CTA width. Verified visually and via getBoundingClientRect intersection across 79 rows x 3 viewports + long-name stress = 0 overlaps."
+}

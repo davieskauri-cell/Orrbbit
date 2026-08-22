@@ -532,3 +532,7 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Security incident flagged: real secrets in git history → rotation required before release (HANDOVER §22). .env untracked.
 - Deliverable: /app/HANDOVER.md. Deferred: server.py split (documented), internal intro identifiers.
 - VERDICT: DEVELOPER HANDOVER READY — INDEPENDENT SECURITY/NATIVE REVIEW REQUIRED.
+
+## Iter48 — Credential rotation + Pings layout fix (Aug 2026) — COMPLETE (Preview; user redeploy + Resend key pending)
+- Rotated: JWT_SECRET, CONTROL_JWT_SECRET, CONTROL_BOOTSTRAP_PASSWORD (env), qa-admin QA password. 112 tests green. User owes: new Resend key (create→give to agent→test→revoke old), own dashboard password change, redeploy.
+- Pings View-button overlap fixed at root (flex wrap/shrink); verified 0 overlaps across widths incl. accessibility-length names; functionality intact.

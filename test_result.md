@@ -207,3 +207,8 @@ Deferred deliberately: server.py modularisation (documented plan HANDOVER §3), 
 Tests: new tests/test_iter47_security.py 13/13; maintained regression ~340 green (297 passed full sweep + 43 focused rerun after discovery fix). Testing agent iteration_47: all 6 frontend flows PASS, zero regressions.
 Docs: /app/HANDOVER.md (23-section developer handover).
 needs_retesting: false
+
+## Iteration 48 — Credential rotation + Pings row layout fix (Aug 2026)
+Security: JWT_SECRET, CONTROL_JWT_SECRET, CONTROL_BOOTSTRAP_PASSWORD rotated in backend/.env (32 random bytes, values never displayed/committed; .env untracked). qa-admin test password rotated (DB bcrypt + tests + memory/test_credentials.md). Old-signature tokens 401; fresh logins fine. 112 auth/email/control tests green post-rotation. PENDING USER EXTERNAL ACTIONS: new RESEND_API_KEY from Resend dashboard (create→install→test→revoke-old), owner changes own dashboard password via Control Centre, redeploy so production picks up rotated env (will log out all prod sessions).
+Pings bug (user-reported, iPhone): View CTA overlapped meta line. Root cause: metaRow children default flexShrink:0, no wrap → overflow under actions column. Fix in (tabs)/pings.tsx: metaRow flexWrap, headline flexShrink:1, content minWidth:0, actions flexShrink:0. Testing agent iteration_48: bounding-box intersection across 79 rows x 3 viewports (390/375/320) = 0 overlaps incl. long-name stress; View/Dismiss/Accept functional; auth sanity pass. Report /app/test_reports/iteration_48.json.
+needs_retesting: false
