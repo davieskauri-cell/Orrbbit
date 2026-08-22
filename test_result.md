@@ -220,3 +220,10 @@ Fix: _PROCESS_ENV_FIRST = {"RESEND_API_KEY"} — secrets resolve process-env-fir
 Verification: tests/test_iter48_resend_key.py 4/4 + testing-agent independent suite 9/9 (precedence sentinel, pipeline reach, resend 429, password reset event, admin visibility, sender config notifications@updates.orrbbit.com). Reports: /app/test_reports/iteration_48c.json.
 ACTIVATION REQUIRES USER REDEPLOY (production picks up the secret at container start). Preview intentionally left without a valid key per user instruction.
 needs_retesting: false
+
+## Iteration 49 — Control Centre production go-live configuration (Aug 2026)
+Existing (verified, unchanged): LIVE/DEMO data-mode toggle with server-side realm filters (demo excluded from LIVE metrics/lists, switch-to-live confirmation), RBAC + reauth-428, audit logs, verification funnel.
+NEW: (1) persistent deployment-environment banner in Shell.tsx (testID env-banner) — amber "PREVIEW / TEST ENVIRONMENT" vs green "LIVE PRODUCTION", derived from baked backend URL (client) and request host (server), not URL guesswork by admins; (2) GET /api/control/status (admin-only, host-derived environment, db ping, email health + last successful email, active real users 24h, open reports, pending credential reviews excluding demo users, demo_data_excluded flag); (3) Operational Status panel on overview (testID ops-status); (4) destructive-action modal upgraded: DESTRUCTIVE warning, target user+email, reason input persisted to audit (reason survives the 428 reauth path).
+Testing agent iteration_49: all 6 flows PASS (banner persistent across pages, ops panel renders, LIVE mode lists zero demo users, control APIs 401 for anonymous + app-user tokens, ban modal + 428 reauth intact). Screenshot smoke confirmed banner + ops panel + reason flow.
+Production notes: separate prod DB by design (cross-env actions impossible); banner shows LIVE PRODUCTION after user redeploys; email health may show error until the Resend key fix (iter48c) is deployed.
+needs_retesting: false
