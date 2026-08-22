@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 48c — Resend API key precedence fix (deployment secret must win over baked .env file) verified end-to-end at code/config level. Ran the shipped 4-test suite (tests/test_iter48_resend_key.py) — 4/4 pass — plus an independent 9-test regression (tests/test_iter48c_regression.py) covering precedence, verify-email pipeline, resend rate limit, forgot-password, admin visibility and sender config — 9/9 pass. Preview backend correctly records Resend HTTP 401 in db.email_events.failure_reason (revoked preview key is EXPECTED) — this is the proof the pipeline reaches the email provider and failures are NOT swallowed. Admin GET /api/control/email/stats surfaces failed counts and recent_failures. FROM_EMAIL is unchanged (notifications@updates.orrbbit.com, verified Resend domain). No secret values printed anywhere. Production activation requires user redeploy so the Emergent Secrets RESEND_API_KEY is injected as an OS env var (env_cfg now returns process-env first for RESEND_API_KEY, while APP_URL/branding stays file-first as before).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter48_resend_key.py",
+    "/app/backend/tests/test_iter48c_regression.py",
+    "/app/test_reports/pytest/pytest_iter48c.xml"
+  ],
+  "action_items": [
+    "USER ACTION: redeploy production so the new RESEND_API_KEY in Emergent Secrets is injected as an OS env var — env_cfg('RESEND_API_KEY') will then return the new key (process-env first) and Resend will accept sends. No further code change required.",
+    "Optional cleanup (not required for the fix): 7 leftover probe accounts from iteration 27 remain in db.users (delivered+iter27_*@resend.dev). Safe to bulk-delete."
+  ],
+  "critical_code_review_comments": [
+    "email_templates.env_cfg: precedence is now correct — RESEND_API_KEY resolves process-env first via _PROCESS_ENV_FIRST allow-list, APP_URL/SUPPORT_EMAIL/PUBLIC_BASE_URL/EMAIL_LOGO_URL remain file-first (preview host injection cannot poison branding). Clean, minimally-invasive fix.",
+    "email_service._deliver: failure_reason stores 'HTTP 401: {body}' — correct HTTP-signal, no request headers logged, so the API key never appears in stored failure reasons or admin payloads (verified by regex scan for re_[A-Za-z0-9_]{15,}).",
+    "Rate limit on POST /api/email/resend-verification returns 429 after ~5 calls/hour — behaved correctly under the test loop.",
+    "Sender config FROM_EMAIL=notifications@updates.orrbbit.com is unchanged and matches the verified Resend domain — no impact from this iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter48c_regression.py (new — independent 9-test regression suite)"
+  ],
+  "success_rate": {
+    "backend": "100% (4/4 shipped + 9/9 independent regression = 13/13)",
+    "frontend": "not tested (backend-only per request)"
+  },
+  "seed_data_creation": "One transient probe user (delivered+<uuid>@resend.dev) registered via public /api/auth/register during the run; module-scope fixture removed it (users + email_events + password_resets) at teardown. Confirmed via Mongo query — no new leftovers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The preview Resend key is REVOKED — every real send from preview will fail with HTTP 401 and land in db.email_events with status='failed' and failure_reason starting 'HTTP 401: {...API key is invalid...}'. This is the expected preview behaviour and PROVES the delivery pipeline works. Do NOT try to fix the 401, install a key, or edit backend/.env. Production activates the fix when the user redeploys (Emergent Secrets injects RESEND_API_KEY into the production process env, and email_templates.env_cfg now reads process env first for that key). Never print .env values matching *_KEY / *SECRET / *TOKEN in reports.",
+  "rca_of_issue": "RCA (already fixed by main agent, verified here): backend/email_templates.env_cfg originally resolved every key .env-file-first (a deliberate choice to prevent the platform's injected APP_URL from poisoning email branding). That policy accidentally applied to RESEND_API_KEY too — so when the user rotated the key via Emergent Secrets (production-only, injected as OS env), the stale/revoked key baked into the deployed .env file kept winning, leaving the new key with 'No activity' in Resend and all production verification emails failing silently. Fix: env_cfg now uses a small allow-list (_PROCESS_ENV_FIRST = {'RESEND_API_KEY'}) so SECRETS resolve process-env-first (deployment secret wins) while APP_URL/branding keep the file-first behaviour. Verified by (a) subprocess with RESEND_API_KEY=SENTINEL → env_cfg returns SENTINEL, (b) subprocess with APP_URL=https://evil.example → env_cfg still returns the file value, (c) preview end-to-end: fresh register → verify_email event recorded with status='failed' and failure_reason containing 'HTTP 401' (pipeline reaches Resend and records the error without leaking the key). Mitigation for production: user must redeploy so the new RESEND_API_KEY from Emergent Secrets is injected into the production process env."
+}
