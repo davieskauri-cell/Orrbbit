@@ -1,6 +1,6 @@
 import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Shell from '../../../src/control/Shell';
 import { useCC, ApiError } from '../../../src/control/ControlContext';
@@ -26,6 +26,7 @@ export default function UserDetail() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [confirmAction, setConfirmAction] = useState<any>(null);
+  const [actionReason, setActionReason] = useState('');
   const [reauthFor, setReauthFor] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [impersonation, setImpersonation] = useState<any>(null);
@@ -40,7 +41,7 @@ export default function UserDetail() {
 
   useEffect(() => { load(); }, [load, mode]);
 
-  const run = async (action: string) => {
+  const run = async (action: string, reason?: string) => {
     setBusy(true);
     setError('');
     try {
@@ -49,12 +50,12 @@ export default function UserDetail() {
         setImpersonation(res);
         return;
       }
-      const res = await req(`/users/${id}/action`, { method: 'POST', body: JSON.stringify({ action }) });
+      const res = await req(`/users/${id}/action`, { method: 'POST', body: JSON.stringify({ action, reason: reason || undefined }) });
       if (action === 'delete') { router.replace('/control/users' as any); return; }
       setNotice(res.temp_password ? `Temporary password (share securely, shown once): ${res.temp_password}` : `Action "${action}" completed and audited.`);
       load();
     } catch (e: any) {
-      if (e instanceof ApiError && e.status === 428) { setReauthFor(action); return; }
+      if (e instanceof ApiError && e.status === 428) { setReauthFor({ action, reason }); return; }
       setError(e.message);
     } finally { setBusy(false); }
   };
@@ -126,19 +127,29 @@ export default function UserDetail() {
         ))}
       </Card>
 
-      <ModalCard visible={!!confirmAction} title={confirmAction?.label || ''} onClose={() => setConfirmAction(null)}>
-        <Text style={{ color: CC.text, marginBottom: 16 }}>{confirmAction?.confirm}</Text>
+      <ModalCard visible={!!confirmAction} title={confirmAction?.label || ''} onClose={() => { setConfirmAction(null); setActionReason(''); }}>
+        <Text style={{ color: CC.red, fontWeight: '700', fontSize: 12, marginBottom: 6 }}>DESTRUCTIVE ACTION — audited</Text>
+        <Text style={{ color: CC.text, marginBottom: 4 }}>Target: {u.name} ({u.email})</Text>
+        <Text style={{ color: CC.text, marginBottom: 12 }}>{confirmAction?.confirm}</Text>
+        <TextInput
+          testID="action-reason-input"
+          value={actionReason}
+          onChangeText={setActionReason}
+          placeholder="Reason (recorded in the audit log)"
+          placeholderTextColor={CC.sub}
+          style={{ borderWidth: 1, borderColor: CC.border, borderRadius: 8, padding: 10, fontSize: 13, color: CC.text, marginBottom: 14 }}
+        />
         <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end' }}>
-          <Btn variant="outline" title="Cancel" onPress={() => setConfirmAction(null)} />
+          <Btn variant="outline" title="Cancel" onPress={() => { setConfirmAction(null); setActionReason(''); }} />
           <Btn variant={confirmAction?.variant === 'danger' ? 'danger' : 'primary'} title="Confirm"
-            onPress={() => { const a = confirmAction.key; setConfirmAction(null); run(a); }} />
+            onPress={() => { const a = confirmAction.key; const rs = actionReason; setConfirmAction(null); setActionReason(''); run(a, rs); }} />
         </View>
       </ModalCard>
 
       <ReauthModal visible={!!reauthFor} busy={busy} onCancel={() => setReauthFor(null)}
         onSubmit={async (pw) => {
           setBusy(true);
-          try { await reauth(pw); const a = reauthFor; setReauthFor(null); await run(a); }
+          try { await reauth(pw); const a = reauthFor; setReauthFor(null); await run(a.action, a.reason); }
           catch (e: any) { setError(e.message); setBusy(false); }
         }} />
 

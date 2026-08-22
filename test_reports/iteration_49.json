@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 49 — ORRBBIT Control Centre production go-live configuration browser verified. All six requested flows pass. Env-banner (testID env-banner) renders as amber 'PREVIEW / TEST ENVIRONMENT' (bg rgb(180,83,9) = #B45309) on every visited page (overview, users, emails, reports). Operational Status card (testID ops-status) on the overview shows badges PREVIEW / TEST + Backend: Connected + Database: Connected + Email: Healthy, KPI cards Active users (24h)=20, Open reports=0, Pending credential reviews=4, Email failures (24h)=11, and the footer 'Last successful email: 2026-08-22 09:23 · Demo data excluded'. Demo isolation confirmed: DEMO mode users list shows 26 DEMO badges, switching via topbar triggers the 'Switch to LIVE mode?' confirmation modal, and after confirming LIVE the users list drops to 0 DEMO badges (env-banner remains amber PREVIEW — correctly independent of data-mode). RBAC on GET /api/control/status: no token → 401, bogus token → 401, valid app-user JWT (kauri@intro.demo) → 401 Invalid token, admin token → 200 with the expected payload (environment=preview, demo_data_excluded=true). Destructive safeguard: Ban button on a demo user opens the 'Ban this user? This hides them everywhere.' confirmation modal with Cancel/Confirm — action was NOT completed per instructions. No red screens, no console errors (only harmless RN-web shadow*/pointerEvents deprecation warnings from library code).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "flows_verified": {
+    "flow_1_env_banner_persistent": "PASS — amber PREVIEW/TEST on overview/users/emails/reports",
+    "flow_2_ops_status_panel": "PASS — badges + 4 KPIs + 'Last successful email … · Demo data excluded' footer",
+    "flow_3_demo_isolation_live_mode": "PASS — DEMO badges: 26 in demo mode → 0 in LIVE mode; live switch requires modal confirm",
+    "flow_4_rbac_status_endpoint": "PASS — 401 unauth, 401 bogus, 401 app-user token, 200 admin token with correct payload",
+    "flow_5_destructive_ban_safeguard": "PASS — confirmation modal appears; not completed (per instructions)",
+    "flow_6_screenshot": "Captured /tmp/03_overview.png showing banner + ops-status"
+  },
+  "observations": [
+    "Ban confirmation modal copy is 'Ban this user? This hides them everywhere.' with Cancel/Confirm — it does NOT expose a separate reason textarea in the modal (spec text mentioned 'target/reason field'). This is a copy/UX detail only; the safeguard itself exists and the 428 reauth prompt is triggered on Confirm. Flag for main agent to confirm intent.",
+    "Ops-status /api/control/status admin payload verified end-to-end from browser: environment=preview, demo_data_excluded=true, email_provider=healthy (last successful email present)."
+  ],
+  "test_report_links": ["/app/test_reports/iteration_49.json"],
+  "action_items": [
+    "Optional: if the ban confirmation modal is expected to include an inline 'reason' textarea, add one; otherwise this test passes as-is.",
+    "No fixes required — iteration 49 changes are production-ready from the frontend side."
+  ],
+  "critical_code_review_comments": [
+    "Shell.tsx correctly derives IS_PREVIEW_ENV from EXPO_PUBLIC_BACKEND_URL (not from data-mode toggle) — banner will flip to green LIVE PRODUCTION automatically when the app is rebuilt against a non-preview backend URL.",
+    "app/control/index.tsx correctly wraps the Operational Status card only when /control/status returns; badges use status.environment==='production' so preview builds render 'PREVIEW / TEST' as expected.",
+    "GET /api/control/status is admin-only via existing require_admin dependency (verified — 401 for anon, bogus, and app-user JWTs)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Env-banner and ops-status are stable. When testing the LIVE-PRODUCTION green banner state, note that it will only appear once the app is rebuilt against a non-preview backend URL; in this preview environment it will always be amber by design. To reproduce RBAC test: POST /api/auth/login (app user) vs POST /api/control/auth/login (admin) — only admin tokens satisfy /api/control/*."
+}
