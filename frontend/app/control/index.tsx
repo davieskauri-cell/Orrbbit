@@ -29,13 +29,15 @@ export default function Dashboard() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [actions, setActions] = useState<any>(null);
+  const [status, setStatus] = useState<any>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [d, a] = await Promise.all([req('/dashboard'), req('/action-required')]);
+      const [d, a, st2] = await Promise.all([req('/dashboard'), req('/action-required'), req('/status')]);
       setData(d);
       setActions(a);
+      setStatus(st2);
       setError('');
     } catch (e: any) {
       setError(e.message);
@@ -76,6 +78,28 @@ export default function Dashboard() {
             accent={key === 'reports_pending' && data.kpis[key] > 0 ? CC.red : key === 'pending_verification' && data.kpis[key] > 0 ? CC.orange : undefined} />
         ))}
       </View>
+
+      {status ? (
+        <Card style={{ marginBottom: 16 }}>
+          <SectionTitle>Operational Status</SectionTitle>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }} testID="ops-status">
+            <Badge status={status.environment === 'production' ? 'active' : 'pending'}
+                   label={status.environment === 'production' ? 'LIVE PRODUCTION' : 'PREVIEW / TEST'} />
+            <Badge status={status.backend === 'connected' ? 'active' : 'suspended'} label={`Backend: ${status.backend}`} />
+            <Badge status={status.database === 'connected' ? 'active' : 'suspended'} label={`Database: ${status.database}`} />
+            <Badge status={status.email_provider === 'healthy' ? 'active' : 'suspended'} label={`Email: ${status.email_provider}`} />
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+            <KpiCard label="Active users (24h)" value={status.active_users_24h} />
+            <KpiCard label="Open reports" value={status.open_reports} accent={status.open_reports > 0 ? CC.red : undefined} />
+            <KpiCard label="Pending credential reviews" value={status.pending_credential_reviews} accent={status.pending_credential_reviews > 0 ? CC.orange : undefined} />
+            <KpiCard label="Email failures (24h)" value={status.email_failures_24h} accent={status.email_failures_24h > 0 ? CC.red : undefined} />
+          </View>
+          <Text style={{ color: CC.sub, fontSize: 11, marginTop: 8 }}>
+            Last successful email: {status.last_successful_email ? status.last_successful_email.slice(0, 16).replace('T', ' ') : 'none yet'} · Demo data excluded
+          </Text>
+        </Card>
+      ) : null}
 
       <Card>
         <SectionTitle>System Status</SectionTitle>

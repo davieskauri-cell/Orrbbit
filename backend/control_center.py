@@ -313,6 +313,39 @@ def _day_key(iso: str) -> str:
     return (iso or "")[:10]
 
 
+@control_router.get("/status")
+async def control_status(request: Request, admin: dict = Depends(get_current_admin)):
+    """Operational status panel. Environment derived from request host server-side.
+    Real (non-demo) data only. No secrets exposed."""
+    host = (request.headers.get("host") or "").lower()
+    environment = "preview" if ("preview" in host or "localhost" in host) else "production"
+    try:
+        await db.command("ping")
+        db_ok = True
+    except Exception:
+        db_ok = False
+    day_ago = (now() - timedelta(hours=24)).isoformat()
+    last_sent = await db.email_events.find_one({"status": "sent"}, {"_id": 0, "created_at": 1},
+                                               sort=[("created_at", -1)])
+    recent_failed = await db.email_events.count_documents({"status": "failed", "created_at": {"$gte": day_ago}})
+    recent_sent = await db.email_events.count_documents({"status": "sent", "created_at": {"$gte": day_ago}})
+    real = {"is_demo": {"$ne": True}}
+    return {
+        "environment": environment,
+        "backend": "connected",  # this endpoint responding proves the API is up
+        "database": "connected" if db_ok else "disconnected",
+        "email_provider": "error" if (recent_failed > 0 and recent_sent == 0) else "healthy",
+        "email_failures_24h": recent_failed,
+        "last_successful_email": (last_sent or {}).get("created_at"),
+        "active_users_24h": await db.users.count_documents({**real, "last_active": {"$gte": day_ago}}),
+        "open_reports": await db.reports.count_documents({"status": {"$in": ["new", "open", "pending"]}}),
+        "pending_credential_reviews": await db.verification_submissions.count_documents(
+            {"status": "Pending Review",
+             "user_id": {"$nin": await db.users.distinct("id", {"is_demo": True})}}),
+        "demo_data_excluded": True,
+    }
+
+
 async def _daily_series(coll, base_filter: dict, days: int = 30, date_field: str = "created_at"):
     since = (now() - timedelta(days=days)).isoformat()
     rows = await db[coll].find({**base_filter, date_field: {"$gte": since}}, {date_field: 1}).to_list(5000)

@@ -162,6 +162,10 @@ export default function Shell({ title, children, actions }: { title: string; chi
     </View>
   );
 
+// Deployment environment — derived from the baked backend URL, NOT the data-mode toggle.
+// Preview builds point at *.preview.emergentagent.com; production builds do not.
+const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || "").includes("preview");
+
   return (
     <View style={st.root}>
       {!compact ? sidebar : null}
@@ -171,6 +175,12 @@ export default function Shell({ title, children, actions }: { title: string; chi
         </Pressable>
       ) : null}
       <View style={{ flex: 1 }}>
+        <View style={[st.envBanner, IS_PREVIEW_ENV ? st.envPreview : st.envLive]} testID="env-banner">
+          <Ionicons name={IS_PREVIEW_ENV ? "flask" : "radio-button-on"} size={12} color="#FFF" />
+          <Text style={st.envBannerText}>
+            {IS_PREVIEW_ENV ? "PREVIEW / TEST ENVIRONMENT" : "LIVE PRODUCTION"}
+          </Text>
+        </View>
         <View style={st.topbar}>
           {compact ? (
             <Pressable onPress={() => setNavOpen(true)} style={{ padding: 6 }}>
@@ -257,6 +267,10 @@ const st = StyleSheet.create({
   navLabel: { color: CC.text, fontSize: 13, flex: 1 },
   navLabelActive: { color: CC.navy, fontWeight: '700' },
   soonTag: { color: CC.sub, fontSize: 9, fontWeight: '700', backgroundColor: '#F1F5F9', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
+  envBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 },
+  envPreview: { backgroundColor: '#B45309' },
+  envLive: { backgroundColor: '#047857' },
+  envBannerText: { color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: CC.surface, borderBottomWidth: 1, borderBottomColor: CC.border, paddingHorizontal: 20, paddingVertical: 10, zIndex: 40 },
   searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 12, height: 38 },
   searchInput: { flex: 1, fontSize: 13, color: CC.text, outlineStyle: 'none' } as any,
