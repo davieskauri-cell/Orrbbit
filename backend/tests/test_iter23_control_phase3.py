@@ -20,7 +20,7 @@ if not BASE:
     raise RuntimeError("EXPO_PUBLIC_BACKEND_URL must be set")
 
 QA_EMAIL = "qa-admin@intro.control"
-QA_PASSWORD = "QaControl!2026x"
+QA_PASSWORD = "Qa!hpgOlIndvj0UbVWk"
 
 
 @pytest.fixture(scope="session")

@@ -3,6 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/control`;
 
+// Deployment environment — preview builds point at *.preview.emergentagent.com.
+// In LIVE PRODUCTION the Control Centre must always boot in LIVE data mode;
+// demo data is opt-in per session and never silently restored on boot.
+const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || '').includes('preview');
+
 export type AdminUser = {
   id: string;
   email: string;
@@ -38,7 +43,7 @@ const ControlCtx = createContext<Ctx | null>(null);
 export function ControlProvider({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [mode, setModeState] = useState<'live' | 'demo'>('demo');
+  const [mode, setModeState] = useState<'live' | 'demo'>(IS_PREVIEW_ENV ? 'demo' : 'live');
   const [booting, setBooting] = useState(true);
 
   useEffect(() => {
@@ -53,7 +58,9 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
           setToken(t);
           setAdmin(JSON.parse(a));
         }
-        if (m === 'live' || m === 'demo') setModeState(m);
+        // Only Preview restores a stored data mode. Production always boots LIVE
+        // so real users/KPIs are never silently replaced by demo data.
+        if (IS_PREVIEW_ENV && (m === 'live' || m === 'demo')) setModeState(m);
       } finally {
         setBooting(false);
       }

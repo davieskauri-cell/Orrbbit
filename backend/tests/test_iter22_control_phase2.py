@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 
 BASE_URL = (os.environ.get("EXPO_PUBLIC_BACKEND_URL") or os.environ.get("EXPO_BACKEND_URL", "")).rstrip("/")
 QA_EMAIL = "qa-admin@intro.control"
-QA_PW = "QaControl!2026x"
+QA_PW = "Qa!hpgOlIndvj0UbVWk"
 DEMO_APP_EMAIL = "priya@radar.intro.demo"
 DEMO_APP_PW = "Intro123!"
 

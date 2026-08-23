@@ -197,8 +197,10 @@ async def audit(admin: dict, action: str, target_type: str, target_id, old_value
 
 
 # ----------------------------- LIVE/DEMO isolation -----------------------------
-def get_mode(x_admin_mode: Optional[str] = Header(default="demo")) -> str:
-    return "live" if x_admin_mode == "live" else "demo"
+def get_mode(x_admin_mode: Optional[str] = Header(default="live")) -> str:
+    # LIVE is the safe default: real production data must never be hidden because
+    # a client failed to send the mode header. Demo data is strictly opt-in.
+    return "demo" if x_admin_mode == "demo" else "live"
 
 
 def user_filter(mode: str) -> dict:

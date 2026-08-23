@@ -17,7 +17,7 @@ QA_PREFIX = "QA_"
 LIVE_EMAIL = "delivered@resend.dev"
 DEMO_PW = "Intro123!"
 ADMIN_EMAIL = "qa-admin@intro.control"
-ADMIN_PW = "QaControl!2026x"
+ADMIN_PW = "Qa!hpgOlIndvj0UbVWk"
 
 
 # ------------------------- helpers -------------------------

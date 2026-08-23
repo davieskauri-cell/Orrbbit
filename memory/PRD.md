@@ -536,3 +536,17 @@ No logic/branding changes — pure consistency polish across the mobile app.
 ## Iter48 — Credential rotation + Pings layout fix (Aug 2026) — COMPLETE (Preview; user redeploy + Resend key pending)
 - Rotated: JWT_SECRET, CONTROL_JWT_SECRET, CONTROL_BOOTSTRAP_PASSWORD (env), qa-admin QA password. 112 tests green. User owes: new Resend key (create→give to agent→test→revoke old), own dashboard password change, redeploy.
 - Pings View-button overlap fixed at root (flex wrap/shrink); verified 0 overlaps across widths incl. accessibility-length names; functionality intact.
+
+## Iter48c — Resend env key precedence fix (Aug 2026) — COMPLETE (Preview; production delivery owner-verified later)
+- email_templates.py .env loading no longer overrides deployment-injected secrets; runtime env wins. Test: test_iter48_resend_key.py. Testing agent iteration_48c backend pass.
+
+## Iter49 — Control Centre production configuration (Aug 2026) — SHIPPED (Preview-tested; production defect found by owner → Iter50)
+- Server-side LIVE/DEMO data modes (is_demo filters), persistent env banner (PREVIEW vs LIVE PRODUCTION), operational status panel, expanded destructive-action confirmations with reason, demo excluded from metrics. Testing agent iteration_49 all 6 flows pass in Preview.
+
+## Iter50 — LIVE user sync defect fix (June 2026) — FIX IMPLEMENTED; PRODUCTION REDEPLOY & OWNER VERIFICATION REQUIRED
+- Owner report: new real production signup missing from Production Control Centre → LIVE PRODUCTION → Users (list + KPIs) after Iter49 deploy.
+- Root cause: Control Centre DATA MODE defaulted to DEMO everywhere — frontend ControlContext booted with mode='demo' (and restored stored cc_mode), backend get_mode() header default "demo" — while the Iter49 env banner read "LIVE PRODUCTION". So in production the Users list/KPIs silently queried demo data; the real account was present in the DB but hidden by the demo filter.
+- Fix (smallest safe): backend get_mode() now defaults to LIVE (demo strictly opt-in via X-Admin-Mode: demo); frontend boots in LIVE when not on a preview backend URL and ignores stored cc_mode in production (demo is per-session opt-in there). Preview QA behavior unchanged (still defaults demo, honors stored mode).
+- Regression: tests/test_iter50_live_user_sync.py (12 tests) — real signup visible in LIVE list + KPIs (incl. missing/False is_demo, no header, unknown header), demo excluded from LIVE and only in demo mode, newest-first page 1, RBAC intact. 63 green across iter46/47/50/control_center suites.
+- Test maintenance: stale pre-rotation QA password fixed in iter22/23/29/32 test files; iter22/23/29 remain stale vs current registration schema (pre-existing, out of scope).
+- Owner verification required after redeploy: open Production Control Centre → confirm mode badge shows LIVE · PRODUCTION on load → Users shows the new account → KPI total increments → demo users absent from LIVE.
