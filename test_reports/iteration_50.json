@@ -1,0 +1,29 @@
+{
+  "summary": "Iter50 LIVE user sync bug fix verified end-to-end. Backend: /app/backend/tests/test_iter50_live_user_sync.py — 12/12 PASSED (fresh real signups visible in LIVE via explicit header, missing header, and unknown header value; NOT visible in DEMO; demo user kauri@intro.demo excluded from LIVE but visible in DEMO; dashboard defaults to LIVE and KPI total_users equals real (is_demo!=true) user count; users with missing/False is_demo field treated as LIVE; RBAC: anonymous and ordinary-user tokens rejected 401/403). Regression pass: test_control_center.py + test_iter46_demo_data.py + test_iter47_security.py — 51 passed, 2 skipped. Frontend UI (Preview): QA admin login works; env banner correctly shows 'PREVIEW / TEST ENVIRONMENT'; mode badge boots as DEMO in Preview (by design); toggling badge opens confirm modal with 'Enter LIVE mode' → switches to green 'LIVE · PRODUCTION' badge; Users page auto-reloads on mode change; freshly registered real user 'iter50ui-...@example.com' appears in LIVE users table (Unverified email status, joined today); DEMO mode lists seeded @intro.demo users. Code review of ControlContext.tsx confirms IS_PREVIEW_ENV logic: production (non-preview backend URL) initialises useState('live') and ignores stored cc_mode; Preview initialises to 'demo' and restores stored cc_mode — matches the design note in the request. All requests attach X-Admin-Mode header derived from current in-memory mode. Bug fix is verified. No regressions observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter50_live_user_sync.py",
+    "/app/test_reports/pytest/pytest_iter50.xml",
+    "/app/test_reports/pytest/pytest_iter50_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "control_center.py get_mode() now safely defaults to LIVE and only returns 'demo' on exact header match — correct fix for the reported production defect.",
+    "ControlContext.tsx uses EXPO_PUBLIC_BACKEND_URL.includes('preview') to decide preview vs production; the Iter49 defect where cc_mode was restored on boot is fixed for production (gated by IS_PREVIEW_ENV). Note: same substring 'preview' also appears in some non-preview URLs in theory — currently safe for Emergent preview subdomains but if a future prod URL ever contained the substring 'preview' this heuristic would misclassify. Consider a stricter allow-list env var (e.g. EXPO_PUBLIC_ENVIRONMENT=production). Not blocking.",
+    "Shell.tsx IS_PREVIEW_ENV banner and ControlContext IS_PREVIEW_ENV boot mode are two separate copies of the same derivation. Fine today, but centralising would prevent drift.",
+    "test_control_center.py collection fails without EXPO_PUBLIC_BACKEND_URL set (raises KeyError at import) — expected per the design ('no default url; fail fast'), just note for future runners."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created two ephemeral real signup users (iter50ui-*@example.com) during UI verification; deleted after the run (0 remaining). Test fixture in test_iter50_live_user_sync.py also cleans its own probes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter50 production LIVE-vs-DEMO sync fix is verified. Backend LIVE is default; demo requires explicit X-Admin-Mode: demo header. Frontend ControlContext boots LIVE in production (non-preview backend URL) and DEMO in preview by design. When testing Control Centre flows in this Preview env expect env banner 'PREVIEW / TEST ENVIRONMENT' and initial mode DEMO. To confirm real signups appear in Control Centre, register via POST /api/auth/register with {name,email,password,date_of_birth(18+),accept_policies:true} then either (a) call /api/control/users with 'X-Admin-Mode: live' or no header, or (b) toggle the header mode badge to LIVE · PRODUCTION and search. Clean up test users by regex on email in db.users.",
+  "rca_of_issue": "Iter49 shipped a Control Centre where both the backend header default (X-Admin-Mode default 'demo') and the frontend ControlContext initial state (useState('demo') + always-restore stored cc_mode) resolved to DEMO, while the environment banner was hardcoded to 'LIVE PRODUCTION'. Any new real signup was silently filtered out of every /api/control/users and /api/control/dashboard query. Fix: (a) backend get_mode() defaults to 'live' and treats any non-'demo' value as live; (b) ControlContext computes IS_PREVIEW_ENV from the baked EXPO_PUBLIC_BACKEND_URL and only initialises DEMO / restores stored cc_mode in Preview — production always boots LIVE. Verified by 12 pytest scenarios and a UI walkthrough against the Preview deployment."
+}
