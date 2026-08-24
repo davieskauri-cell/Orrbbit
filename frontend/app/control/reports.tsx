@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Chip, Badge, Btn, Loading, EmptyText, ModalCard, Input, ReauthModal } from '../../src/control/ui';
+import { Card, Chip, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, Input, ReauthModal } from '../../src/control/ui';
 
 const TABS = [
   { key: 'pending', label: 'Pending' }, { key: 'actioned', label: 'Actioned' },
@@ -17,14 +17,16 @@ export default function Reports() {
   const [tab, setTab] = useState('pending');
   const [items, setItems] = useState<any[] | null>(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState<any>(null); // {report, action}
   const [reason, setReason] = useState('');
   const [reauthFor, setReauthFor] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError('');
     try { setItems((await req(`/reports${tab ? `?status=${tab}` : ''}`)).items); }
-    catch { setItems([]); }
+    catch (e: any) { setLoadError(e.message || 'Unable to load production data.'); }
   }, [req, tab]);
 
   useEffect(() => { setItems(null); load(); }, [load, mode]);
@@ -51,7 +53,7 @@ export default function Reports() {
           {TABS.map((t) => <Chip key={t.key || 'all'} label={t.label} active={tab === t.key} onPress={() => setTab(t.key)} />)}
         </View>
       </Card>
-      {!items ? <Loading /> : !items.length ? <Card><EmptyText>No reports here.</EmptyText></Card> : items.map((r: any) => (
+      {loadError ? <Card><ErrorState message={loadError} onRetry={load} /></Card> : !items ? <Loading /> : !items.length ? <Card><EmptyText>No reports here.</EmptyText></Card> : items.map((r: any) => (
         <Card key={r.id || r.created_at}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <View style={{ flex: 1, minWidth: 220 }}>

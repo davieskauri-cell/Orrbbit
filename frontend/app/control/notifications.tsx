@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Input, Chip, Btn, Badge, Loading, EmptyText, SectionTitle, Table, Tr, Td } from '../../src/control/ui';
+import { Card, Input, Chip, Btn, Badge, Loading, EmptyText, ErrorState, SectionTitle, Table, Tr, Td } from '../../src/control/ui';
 
 const AUDIENCES = [
   { key: 'everyone', label: 'Everyone' }, { key: 'professionals', label: 'Professionals' },
@@ -21,12 +21,14 @@ export default function Notifications() {
   const [category, setCategory] = useState('');
   const [schedule, setSchedule] = useState('');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setLoadError('');
     try { setData(await req('/notifications')); }
-    catch { setData({ items: [], cities: [], categories: [] }); }
+    catch (e: any) { setLoadError(e.message || 'Unable to load production data.'); }
   }, [req]);
 
   useEffect(() => { setData(null); load(); }, [load, mode]);
@@ -86,7 +88,7 @@ export default function Notifications() {
           <Btn title={busy ? 'Sending…' : schedule ? 'Schedule notification' : 'Send now'} disabled={busy || !title || !body} onPress={send} />
         </View>
       </Card>
-      {!data ? <Loading /> : (
+      {loadError ? <Card><ErrorState message={loadError} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <SectionTitle>Delivery history</SectionTitle>
           <Table columns={['Title', 'Audience', 'Targeted', 'Delivered', 'Status', 'By', 'When']} widths={[1.6, 1, 0.7, 0.7, 0.9, 1.3, 1]}>

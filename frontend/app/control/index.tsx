@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, KpiCard, Badge, Btn, SectionTitle, MiniChart, Loading, EmptyText } from '../../src/control/ui';
+import { Card, KpiCard, Badge, Btn, SectionTitle, MiniChart, Loading, EmptyText, ErrorState } from '../../src/control/ui';
 
 const KPI_DEFS: [string, string, string?][] = [
   ['total_users', 'Total Users'], ['online_users', 'Online Users'], ['new_users_today', 'New Users Today'],
@@ -53,7 +53,7 @@ export default function Dashboard() {
     } catch (e: any) { setError(e.message); }
   };
 
-  if (!data) return <Shell title="Dashboard">{error ? <EmptyText>{error}</EmptyText> : <Loading />}</Shell>;
+  if (!data) return <Shell title="Dashboard">{error ? <Card><ErrorState message={error} onRetry={load} /></Card> : <Loading />}</Shell>;
 
   const notConfigured = (k: string) => k === 'subscriptions' || k === 'revenue';
   const totalActions =
@@ -182,9 +182,13 @@ export default function Dashboard() {
 function ActivityPreview() {
   const { req, mode } = useCC();
   const [items, setItems] = useState<any[] | null>(null);
-  useEffect(() => {
-    req('/activity?window=7d').then((d) => setItems(d.items.slice(0, 8))).catch(() => setItems([]));
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [error, setError] = useState<string | null>(null);
+  const load = () => {
+    setError(null);
+    req('/activity?window=7d').then((d) => setItems(d.items.slice(0, 8))).catch((e: any) => setError(e.message || 'Unable to load activity.'));
+  };
+  useEffect(() => { load(); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (error) return <ErrorState message={error} onRetry={load} />;
   if (!items) return <Loading />;
   if (!items.length) return <EmptyText>No recent activity.</EmptyText>;
   return (

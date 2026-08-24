@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, Pager } from '../../src/control/ui';
+import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager } from '../../src/control/ui';
 
 const STATUSES = [
   { key: '', label: 'All' }, { key: 'active', label: 'Active' },
@@ -20,12 +20,14 @@ export default function Users() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     try {
       const d = await req(`/users?page=${page}&limit=25${q ? `&q=${encodeURIComponent(q)}` : ''}${status ? `&status=${status}` : ''}`);
       setData(d);
-    } catch { setData({ items: [], total: 0 }); }
+    } catch (e: any) { setError(e.message || 'Unable to load production data.'); }
   }, [req, page, q, status]);
 
   useEffect(() => { const t = setTimeout(load, q ? 350 : 0); return () => clearTimeout(t); }, [load, mode]);
@@ -39,7 +41,7 @@ export default function Users() {
           {STATUSES.map((st) => <Chip key={st.key} label={st.label} active={status === st.key} onPress={() => setStatus(st.key)} />)}
         </View>
       </Card>
-      {!data ? <Loading /> : (
+      {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <Table columns={['User', 'Email', 'Email status', 'City', 'Mode', 'Plan', 'Status', 'Joined']} widths={[1.6, 1.8, 1, 1, 0.9, 0.7, 1, 1]}>
             {!data.items.length ? <EmptyText>No users found.</EmptyText> : data.items.map((u: any) => (

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useCC } from './ControlContext';
 import { CC } from './theme';
-import { Card, SectionTitle, KpiCard, Loading, EmptyText, Badge } from './ui';
+import { Card, SectionTitle, KpiCard, Loading, EmptyText, ErrorState, Badge } from './ui';
 
 export function BarList({ items, color }: { items: { label: string; count: number }[]; color?: string }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -31,12 +31,17 @@ const STAT_LABELS: Record<string, string> = {
 export default function RadarPanel({ kind }: { kind: 'people' | 'professional' }) {
   const { req, mode } = useCC();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     setData(null);
-    req(`/radar-insights?kind=${kind}`).then(setData).catch(() => setData({ stats: {}, sample: [] }));
-  }, [mode, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+    setError(null);
+    req(`/radar-insights?kind=${kind}`).then(setData).catch((e: any) => setError(e.message || 'Unable to load production data.'));
+  };
 
+  useEffect(() => { load(); }, [mode, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (error) return <Card><ErrorState message={error} onRetry={load} /></Card>;
   if (!data) return <Loading />;
   return (
     <>

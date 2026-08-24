@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Chip, Badge, Btn, Loading, EmptyText, ModalCard, Input } from '../../src/control/ui';
+import { Card, Chip, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, Input } from '../../src/control/ui';
 
 const QUEUES = [
   { key: 'Pending', label: 'Pending' }, { key: 'Approved', label: 'Verified' },
@@ -24,8 +24,9 @@ export default function Verifications() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setError('');
     try { setData(await req(`/verifications${queue ? `?status=${queue}` : ''}`)); }
-    catch (e: any) { setError(e.message); setData({ items: [], counts: {} }); }
+    catch (e: any) { setError(e.message || 'Unable to load production data.'); }
   }, [req, queue]);
 
   useEffect(() => { setData(null); load(); }, [load, mode]);
@@ -54,7 +55,7 @@ export default function Verifications() {
           ))}
         </View>
       </Card>
-      {!data ? <Loading /> : !data.items.length ? <Card><EmptyText>No submissions in this queue.</EmptyText></Card> : data.items.map((sub: any) => (
+      {!data ? (error ? <Card><ErrorState message={error} onRetry={load} /></Card> : <Loading />) : !data.items.length ? <Card><EmptyText>No submissions in this queue.</EmptyText></Card> : data.items.map((sub: any) => (
         <Card key={sub.id}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {sub.user?.photo_url ? <Image source={{ uri: resolvePhotoUri(sub.user.photo_url) }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}

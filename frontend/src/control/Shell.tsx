@@ -119,7 +119,7 @@ export default function Shell({ title, children, actions }: { title: string; chi
   const [confirmLive, setConfirmLive] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { admin, logout, mode, setMode } = useCC();
+  const { admin, logout, mode, setMode, backendOk } = useCC();
 
   const sidebar = (
     <View style={[st.sidebar, compact && st.sidebarOverlay]}>
@@ -166,7 +166,7 @@ export default function Shell({ title, children, actions }: { title: string; chi
 // Preview builds point at *.preview.emergentagent.com; production builds do not.
 const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || "").includes("preview");
 // Build tag shown in the banner so the owner can confirm which bundle is running.
-const CC_BUILD = "iter51";
+const CC_BUILD = "iter52";
 
   return (
     <View style={st.root}>
@@ -181,6 +181,8 @@ const CC_BUILD = "iter51";
           <Ionicons name={IS_PREVIEW_ENV ? "flask" : "radio-button-on"} size={12} color="#FFF" />
           <Text style={st.envBannerText}>
             {IS_PREVIEW_ENV ? "PREVIEW / TEST ENVIRONMENT" : "LIVE PRODUCTION"} · BUILD {CC_BUILD.toUpperCase()}
+            {" · BACKEND: "}{backendOk === false ? "UNAVAILABLE" : backendOk ? "CONNECTED" : "CHECKING…"}
+            {" · SESSION: ACTIVE"}
           </Text>
         </View>
         <View style={st.topbar}>

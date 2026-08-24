@@ -117,6 +117,18 @@ export function EmptyText({ children, icon }: { children: React.ReactNode; icon?
   );
 }
 
+export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+  return (
+    <View style={s.emptyWrap} testID="error-state">
+      <View style={[s.emptyIcon, { backgroundColor: '#FEF2F2' }]}>
+        <Ionicons name="cloud-offline-outline" size={22} color={CC.red} />
+      </View>
+      <Text style={s.empty}>{message || 'Unable to load production data.'}</Text>
+      {onRetry ? <Btn small variant="outline" title="Retry" onPress={onRetry} /> : null}
+    </View>
+  );
+}
+
 export function Loading() {
   return (
     <View style={{ padding: 48, alignItems: 'center' }}>

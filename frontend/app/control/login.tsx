@@ -7,7 +7,7 @@ import { CC, CCF } from '../../src/control/theme';
 import { Input, Btn } from '../../src/control/ui';
 
 export default function ControlLogin() {
-  const { login } = useCC();
+  const { login, sessionNotice } = useCC();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +47,7 @@ export default function ControlLogin() {
           <Text style={s.brand}>Orrbbit Master Dashboard</Text>
           <Text style={s.sub}>Authorised access only</Text>
         </View>
+        {sessionNotice ? <Text testID="session-notice" style={s.notice}>{sessionNotice}</Text> : null}
         <Text style={s.label}>Email</Text>
         <Input testID="control-login-email" placeholder="admin@orrbbit.app" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
         <Text style={s.label}>Password</Text>
@@ -71,5 +72,6 @@ const s = StyleSheet.create({
   sub: { fontSize: 12, color: CC.sub },
   label: { fontSize: 12, fontWeight: '700', color: CC.navy, marginTop: 14, marginBottom: 6 },
   error: { color: CC.red, fontSize: 13, marginTop: 12 },
+  notice: { color: '#92400E', backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, marginBottom: 4 },
   foot: { color: CC.sub, fontSize: 11, textAlign: 'center', marginTop: 18 },
 });

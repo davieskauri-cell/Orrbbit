@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Input, Chip, Table, Tr, Td, Badge, Btn, Loading, EmptyText, Pager, ReauthModal } from '../../src/control/ui';
+import { Card, Input, Chip, Table, Tr, Td, Badge, Btn, Loading, EmptyText, ErrorState, Pager, ReauthModal } from '../../src/control/ui';
 
 const STATUSES = ['', 'active', 'paused', 'closed'];
 
@@ -14,13 +14,15 @@ export default function HelpRequests() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [reauthFor, setReauthFor] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setData(await req(`/help-requests?page=${page}&limit=25${status ? `&status=${status}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`));
-    } catch { setData({ items: [], total: 0 }); }
+      setLoadError('');
+    } catch (e: any) { setLoadError(e.message || 'Unable to load production data.'); }
   }, [req, page, q, status]);
 
   useEffect(() => { const t = setTimeout(load, q ? 350 : 0); return () => clearTimeout(t); }, [load, mode]);
@@ -47,7 +49,7 @@ export default function HelpRequests() {
           {STATUSES.map((st) => <Chip key={st || 'all'} label={st || 'All'} active={status === st} onPress={() => setStatus(st)} />)}
         </View>
       </Card>
-      {!data ? <Loading /> : (
+      {loadError ? <Card><ErrorState message={loadError} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <Table columns={['Summary', 'Category', 'Posted by', 'Payment', 'Status', 'Created', 'Actions']} widths={[2, 0.9, 1.2, 0.9, 0.8, 0.9, 1.6]}>
             {!data.items.length ? <EmptyText>No help requests found.</EmptyText> : data.items.map((r: any) => (

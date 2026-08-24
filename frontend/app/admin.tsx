@@ -19,8 +19,12 @@ export default function AdminScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = () => api("/admin/dashboard").then(setData).catch(() => {});
+  const load = () => {
+    setError(null);
+    api("/admin/dashboard").then(setData).catch((e: any) => setError(e?.message || "Unable to load admin data."));
+  };
   useEffect(() => { load(); }, []);
 
   const act = async (reportId: string, action: string) => {
@@ -45,7 +49,16 @@ export default function AdminScreen() {
       </View>
       <Text style={styles.sub}>Internal safety, moderation and trial monitoring.</Text>
 
-      {!data && <ActivityIndicator color={colors.teal} style={{ marginTop: spacing.xl }} />}
+      {!data && !error && <ActivityIndicator color={colors.teal} style={{ marginTop: spacing.xl }} />}
+
+      {error && !data ? (
+        <View style={{ marginTop: spacing.xl, alignItems: "center", gap: spacing.md }}>
+          <Text style={styles.sub}>{error}</Text>
+          <Pressable onPress={load} style={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.teal }}>
+            <Text style={{ color: "#fff", fontFamily: font.bold }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {o && (
         <>

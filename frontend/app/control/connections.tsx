@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Chip, Table, Tr, Td, Badge, Loading, EmptyText, Pager, KpiCard } from '../../src/control/ui';
+import { Card, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager, KpiCard } from '../../src/control/ui';
 
 const TABS = [
   { key: 'pending', label: 'Pending' }, { key: 'accepted', label: 'Accepted' },
@@ -18,10 +18,12 @@ export default function Connections() {
   const [tab, setTab] = useState('pending');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     try { setData(await req(`/connections?page=${page}&limit=25${tab ? `&status=${tab}` : ''}`)); }
-    catch { setData({ items: [], total: 0, counts: {} }); }
+    catch (e: any) { setError(e.message || 'Unable to load production data.'); }
   }, [req, page, tab]);
 
   useEffect(() => { setData(null); load(); }, [load, mode]);
@@ -42,7 +44,7 @@ export default function Connections() {
           {TABS.map((t) => <Chip key={t.key || 'all'} label={t.label} active={tab === t.key} onPress={() => setTab(t.key)} />)}
         </View>
       </Card>
-      {!data ? <Loading /> : (
+      {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <Table columns={['From', 'To', 'About', 'Vibe', 'Status', 'Created']} widths={[1.5, 1.5, 0.9, 1, 0.9, 1]}>
             {!data.items.length ? <EmptyText>No connection requests here.</EmptyText> : data.items.map((r: any) => (

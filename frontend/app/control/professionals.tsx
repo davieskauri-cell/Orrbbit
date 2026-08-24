@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, Pager } from '../../src/control/ui';
+import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager } from '../../src/control/ui';
 
 const VSTATUSES = ['', 'Approved', 'Pending', 'Rejected', 'Expired', 'Not submitted'];
 
@@ -16,11 +16,13 @@ export default function Professionals() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     try {
       setData(await req(`/professionals?page=${page}&limit=25${q ? `&q=${encodeURIComponent(q)}` : ''}${status ? `&status=${encodeURIComponent(status)}` : ''}`));
-    } catch { setData({ items: [], total: 0 }); }
+    } catch (e: any) { setError(e.message || 'Unable to load production data.'); }
   }, [req, page, q, status]);
 
   useEffect(() => { const t = setTimeout(load, q ? 350 : 0); return () => clearTimeout(t); }, [load, mode]);
@@ -34,7 +36,7 @@ export default function Professionals() {
           {VSTATUSES.map((st) => <Chip key={st || 'all'} label={st || 'All'} active={status === st} onPress={() => setStatus(st)} />)}
         </View>
       </Card>
-      {!data ? <Loading /> : (
+      {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <Table columns={['Professional', 'Profession', 'Category', 'Verification', 'Credential Expiry', 'City']} widths={[1.5, 1.3, 1, 1, 1, 0.8]}>
             {!data.items.length ? <EmptyText>No professionals found.</EmptyText> : data.items.map((p: any) => (

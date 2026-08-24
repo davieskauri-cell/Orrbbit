@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Chip, Badge, Loading, EmptyText, Btn } from '../../src/control/ui';
+import { Card, Chip, Badge, Loading, EmptyText, ErrorState, Btn } from '../../src/control/ui';
 
 const CATEGORIES = [
   { key: '', label: 'All' }, { key: 'users', label: 'Users' }, { key: 'professionals', label: 'Professionals' },
@@ -21,13 +21,15 @@ export default function CommandCentre() {
   const [category, setCategory] = useState('');
   const [window_, setWindow] = useState('7d');
   const [items, setItems] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const timer = useRef<any>(null);
 
   const load = useCallback(async () => {
     try {
       const d = await req(`/activity?window=${window_}${category ? `&category=${category}` : ''}`);
       setItems(d.items);
-    } catch { setItems([]); }
+      setError(null);
+    } catch (e: any) { setError(e.message || 'Unable to load production data.'); }
   }, [req, window_, category]);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function CommandCentre() {
         </View>
       </Card>
       <Card>
-        {!items ? <Loading /> : !items.length ? <EmptyText>No activity in this window.</EmptyText> : (
+        {error ? <ErrorState message={error} onRetry={load} /> : !items ? <Loading /> : !items.length ? <EmptyText>No activity in this window.</EmptyText> : (
           items.map((it, i) => (
             <View key={i} style={s.row}>
               <View style={[s.dot, { backgroundColor: it.category === 'reports' ? CC.red : it.category === 'verification' ? CC.amber : it.category === 'admin' ? CC.navy : CC.teal }]} />

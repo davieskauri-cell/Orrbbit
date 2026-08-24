@@ -844,7 +844,7 @@ async def root():
 
 # Public, secret-free deployment fingerprint (Iter51): lets the owner verify which
 # build is actually running in Production after a publish.
-APP_BUILD = "iter51"
+APP_BUILD = "iter52"
 
 
 @api_router.get("/version")

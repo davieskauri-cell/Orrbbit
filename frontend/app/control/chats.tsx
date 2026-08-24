@@ -4,24 +4,30 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Badge, Btn, Loading, EmptyText, ModalCard, SectionTitle } from '../../src/control/ui';
+import { Card, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, SectionTitle } from '../../src/control/ui';
 
 export default function Chats() {
   const { req, mode } = useCC();
   const [data, setData] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
   const [messages, setMessages] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [msgError, setMsgError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     setData(null);
-    req('/chats').then(setData).catch(() => setData({ items: [] }));
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+    setError(null);
+    req('/chats').then(setData).catch((e: any) => setError(e.message || 'Unable to load production data.'));
+  };
+
+  useEffect(() => { load(); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openConvo = async (convo: any) => {
     setViewing(convo);
     setMessages(null);
+    setMsgError(null);
     try { setMessages((await req(`/chats/${convo.match_id}/messages`)).items); }
-    catch { setMessages([]); }
+    catch (e: any) { setMsgError(e.message || 'Unable to load messages.'); }
   };
 
   return (
@@ -32,7 +38,7 @@ export default function Chats() {
           Messages can never be edited or deleted from here.
         </Text>
       </Card>
-      {!data ? <Loading /> : (
+      {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
         <Card>
           <SectionTitle>Conversations ({data.items.length})</SectionTitle>
           {!data.messaging_launched ? (
@@ -60,7 +66,7 @@ export default function Chats() {
         </Card>
       )}
       <ModalCard visible={!!viewing} title={`Conversation — ${viewing?.participants?.map((p: any) => p.name).join(' ↔ ') || ''}`} onClose={() => setViewing(null)}>
-        {!messages ? <Loading /> : !messages.length ? (
+        {msgError ? <ErrorState message={msgError} onRetry={() => viewing && openConvo(viewing)} /> : !messages ? <Loading /> : !messages.length ? (
           <EmptyText>No messages in this conversation yet. (This view was logged in the audit trail.)</EmptyText>
         ) : messages.map((m: any, i: number) => (
           <View key={i} style={s.msg}>

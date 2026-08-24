@@ -3,15 +3,20 @@ import { View, Text, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, KpiCard, Badge, SectionTitle, Loading, EmptyText, Table, Tr, Td, Btn } from '../../src/control/ui';
+import { Card, KpiCard, Badge, SectionTitle, Loading, EmptyText, ErrorState, Table, Tr, Td, Btn } from '../../src/control/ui';
 
 export default function SystemHealth() {
   const { req } = useCC();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = () => req('/system-health').then(setData).catch(() => setData(null));
+  const load = () => {
+    setError(null);
+    req('/system-health').then(setData).catch((e: any) => setError(e.message || 'Unable to load production data.'));
+  };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (error && !data) return <Shell title="System Health"><Card><ErrorState message={error} onRetry={load} /></Card></Shell>;
   if (!data) return <Shell title="System Health"><Loading /></Shell>;
   const sv = data.services;
 

@@ -3,17 +3,22 @@ import { View, Text, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, Badge, Loading, SectionTitle, Table, Tr, Td, KpiCard, EmptyText } from '../../src/control/ui';
+import { Card, Badge, Loading, SectionTitle, Table, Tr, Td, KpiCard, EmptyText, ErrorState } from '../../src/control/ui';
 
 export default function Subscriptions() {
   const { req, mode } = useCC();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     setData(null);
-    req('/billing/overview').then(setData).catch(() => setData(null));
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+    setError(null);
+    req('/billing/overview').then(setData).catch((e: any) => setError(e.message || 'Unable to load production data.'));
+  };
 
+  useEffect(() => { load(); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (error) return <Shell title="Subscriptions"><Card><ErrorState message={error} onRetry={load} /></Card></Shell>;
   if (!data) return <Shell title="Subscriptions"><Loading /></Shell>;
   return (
     <Shell title="Subscriptions" actions={<Badge status={mode === 'live' ? 'not_configured' : 'new'} label={mode === 'live' ? 'Not configured' : 'DEMO data'} />}>

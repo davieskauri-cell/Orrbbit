@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
-import { Card, KpiCard, SectionTitle, MiniChart, Loading, EmptyText } from '../../src/control/ui';
+import { Card, KpiCard, SectionTitle, MiniChart, Loading, EmptyText, ErrorState } from '../../src/control/ui';
 import { BarList } from '../../src/control/RadarPanel';
 
 const SERIES: [string, string, string][] = [
@@ -15,12 +15,17 @@ const SERIES: [string, string, string][] = [
 export default function Analytics() {
   const { req, mode } = useCC();
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     setData(null);
-    req('/analytics').then(setData).catch(() => setData(null));
-  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+    setError(null);
+    req('/analytics').then(setData).catch((e: any) => setError(e.message || 'Unable to load production data.'));
+  };
 
+  useEffect(() => { load(); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (error) return <Shell title="Analytics"><Card><ErrorState message={error} onRetry={load} /></Card></Shell>;
   if (!data) return <Shell title="Analytics"><Loading /></Shell>;
   const k = data.kpis;
   const funnelMax = Math.max(1, ...(data.funnel || []).map((f: any) => f.count));
