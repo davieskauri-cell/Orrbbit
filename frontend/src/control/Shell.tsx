@@ -165,6 +165,8 @@ export default function Shell({ title, children, actions }: { title: string; chi
 // Deployment environment — derived from the baked backend URL, NOT the data-mode toggle.
 // Preview builds point at *.preview.emergentagent.com; production builds do not.
 const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || "").includes("preview");
+// Build tag shown in the banner so the owner can confirm which bundle is running.
+const CC_BUILD = "iter51";
 
   return (
     <View style={st.root}>
@@ -178,7 +180,7 @@ const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || "").include
         <View style={[st.envBanner, IS_PREVIEW_ENV ? st.envPreview : st.envLive]} testID="env-banner">
           <Ionicons name={IS_PREVIEW_ENV ? "flask" : "radio-button-on"} size={12} color="#FFF" />
           <Text style={st.envBannerText}>
-            {IS_PREVIEW_ENV ? "PREVIEW / TEST ENVIRONMENT" : "LIVE PRODUCTION"}
+            {IS_PREVIEW_ENV ? "PREVIEW / TEST ENVIRONMENT" : "LIVE PRODUCTION"} · BUILD {CC_BUILD.toUpperCase()}
           </Text>
         </View>
         <View style={st.topbar}>

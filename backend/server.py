@@ -842,6 +842,16 @@ async def root():
     return {"message": "Orrbbit API", "tagline": "Real people. Real moments. Right nearby."}
 
 
+# Public, secret-free deployment fingerprint (Iter51): lets the owner verify which
+# build is actually running in Production after a publish.
+APP_BUILD = "iter51"
+
+
+@api_router.get("/version")
+async def app_version():
+    return {"build": APP_BUILD, "control_mode_default": "live"}
+
+
 @api_router.post("/auth/register")
 async def register(body: RegisterIn):
     await feature_gate("registration")
