@@ -1,0 +1,38 @@
+{
+  "summary": "Iter52 admin-session resilience fix verified end-to-end. Backend: test_iter52_admin_session.py — 10/10 PASSED (valid token loads real LIVE users; expired/malformed/wrong-secret/wrong-type/no-token all reject with 401/403; genuine empty search returns 200 items:[]; re-login restores data; expired dashboard call returns 401 with no zeroed KPIs; 401 body never leaks secrets). Curl regression: /api/version -> {build: iter52, control_mode_default: live}; /api/control/users with no/malformed token -> 401; app-user token -> 401 (RBAC preserved); QA admin + X-Admin-Mode: live -> 200 with total=56. Frontend Playwright (Preview): FLOW1 corrupting cc_token=expired-invalid-token + reload → auto-redirect to /control/login with amber testID session-notice reading 'Your admin session has expired. Please log in again.' and NO dashboard KPIs shown at any point; FLOW2 re-login succeeds, notice cleared, env-banner reads 'PREVIEW / TEST ENVIRONMENT · BUILD ITER52 · BACKEND: CONNECTED · SESSION: ACTIVE'; FLOW3 localStorage.clear + reload → login screen, no notice, login succeeds; FLOW4 Users table shows @intro.demo rows in DEMO, search 'zzz-no-match-xyz' shows genuine 'No users found.' empty state (no error-state), mode badge → confirm 'Enter LIVE mode' → banner still CONNECTED, LIVE·PRODUCTION green badge, table now lists real (non-demo) users; FLOW5 spot-check of Dashboard, Users, Professionals, Connections, Reports, Help Requests, Verifications, Analytics, Chats, Command Centre, People Radar, Notifications, Subscriptions, System Health — all render content signals, none are stuck spinners, none render error-state under normal auth. No regressions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Control Centre Shell", "issues": ["Mode badge Pressable in Shell.tsx (line 196-207) has no testID — Playwright had to select it via accessibilityLabel. Consider adding testID='mode-badge' + testID='confirm-enter-live'/'confirm-stay-demo' on the modal buttons for cheaper regression tests. Non-blocking."]}
+    ],
+    "react_native_issues": [
+      {"component": "boxShadow migration", "issue": "Warning 'shadow* style props are deprecated. Use boxShadow' fires from Shell/login card (multiple sources). Reference: /app/frontend/src/control/login.tsx:68 uses boxShadow already but other CC surfaces still use shadow* — audit needed. Non-blocking."},
+      {"component": "pointerEvents prop", "issue": "Warning 'props.pointerEvents is deprecated. Use style.pointerEvents' — likely from the radar SVG on control/login.tsx (Svg pointerEvents='none') and/or nav overlays. Non-blocking."},
+      {"component": "Expo Router navigator warning", "issue": "Console error on every /control mount: \"The action 'REPLACE' with payload {name:'index'} was not handled by any navigator. Do you have a route named 'index'?\". Development-only warning per RN log, but indicates a stale REPLACE call to a missing route inside the control layout. Recommend auditing router.replace() targets under /app/frontend/app/control (index route naming)."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter52_admin_session.py",
+    "/app/test_reports/pytest/pytest_iter52_retest.xml"
+  ],
+  "action_items": [
+    "Optional: add testID='mode-badge', testID='confirm-enter-live', testID='confirm-stay-demo' in /app/frontend/src/control/Shell.tsx for durable regression coverage.",
+    "Optional: silence React Native web warnings (shadow* → boxShadow, pointerEvents prop → style.pointerEvents) on Control Centre surfaces.",
+    "Optional: investigate 'REPLACE index route not handled' console error on Control Centre mount (missing/renamed index route inside the control layout)."
+  ],
+  "critical_code_review_comments": [
+    "ControlContext.rawReq correctly forces logout on 401 with token, persists cc_notice to survive layout remount, sets backendOk=false on fetch throw, only asserts backendOk=true after a successful authenticated response — matches the spec.",
+    "logout() clears cc_token/cc_admin BEFORE firing the best-effort /auth/logout, and stores cc_notice atomically — safe against remount races.",
+    "IS_PREVIEW_ENV is derived from EXPO_PUBLIC_BACKEND_URL.includes('preview') in both ControlContext.tsx:9 and Shell.tsx (duplicated derivation). Non-blocking but centralising into src/control/env.ts would prevent drift.",
+    "login.tsx does not clear the notice locally — it relies on login() clearing sessionNotice + cc_notice. Works today. If login ever throws before await AsyncStorage.removeItem('cc_notice'), the notice would persist; acceptable.",
+    "Shell mode badge pressable lacks a stable testID (only accessibilityLabel)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Registered 3 ephemeral test users iter52-rbac-*@example.com to verify RBAC (app-user token → 401 on /api/control/*). All deleted after the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter52 admin session resilience is fully verified. Preview boots DEMO by design; production boots LIVE. Session notice is persisted in AsyncStorage key 'cc_notice'. To reproduce the flow: log in with qa-admin@intro.control / Qa!hpgOlIndvj0UbVWk, then localStorage.setItem('cc_token','expired-invalid-token'), reload → /control/login should show testID 'session-notice'. env-banner expected on Preview: 'PREVIEW / TEST ENVIRONMENT · BUILD ITER52 · BACKEND: CONNECTED · SESSION: ACTIVE'. Backend regression: run `EXPO_PUBLIC_BACKEND_URL=<preview_url> pytest backend/tests/test_iter52_admin_session.py -v` (10 tests). Clean up any iter52-* test users via db.users.delete_many({email: /^iter52-.*@example\\.com$/})."
+}
