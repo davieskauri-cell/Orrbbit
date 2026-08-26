@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/control`;
+// The Control Centre can be pointed at a different backend than the product app
+// (owner choice: browser-based admin over LIVE production data). Falls back to the
+// standard app backend when the override is not set.
+const CONTROL_BACKEND = process.env.EXPO_PUBLIC_CONTROL_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
+const BASE = `${CONTROL_BACKEND}/api/control`;
 
-// Deployment environment — preview builds point at *.preview.emergentagent.com.
+// Deployment environment — preview backends live on *.preview.emergentagent.com.
 // In LIVE PRODUCTION the Control Centre must always boot in LIVE data mode;
 // demo data is opt-in per session and never silently restored on boot.
-const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || '').includes('preview');
+const IS_PREVIEW_ENV = String(CONTROL_BACKEND || '').includes('preview');
 
 export type AdminUser = {
   id: string;
@@ -120,7 +124,8 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
           logout('Your admin session has expired. Please log in again.');
           throw new ApiError(401, 'Your admin session has expired. Please log in again.');
         }
-        throw new ApiError(res.status, data?.detail || `Request failed (${res.status})`);
+        const detail = data?.detail;
+        throw new ApiError(res.status, typeof detail === 'string' ? detail : `Request failed (${res.status})`);
       }
       // Backend connectivity is only asserted from a successful authenticated response.
       if (tok) setBackendOk(true);

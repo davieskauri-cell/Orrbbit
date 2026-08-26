@@ -162,9 +162,9 @@ export default function Shell({ title, children, actions }: { title: string; chi
     </View>
   );
 
-// Deployment environment — derived from the baked backend URL, NOT the data-mode toggle.
-// Preview builds point at *.preview.emergentagent.com; production builds do not.
-const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_BACKEND_URL || "").includes("preview");
+// Deployment environment — derived from the backend the Control Centre actually
+// talks to (EXPO_PUBLIC_CONTROL_BACKEND_URL override, else the app backend).
+const IS_PREVIEW_ENV = String(process.env.EXPO_PUBLIC_CONTROL_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || "").includes("preview");
 // Build tag shown in the banner so the owner can confirm which bundle is running.
 const CC_BUILD = "iter52";
 

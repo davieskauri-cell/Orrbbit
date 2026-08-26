@@ -563,3 +563,6 @@ No logic/branding changes — pure consistency polish across the mobile app.
 - Restore point: git tag iter51-restore-point. No production data touched.
 - Tests: test_iter52_admin_session.py 10/10 + iter50 12/12 + control_center 24/24; testing agent iteration_52 all 5 frontend flows + backend PASS.
 - Owner steps after redeploy: /api/version must say iter52; re-scan Expo Go QR; banner must show BUILD ITER52 with BACKEND: CONNECTED; expired sessions now land on login with the notice instead of empty data.
+
+## Iter53 — Browser Control Centre → LIVE production backend (June 2026) — ACTIVE IN PREVIEW BROWSER NOW; included in next redeploy
+- Owner-requested: desktop/browser Control Centre must administer production. Added EXPO_PUBLIC_CONTROL_BACKEND_URL (frontend/.env) consumed only by ControlContext/Shell; product app in preview untouched. Preview browser /control now shows LIVE PRODUCTION banner, boots LIVE mode, and authenticates against the production admin accounts (owner credentials). Verified request wiring to https://nearby-connect-93.emergent.host. Fixed "[object Object]" error rendering for validation errors. CRITICAL QA RULE: never run UI test flows against /control in the browser anymore (LIVE data) — see test_result.md Iter53 warning.
