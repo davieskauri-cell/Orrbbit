@@ -29,6 +29,7 @@ export default function ProfileSetup() {
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
   const [displayName, setDisplayName] = useState((user as any)?.display_name || user?.name || "");
+  const [city, setCity] = useState(user?.city || "");
   const [bio, setBio] = useState(user?.bio || "");
   const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
@@ -87,10 +88,22 @@ export default function ProfileSetup() {
       setError("Please choose a display name.");
       return;
     }
+    if (bio.trim().length < 40) {
+      setError("Your bio needs at least 40 characters so people know when to approach.");
+      return;
+    }
+    if (!city.trim()) {
+      setError("Please add your current city.");
+      return;
+    }
+    if (selected.length < 3) {
+      setError("Pick at least 3 interests.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
-      const updated = await updateProfile({ display_name: displayName.trim(), bio, interests: selected });
+      const updated = await updateProfile({ display_name: displayName.trim(), city: city.trim(), bio, interests: selected });
       setUser(updated as any);
       router.push("/(auth)/choose-vibe");
     } catch (e: any) {
@@ -124,10 +137,21 @@ export default function ProfileSetup() {
           style={[styles.bioInput, { minHeight: 44 }]}
         />
 
+        <Text style={styles.label}>Current city (required)</Text>
+        <TextInput
+          testID="setup-city"
+          value={city}
+          onChangeText={setCity}
+          placeholder="Where you're based right now"
+          placeholderTextColor={colors.textTertiary}
+          maxLength={60}
+          style={[styles.bioInput, { minHeight: 44 }]}
+        />
+
         <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
 
-        <Text style={styles.label}>Short bio</Text>
+        <Text style={styles.label}>Short bio (required · 40+ characters)</Text>
         <TextInput
           testID="setup-bio"
           value={bio}
@@ -138,7 +162,7 @@ export default function ProfileSetup() {
           style={styles.bioInput}
         />
 
-        <Text style={styles.label}>Interests</Text>
+        <Text style={styles.label}>Interests (pick at least 3)</Text>
         <View style={styles.chips}>
           {INTERESTS.map((i) => (
             <InterestChip key={i} label={i} selected={selected.includes(i)} onPress={() => toggle(i)} />

@@ -1,0 +1,36 @@
+{
+  "summary": "ITER55 frontend polish verified end-to-end. Profile setup gates (city, 40+ bio, 3+ interests, 2+ photos) enforced with clear errors; completion=100 for fully-filled user. Professional Home 'I Can Help' header shows 56px avatar + name + profession + 'Verified by Orrbbit' badge and actions row (edit-pro-profile / view-pro-profile / go-verification) — old chips (Open to paying / Free advice / Last 4h) are GONE. Control Centre sidebar has new 'Notifications (N)' + 'Broadcasts' items; alerts page lists 'Professional Verification requires review' with user's name, MARK READ persists across reload, 'Mark all as read' clears to 0 Unread. Pending Verification list matches queue (fresh QA submission visible under status=Pending Review); after /verifications/{id}/decision approve, the submission leaves the pending list AND its notification disappears. Web verification page (/api/verification/web?token=...) renders with 0px horizontal overflow at 1280/1024/768/390, ~640px max-width centered card, clear Step 1/Step 2/Upload Credentials/Identity headings; expired/invalid token returns 200 branded 'Link expired' page.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Professional -> I Can Help -> View Profile",
+       "issue": "First tap of view-pro-profile / edit-pro-profile after entering Professional mode is intercepted by the 'Before you use Professional Mode' disclaimer modal — user has to tap 'I understand' first, then re-tap. Navigation itself works after acknowledging. Not a blocker but worth noting for first-time UX.",
+       "affected_testIDs": ["view-pro-profile", "edit-pro-profile", "go-verification"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "React Native web warns: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' repeatedly on load. Not blocking but should be migrated. Reference: multiple StyleSheet.create() call sites using shadowColor/shadowOffset/shadowOpacity/shadowRadius (e.g. src/components/ProfessionalHome.tsx sheet & fab styles)."}
+    ]
+  },
+  "test_report_links": [
+    "/tmp/setup_1_load.png", "/tmp/setup_2_gates.png",
+    "/tmp/pro_header.png",
+    "/tmp/cc_dash.png", "/tmp/cc_alerts.png", "/tmp/cc_alerts_after_mark.png", "/tmp/cc_alerts_mark_all.png",
+    "/tmp/web_ver_1280.png", "/tmp/web_ver_1024.png", "/tmp/web_ver_768.png", "/tmp/web_ver_390.png", "/tmp/web_ver_expired.png"
+  ],
+  "action_items": [
+    "(Optional) Migrate remaining shadow* style props to boxShadow to silence RN-web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "profile-setup.tsx gate order shows 'photos' error before display-name/bio/city/interests errors — order is fine but consider surfacing missing city/bio explicitly if user has 2 photos; currently the photos gate blocks first when nothing is filled.",
+    "Control Centre Shell.tsx polls /notifications-centre/unread-count every 60s — reasonable; also triggers on pathname change so navigation updates the badge quickly."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created 2 ephemeral users iter55qa-setup-*/iter55qa-ver-*@example.com (email_verified=true). One pending verification submission (Other/Falconer) was created and then approved via /api/control/verifications/{id}/decision to validate pending-queue + notification sync. Remaining iter55qa-* users can be cleaned up by main agent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 5 ITER55 polish items verified green in the browser preview against real (LIVE) admin mode. #TEMP_QA# override in frontend/.env is still commented (browser /control talks to preview backend) — restore before final ship. Only remaining nit is a stack of RN-web 'shadow*' deprecation warnings on load.",
+  "rca_of_issue": "N/A — no regressions detected."
+}

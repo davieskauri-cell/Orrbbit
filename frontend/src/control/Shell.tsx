@@ -18,7 +18,8 @@ const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Connections', path: '/control/connections', icon: 'git-network-outline' },
   { label: 'Chats', path: '/control/chats', icon: 'chatbubbles-outline' },
   { label: 'Reports', path: '/control/reports', icon: 'flag-outline' },
-  { label: 'Notifications', path: '/control/notifications', icon: 'notifications-outline' },
+  { label: 'Notifications', path: '/control/alerts', icon: 'notifications-outline' },
+  { label: 'Broadcasts', path: '/control/notifications', icon: 'megaphone-outline' },
   { label: 'Emails', path: '/control/emails', icon: 'mail-outline' },
   { label: 'Analytics', path: '/control/analytics', icon: 'bar-chart-outline' },
   { label: 'AI Insights', path: '/control/ai-insights', icon: 'sparkles-outline' },
@@ -119,7 +120,17 @@ export default function Shell({ title, children, actions }: { title: string; chi
   const [confirmLive, setConfirmLive] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { admin, logout, mode, setMode, backendOk } = useCC();
+  const { admin, logout, mode, setMode, backendOk, req } = useCC();
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const poll = () => req('/notifications-centre/unread-count')
+      .then((d: any) => { if (alive) setUnread(d.unread || 0); })
+      .catch(() => {});
+    poll();
+    const t = setInterval(poll, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, [req, pathname]);
 
   const sidebar = (
     <View style={[st.sidebar, compact && st.sidebarOverlay]}>
@@ -153,7 +164,9 @@ export default function Shell({ title, children, actions }: { title: string; chi
               accessibilityLabel={item.label}
             >
               <Ionicons name={item.icon} size={16} color={active ? CC.tealDark : CC.sub} />
-              <Text style={[st.navLabel, active && st.navLabelActive]} numberOfLines={1}>{item.label}</Text>
+              <Text style={[st.navLabel, active && st.navLabelActive]} numberOfLines={1}>
+                {item.label}{item.path === '/control/alerts' && unread > 0 ? ` (${unread})` : ''}
+              </Text>
               {item.soon ? <Text style={st.soonTag}>P{item.soon}</Text> : null}
             </Pressable>
           );

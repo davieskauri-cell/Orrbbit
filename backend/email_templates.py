@@ -33,7 +33,8 @@ APP_URL = env_cfg("APP_URL", "https://orrbbit.com").rstrip("/")
 SUPPORT_EMAIL = env_cfg("SUPPORT_EMAIL", "support@orrbbit.com")
 # Base for backend-served links & assets (unsubscribe/verify/logo). In production
 # this is the deployed backend origin (PUBLIC_BASE_URL deployment secret).
-PUBLIC_BASE_URL = env_cfg("PUBLIC_BASE_URL", APP_URL).rstrip("/")
+# Customer-facing links prefer the official Orrbbit domain once it actually routes here.
+PUBLIC_BASE_URL = (env_cfg("CUSTOMER_WEB_BASE_URL", "") or env_cfg("PUBLIC_BASE_URL", APP_URL)).rstrip("/")
 # Official Orrbbit logo for email headers. Override with EMAIL_LOGO_URL once the
 # main website hosts it (preferred: https://orrbbit.com/email-assets/orrbbit-logo.png).
 EMAIL_LOGO_URL = env_cfg("EMAIL_LOGO_URL") or f"{PUBLIC_BASE_URL}/api/email-assets/orrbbit-logo.png"

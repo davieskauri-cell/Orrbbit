@@ -22,7 +22,12 @@ def now_iso():
 def build_web_verification(db, get_current_user, email_service, es_fire, professions: dict,
                            submit_handler, VerificationV2In):
     router = APIRouter(prefix="/verification")
-    PUBLIC_BASE_URL = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("APP_URL") or "").rstrip("/")
+    # Customer-facing links prefer the official Orrbbit domain once configured.
+    # CUSTOMER_WEB_BASE_URL (e.g. https://orrbbit.com) must actually route to this
+    # backend before it is set — never fake the domain with broken links.
+    PUBLIC_BASE_URL = (os.environ.get("CUSTOMER_WEB_BASE_URL")
+                       or os.environ.get("PUBLIC_BASE_URL")
+                       or os.environ.get("APP_URL") or "").rstrip("/")
 
     @router.post("/desktop-link")
     async def desktop_link(user: dict = Depends(get_current_user)):
@@ -88,26 +93,40 @@ def _page(inner: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orrbbit — Professional Verification</title>
 <style>
-:root {{ --teal:#14B8A6; --navy:#0F172A; --sub:#64748B; --border:#E2E8F0; --bg:#F8FAFC; }}
+:root {{ --teal:#14B8A6; --tealD:#0F766E; --navy:#0F172A; --sub:#64748B; --border:#E2E8F0; --bg:#F8FAFC; }}
 * {{ box-sizing:border-box; font-family:'Quicksand',-apple-system,Segoe UI,sans-serif; }}
-body {{ margin:0; background:var(--bg); color:var(--navy); }}
-.wrap {{ max-width:720px; margin:0 auto; padding:32px 20px 80px; }}
-.brand {{ display:flex; align-items:center; gap:10px; margin-bottom:24px; }}
-.brand b {{ font-size:22px; }}
-h1 {{ font-size:26px; margin:0 0 6px; }}
-.sub {{ color:var(--sub); font-size:15px; line-height:1.5; }}
-.card {{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:24px; margin-top:18px; }}
-label {{ display:block; font-weight:700; font-size:13px; margin:16px 0 6px; }}
-input,select,textarea {{ width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; font-size:15px; }}
-.pills {{ display:flex; flex-wrap:wrap; gap:8px; }}
-.pill {{ border:1px solid var(--border); border-radius:999px; padding:8px 14px; cursor:pointer; font-size:14px; background:#fff; }}
+body {{ margin:0; background:var(--bg); color:var(--navy); -webkit-font-smoothing:antialiased; }}
+.wrap {{ max-width:640px; margin:0 auto; padding:40px 24px 96px; }}
+.brand {{ display:flex; align-items:center; gap:12px; margin-bottom:28px; }}
+.brand b {{ font-size:22px; letter-spacing:-0.3px; }}
+h1 {{ font-size:28px; margin:0 0 8px; letter-spacing:-0.4px; }}
+h2 {{ font-size:15px; margin:36px 0 4px; text-transform:uppercase; letter-spacing:1px; color:var(--tealD); }}
+.sub {{ color:var(--sub); font-size:15px; line-height:1.6; margin:0 0 8px; }}
+.card {{ background:#fff; border:1px solid var(--border); border-radius:20px; padding:32px; margin-top:20px; box-shadow:0 1px 3px rgba(15,23,42,0.05); }}
+label {{ display:block; font-weight:700; font-size:13px; margin:20px 0 8px; }}
+input,select,textarea {{ width:100%; padding:13px 14px; border:1px solid var(--border); border-radius:12px; font-size:15px; background:#fff; }}
+input:focus,select:focus {{ outline:2px solid var(--teal); border-color:var(--teal); }}
+input[type=file] {{ padding:12px; background:var(--bg); border-style:dashed; cursor:pointer; }}
+.pills {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }}
+.pill {{ border:1px solid var(--border); border-radius:999px; padding:9px 16px; cursor:pointer; font-size:14px; background:#fff; transition:background .15s; }}
+.pill:hover {{ background:var(--bg); }}
 .pill.on {{ background:var(--teal); color:#fff; border-color:var(--teal); }}
-button.primary {{ background:var(--teal); color:#fff; border:none; border-radius:999px; padding:14px 28px; font-size:16px; font-weight:800; cursor:pointer; margin-top:20px; }}
-.note {{ background:#F0FDFA; border:1px solid #99F6E4; border-radius:10px; padding:12px; font-size:13px; color:#0F766E; margin-top:12px; }}
-.err {{ color:#E11D48; font-size:14px; margin-top:10px; font-weight:700; }}
-.docrow {{ display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:14px; }}
-.rm {{ color:#E11D48; cursor:pointer; font-weight:800; font-size:12px; }}
-img.logo {{ height:34px; }}
+button.primary {{ background:var(--teal); color:#fff; border:none; border-radius:999px; padding:15px 32px; font-size:16px; font-weight:800; cursor:pointer; margin-top:28px; width:100%; }}
+button.primary:hover {{ background:var(--tealD); }}
+button.secondary {{ background:#fff; color:var(--tealD); border:1.5px solid var(--teal); border-radius:999px; padding:11px 22px; font-size:14px; font-weight:800; cursor:pointer; margin-top:14px; }}
+.note {{ background:#F0FDFA; border:1px solid #99F6E4; border-radius:12px; padding:14px 16px; font-size:13px; line-height:1.5; color:#0F766E; margin-top:14px; }}
+.err {{ color:#E11D48; font-size:14px; margin-top:14px; font-weight:700; min-height:18px; }}
+.docrow {{ display:flex; justify-content:space-between; align-items:center; gap:12px; border:1px solid var(--border); border-radius:12px; padding:12px 16px; margin-top:10px; font-size:14px; background:var(--bg); }}
+.docrow span:first-child {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+.rm {{ color:#E11D48; cursor:pointer; font-weight:800; font-size:12px; flex-shrink:0; }}
+img.logo {{ height:36px; }}
+hr.sep {{ border:none; border-top:1px solid var(--border); margin:32px 0 4px; }}
+@media (max-width:640px) {{
+  .wrap {{ padding:24px 16px 72px; }}
+  .card {{ padding:20px 16px; border-radius:16px; }}
+  h1 {{ font-size:23px; }}
+  button.primary {{ padding:14px 24px; }}
+}}
 </style></head><body><div class="wrap">
 <div class="brand"><img class="logo" src="/api/email-assets/orrbbit-logo-v2.png" alt="Orrbbit"><b>Orrbbit</b></div>
 {inner}
@@ -118,33 +137,37 @@ FORM_HTML = """
 <h1>Professional Verification</h1>
 <p class="sub">This secure page is linked to your Orrbbit account. Your submission goes to the same review team as the mobile app.</p>
 <div class="card">
-<label>Step 1 · Profession</label>
+<h2 style="margin-top:0">Step 1 · Profession</h2>
 <select id="prof" onchange="profChanged()">__PROF_OPTIONS__</select>
 <div id="profOtherWrap" style="display:none"><label>Please specify your profession</label><input id="profOther"></div>
-<label>Step 2 · Categories</label>
+<h2>Step 2 · Categories</h2>
+<p class="sub">You can only offer services inside your verified categories.</p>
 <div class="pills" id="cats"></div>
 <div id="catOtherWrap" style="display:none"><label>Please specify your category</label><input id="catOther"></div>
 
-<label>Upload Credentials (required)</label>
-<p class="sub" style="margin:0">PDF, JPG or PNG · max 5MB each.</p>
+<hr class="sep">
+<h2>Upload Credentials</h2>
+<p class="sub">PDF, JPG or PNG · max 5MB each · degrees, licences, registrations, memberships, insurance, checks. A document upload is required for each credential.</p>
 <input type="file" id="credFile" accept=".pdf,.jpg,.jpeg,.png">
 <div class="note" id="prefillNote" style="display:none">We'll use the information in your uploaded document to help pre-fill the details below. Please review and edit the information before continuing.</div>
 <label>Document Name</label><input id="docName" placeholder="e.g. CIPD Level 7 Certificate">
-<label>Issuer</label><input id="issuer">
-<label>Licence / Registration Number</label><input id="licnum">
-<label>Expiry Date (YYYY-MM-DD, if any)</label><input id="expiry">
-<button class="primary" type="button" style="padding:10px 20px;font-size:14px" onclick="addDoc()">+ Add Document</button>
+<label>Issuer</label><input id="issuer" placeholder="Issuing organisation">
+<label>Licence / Registration Number</label><input id="licnum" placeholder="If applicable">
+<label>Expiry Date (YYYY-MM-DD, if any)</label><input id="expiry" placeholder="e.g. 2027-06-30">
+<button class="secondary" type="button" onclick="addDoc()">+ Add Document</button>
 <div id="docList"></div>
 
-<label style="margin-top:28px">Identity — minimum 2 ID documents (private, admins only)</label>
-<label>Full Legal Name</label><input id="fullName">
+<hr class="sep">
+<h2>Identity</h2>
+<p class="sub">Minimum 2 ID documents. Identity documents are private — never shown on your profile, to other users, or in emails. Only authorised Orrbbit administrators can view them.</p>
+<label>Full Legal Name</label><input id="fullName" placeholder="As shown on your ID">
 <label>Primary ID Type</label>
 <select id="idType"><option>Passport</option><option>Driver Licence</option><option>Birth Certificate</option><option>Other</option></select>
 <label>Add ID document</label>
 <select id="idDocType"><option>Passport</option><option>Driver Licence</option><option>Birth Certificate</option><option>Other</option></select>
 <div id="idOtherWrap" style="display:none"><label>Please specify the document type</label><input id="idOther"></div>
-<input type="file" id="idFile" accept=".pdf,.jpg,.jpeg,.png">
-<button class="primary" type="button" style="padding:10px 20px;font-size:14px" onclick="addId()">+ Add ID Document</button>
+<input type="file" id="idFile" accept=".pdf,.jpg,.jpeg,.png" style="margin-top:10px">
+<button class="secondary" type="button" onclick="addId()">+ Add ID Document</button>
 <div id="idList"></div>
 
 <div class="err" id="err"></div>

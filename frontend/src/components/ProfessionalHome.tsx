@@ -13,8 +13,6 @@ import RadarView from "@/src/components/RadarView";
 import RadiusSheet from "@/src/components/RadiusSheet";
 import StatusBadge from "@/src/components/StatusBadge";
 import SectionHeader from "@/src/components/SectionHeader";
-import PillChip from "@/src/components/PillChip";
-import HorizontalCategoryChipList from "@/src/components/HorizontalCategoryChipList";
 import SegmentedControl from "@/src/components/SegmentedControl";
 import ProfessionalFilterSheet from "@/src/components/professional/ProfessionalFilterSheet";
 import ProfessionalPreviewSheet from "@/src/components/professional/ProfessionalPreviewSheet";
@@ -401,8 +399,6 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
   const [profile, setProfile] = useState<any>(null);
   const [verification, setVerification] = useState<any>({ status: "Not Submitted" });
   const [requests, setRequests] = useState<any[]>([]);
-  const [payment, setPayment] = useState<string | null>(null);
-  const [freshOnly, setFreshOnly] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [verRequired, setVerRequired] = useState(false);
 
@@ -413,14 +409,12 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
       setVerification(mine.verification);
       if (coords && mine.profile) {
         let q = `/professional/requests?lat=${coords.lat}&lng=${coords.lng}`;
-        if (payment) q += `&payment=${encodeURIComponent(payment)}`;
-        if (freshOnly) q += "&max_age_hours=4";
         const res = await api<any>(q);
         setRequests(res.requests);
         setVerRequired(!!res.verification_required);
       }
     } catch {}
-  }, [coords, payment, freshOnly]);
+  }, [coords]);
 
   useEffect(() => {
     load();
@@ -454,21 +448,29 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
   return (
     <Wrapper testID="can-help-home" {...wrapperProps}>
       {profile && mapMode ? (
-        <View style={styles.compactProfileRow} testID="pro-profile-card">
-          <Avatar uri={me?.photo_url} name={me?.name} size={34} ringColor={colors.teal} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.proName} numberOfLines={1}>{profile.profession}</Text>
-            <StatusBadge icon="shield-checkmark" label="Verified by Orrbbit" />
+        <View style={styles.proHeaderCard} testID="pro-profile-card">
+          <View style={styles.proHeaderTop}>
+            <Avatar uri={me?.photo_url} name={me?.display_name || me?.name} size={56} ringColor={colors.teal} />
+            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+              <Text style={styles.proName} numberOfLines={1}>{me?.display_name || me?.name}</Text>
+              <Text style={styles.cardMeta} numberOfLines={1}>
+                {profile.profession}
+                {profile.primary_category ? ` · ${profile.primary_category}` : ""}
+              </Text>
+              <StatusBadge icon="shield-checkmark" label="Verified by Orrbbit" />
+            </View>
           </View>
-          <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
-            <Text style={styles.smallBtnText}>Edit</Text>
-          </Pressable>
-          <Pressable testID="view-pro-profile" style={styles.smallBtn} onPress={() => me?.id && router.push(`/professional/profile/${me.id}` as any)}>
-            <Text style={styles.smallBtnText}>View Profile</Text>
-          </Pressable>
-          <Pressable testID="go-verification" style={styles.smallBtn} onPress={() => router.push("/professional/verification")}>
-            <Text style={styles.smallBtnText}>Verification</Text>
-          </Pressable>
+          <View style={styles.proHeaderActions}>
+            <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
+              <Text style={styles.smallBtnText}>Edit Profile</Text>
+            </Pressable>
+            <Pressable testID="view-pro-profile" style={styles.smallBtn} onPress={() => me?.id && router.push(`/professional/profile/${me.id}` as any)}>
+              <Text style={styles.smallBtnText}>View Profile</Text>
+            </Pressable>
+            <Pressable testID="go-verification" style={styles.smallBtn} onPress={() => router.push("/professional/verification")}>
+              <Text style={styles.smallBtnText}>Verification</Text>
+            </Pressable>
+          </View>
         </View>
       ) : profile ? (
         <View style={[styles.card, shadow.card]} testID="pro-profile-card">
@@ -518,16 +520,6 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
 
       {profile && !verRequired && (
         <>
-          <HorizontalCategoryChipList
-            testID="nh-filter-row"
-            items={[{ key: "Open to paying" }, { key: "Free advice" }, { key: "__fresh" }]}
-            renderChip={(item) => {
-              if (item.key === "__fresh")
-                return <PillChip testID="filter-fresh" label="Last 4h" active={freshOnly} onPress={() => setFreshOnly(!freshOnly)} />;
-              const p = item.key;
-              return <PillChip testID={`filter-pay-${p.replace(/\s+/g, "-")}`} label={p} active={payment === p} onPress={() => setPayment(payment === p ? null : p)} />;
-            }}
-          />
           <View style={{ flex: 1 }}>
             <RadarView
               users={reqUsers as any}
@@ -662,6 +654,9 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center" },
   sheetLabel: { color: colors.text, fontSize: font.base, fontWeight: "800" },
   compactProfileRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
+  proHeaderCard: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.md },
+  proHeaderTop: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  proHeaderActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   previewOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
   previewSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: spacing.xl, gap: spacing.sm, paddingBottom: spacing.xxl },
   previewName: { color: colors.text, fontSize: font.xl, fontWeight: "800" },

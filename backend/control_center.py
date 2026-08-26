@@ -209,6 +209,10 @@ def user_filter(mode: str) -> dict:
 
 _demo_ids_cache = {"ids": None, "at": 0.0}
 
+# Statuses that require an administrator decision (single source of truth for
+# dashboard KPIs, action-required lists, the Pending queue and Notifications).
+NEEDS_REVIEW_STATUSES = ["Pending Review", "In Review"]
+
 
 async def demo_user_ids() -> set:
     if _demo_ids_cache["ids"] is None or time.time() - _demo_ids_cache["at"] > 60:
@@ -342,7 +346,7 @@ async def control_status(request: Request, admin: dict = Depends(get_current_adm
         "active_users_24h": await db.users.count_documents({**real, "last_active": {"$gte": day_ago}}),
         "open_reports": await db.reports.count_documents({"status": {"$in": ["new", "open", "pending"]}}),
         "pending_credential_reviews": await db.verification_submissions.count_documents(
-            {"status": "Pending Review",
+            {"status": {"$in": NEEDS_REVIEW_STATUSES},
              "user_id": {"$nin": await db.users.distinct("id", {"is_demo": True})}}),
         "demo_data_excluded": True,
     }
@@ -377,7 +381,7 @@ async def control_dashboard(admin: dict = Depends(require_perm("dashboard")), mo
     mau = await db.users.count_documents({**uf, "last_active": {"$gte": d30}})
     pros = await db.professional_profiles.count_documents({"user_id": linked, "is_draft": {"$ne": True}})
     verified_pros = len(await db.verification_submissions.distinct("user_id", {"user_id": linked, "status": "Approved"}))
-    pending_ver = await db.verification_submissions.count_documents({"user_id": linked, "status": "Pending"})
+    pending_ver = await db.verification_submissions.count_documents({"user_id": linked, "status": {"$in": NEEDS_REVIEW_STATUSES}})
     expired_creds = await db.verification_submissions.count_documents({"user_id": linked, "status": "Expired"})
     d30f = (now() + timedelta(days=30)).date().isoformat()
     expiring_soon = await db.verification_submissions.count_documents({
@@ -499,7 +503,7 @@ async def action_required(admin: dict = Depends(require_perm("dashboard")), mode
             r["user"] = {"id": r.get(uid_field), "name": u.get("name"), "email": u.get("email")}
         return rows
 
-    pending = await with_users(await db.verification_submissions.find({"user_id": linked, "status": "Pending"}).sort("submitted_at", -1).to_list(20))
+    pending = await with_users(await db.verification_submissions.find({"user_id": linked, "status": {"$in": NEEDS_REVIEW_STATUSES}}).sort("submitted_at", -1).to_list(20))
     expired = await with_users(await db.verification_submissions.find({"user_id": linked, "status": "Expired"}).sort("reviewed_at", -1).to_list(20))
     expiring = await with_users(await db.verification_submissions.find({"user_id": linked, "status": "Approved", "documents.expiry_date": {"$lte": d30f, "$gte": today}}).to_list(20))
     reports = await with_users(await db.reports.find({"reporter_id": linked, "status": {"$in": [None, "pending", "open"]}}).sort("created_at", -1).to_list(20), "reporter_id")
@@ -539,6 +543,97 @@ async def control_verification_doc_file(sub_id: str, doc_id: str, request: Reque
     return Response(content=blob, media_type=media,
                     headers={"Content-Disposition": f'inline; filename="{(f.get("file_name") or "document")[:80]}"',
                              "Cache-Control": "no-store, private"})
+
+
+# ----------------------- Notifications Centre (Iter55) -----------------------
+# Notifications derive from REAL backend records — no duplicate event system.
+# Read state persists per-admin in db.admin_notification_reads.
+
+async def _notifications_items(mode: str) -> list:
+    linked = await uid_filter(mode)
+    items = []
+    subs = await db.verification_submissions.find(
+        {**linked, "status": {"$in": NEEDS_REVIEW_STATUSES}}, {"_id": 0}).sort("submitted_at", -1).to_list(100)
+    today = now().isoformat()
+    reviews = await db.verification_submissions.find(
+        {**linked, "status": "Approved", "credential_next_review_at": {"$lte": today}}, {"_id": 0}).to_list(100)
+    more_info = await db.verification_submissions.find(
+        {**linked, "status": "More Information Required"}, {"_id": 0}).sort("submitted_at", -1).to_list(100)
+    uids = list({s["user_id"] for s in subs + reviews + more_info})
+    users = {u["id"]: u async for u in db.users.find({"id": {"$in": uids}}, {"id": 1, "name": 1})}
+
+    def _name(uid):
+        return (users.get(uid) or {}).get("name") or "A professional"
+
+    for s in subs:
+        items.append({"id": f"ver:{s['id']}", "type": "verification_review",
+                      "title": "Professional Verification requires review",
+                      "desc": f"{_name(s['user_id'])} — {s.get('profession', '')}",
+                      "at": s.get("submitted_at"), "status": s.get("status"),
+                      "action": "Review verification", "link": {"module": "verifications", "id": s["id"]}})
+    for s in reviews:
+        items.append({"id": f"rev:{s['id']}", "type": "annual_review_due",
+                      "title": "Professional annual review due",
+                      "desc": f"{_name(s['user_id'])} — {s.get('profession', '')}",
+                      "at": s.get("credential_next_review_at"), "status": "Review Due",
+                      "action": "Complete annual review", "link": {"module": "verifications", "id": s["id"]}})
+    for s in more_info:
+        items.append({"id": f"info:{s['id']}", "type": "more_info_requested",
+                      "title": "Verification awaiting more information",
+                      "desc": f"{_name(s['user_id'])} — {s.get('profession', '')}",
+                      "at": s.get("submitted_at"), "status": "More Information Required",
+                      "action": "Track response", "link": {"module": "verifications", "id": s["id"]}})
+    reports = await db.reports.find({"status": {"$in": ["new", "open", "pending"]}}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    for r in reports:
+        items.append({"id": f"rep:{r['id']}", "type": "report_moderation",
+                      "title": "User report requires moderation",
+                      "desc": (r.get("reason") or "Report")[:80],
+                      "at": r.get("created_at"), "status": r.get("status"),
+                      "action": "Open report", "link": {"module": "reports", "id": r["id"]}})
+    day_ago = (now() - timedelta(hours=24)).isoformat()
+    failed = await db.email_events.count_documents({"status": "failed", "created_at": {"$gte": day_ago}})
+    sent = await db.email_events.count_documents({"status": {"$in": ["sent", "delivered"]}, "created_at": {"$gte": day_ago}})
+    if failed > 0 and sent == 0:
+        items.append({"id": f"email:{now().date().isoformat()}", "type": "email_provider",
+                      "title": "Email delivery failing",
+                      "desc": f"{failed} transactional email(s) failed in the last 24h and none succeeded.",
+                      "at": now_iso(), "status": "Action required",
+                      "action": "Check email provider", "link": {"module": "emails", "id": None}})
+    items.sort(key=lambda x: x.get("at") or "", reverse=True)
+    return items[:200]
+
+
+@control_router.get("/notifications-centre")
+async def notifications_centre(admin: dict = Depends(require_perm("dashboard")), mode: str = Depends(get_mode)):
+    items = await _notifications_items(mode)
+    read_ids = set(await db.admin_notification_reads.distinct("notif_id", {"admin_id": admin["id"]}))
+    for it in items:
+        it["read"] = it["id"] in read_ids
+    return {"items": items, "unread": sum(1 for i in items if not i["read"])}
+
+
+@control_router.get("/notifications-centre/unread-count")
+async def notifications_unread(admin: dict = Depends(require_perm("dashboard")), mode: str = Depends(get_mode)):
+    items = await _notifications_items(mode)
+    read_ids = set(await db.admin_notification_reads.distinct("notif_id", {"admin_id": admin["id"]}))
+    return {"unread": sum(1 for i in items if i["id"] not in read_ids)}
+
+
+class MarkReadIn(BaseModel):
+    ids: Optional[list[str]] = None
+    all: bool = False
+
+
+@control_router.post("/notifications-centre/read")
+async def notifications_mark_read(body: MarkReadIn, admin: dict = Depends(require_perm("dashboard")), mode: str = Depends(get_mode)):
+    ids = body.ids or []
+    if body.all:
+        ids = [i["id"] for i in await _notifications_items(mode)]
+    for nid in ids[:500]:
+        await db.admin_notification_reads.update_one(
+            {"admin_id": admin["id"], "notif_id": nid},
+            {"$set": {"read_at": now_iso()}}, upsert=True)
+    return {"ok": True, "marked": len(ids)}
 
 
 # ----------------------------- Users -----------------------------
@@ -734,12 +829,17 @@ async def control_verifications(status: Optional[str] = None, admin: dict = Depe
         f.update({"status": "Approved", "documents.expiry_date": {"$lte": d30f, "$gte": today}})
     elif status == "review_due":
         f.update({"status": "Approved", "credential_next_review_at": {"$lte": now().isoformat()}})
+    elif status in ("Pending", "Pending Review", "needs_review"):
+        # A verification awaiting an administrator decision must never disappear
+        # from the review queue (statuses are stored as "Pending Review"/"In Review").
+        f["status"] = {"$in": NEEDS_REVIEW_STATUSES}
     elif status:
         f["status"] = status
     subs = await db.verification_submissions.find(f, {"_id": 0}).sort("submitted_at", -1).to_list(300)
     users = {u["id"]: u async for u in db.users.find({"id": {"$in": [s["user_id"] for s in subs]}}, {"id": 1, "name": 1, "email": 1, "photo_url": 1})}
     counts = {}
-    for st in ("Pending", "Approved", "Rejected", "Expired"):
+    counts["pending"] = await db.verification_submissions.count_documents({**linked, "status": {"$in": NEEDS_REVIEW_STATUSES}})
+    for st in ("Approved", "Rejected", "Expired"):
         counts[st.lower()] = await db.verification_submissions.count_documents({**linked, "status": st})
     counts["expiring_soon"] = await db.verification_submissions.count_documents({**linked, "status": "Approved", "documents.expiry_date": {"$lte": d30f, "$gte": today}})
     for s in subs:

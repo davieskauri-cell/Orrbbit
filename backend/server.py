@@ -336,12 +336,15 @@ def completion_checklist(u: dict) -> tuple:
         {"key": "photos", "label": "Add at least 2 photos", "done": len(photos) >= DISCOVERY_MIN_PHOTOS, "required": True},
         {"key": "bio", "label": "Write your bio (40+ characters)", "done": bio_len >= BIO_MIN_CHARS, "required": True},
         {"key": "email", "label": "Verify your email", "done": bool(u.get("email_verified")), "required": True},
-        {"key": "current_city", "label": "Add your current city", "done": bool(u.get("city")), "required": False},
-        {"key": "home_city", "label": "Add your home city", "done": bool(u.get("home_city")), "required": False},
-        {"key": "interests", "label": "Add 3+ interests", "done": len(u.get("interests") or []) >= 3, "required": False},
-        {"key": "prompt", "label": "Answer a prompt", "done": bool(u.get("prompts")), "required": False},
+        {"key": "current_city", "label": "Add your current city", "done": bool(u.get("city")), "required": True},
+        {"key": "interests", "label": "Add 3+ interests", "done": len(u.get("interests") or []) >= 3, "required": True},
+        {"key": "home_city", "label": "Add your home city (optional)", "done": bool(u.get("home_city")), "required": False},
+        {"key": "prompt", "label": "Answer a prompt (optional)", "done": bool(u.get("prompts")), "required": False},
     ]
-    pct = round(100 * sum(1 for c in checklist if c["done"]) / len(checklist))
+    # Completion reflects REQUIRED items only — optional extras never hold the
+    # percentage below 100% (root cause of the "71% after full onboarding" bug).
+    req_items = [c for c in checklist if c["required"]]
+    pct = round(100 * sum(1 for c in req_items if c["done"]) / len(req_items))
     missing = [c["label"] for c in checklist if c["required"] and not c["done"]]
     discoverable = not missing and u.get("admin_status") not in ("hidden_pending_review", "banned")
     return pct, checklist, discoverable, missing
