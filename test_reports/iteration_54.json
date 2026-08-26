@@ -1,0 +1,43 @@
+{
+  "summary": "Iter54 pre-launch package verified end-to-end. BACKEND: existing test_iter54_prelaunch.py 10/10 PASSED (email/open never 404, verify shape 200, desktop-link + web form same queue, single-use token, min-2 IDs enforced, legacy submit still OK, admin doc viewer + audit + RBAC, display_name save, pings in_range flag). NEW test_iter54_prelaunch_extra.py 6/6 PASSED covering (a) verified-pro auto-create when professional_profiles doc is missing (auto_created_from_verification=True, idempotent), (b) public /professional/profile/{id} does NOT leak file_b64 or document base64, (c) POST /api/verification/extract returns 200 with fields keys for tiny PNG (never 500) and non-image → extracted=false, (d) pings in_range=true when sender within radius and (e) in_range=false when sender beyond radius + POST /api/pings/{id}/accept returns 409 with 'outside your current range'. Total backend: 16/16. FRONTEND (mobile 390x844 preview): Onboarding — POST /api/auth/register 4-step wizard works (Account → Age → Policies → Complete/verify-email screen). After db.users.email_verified=true + reload '/', app correctly redirects to /(auth)/profile-setup (photos<2). Profile Setup renders setup-display-name (required per spec) + setup-bio + setup-next; submit with 0 photos shows 'Please add at least 2 photos.' error. /professional/verification renders verification-screen with ver-desktop-link (dialog: 'Link sent ✓ We've emailed you a secure verification link.'), Step 1 professions Other pill + ver-prof-other input reveal on toggle, Step 2 ver-cat-Other + ver-cat-other input reveal, ver-add-doc without a file surfaces 'Upload the credential document first — it's required.', IDENTITY section has Passport/Driver Licence/Birth Certificate/Other with ver-iddoc-other input. Sana (verified HR pro) — professional radar shows pro-profile-card with view-pro-profile + edit-pro-profile + go-verification buttons; public profile does not expose documents. Regression: demo login (kauri) → pings tab renders 8+ demo rows; radar tabs (Radar/Nearby/Pings/Encounters/Profile) all present. Deprecated packages detected: none new. React Native warnings detected: 'shadow* deprecated' + 'Encountered two children with the same key' (see react_native_issues). ISSUE FOUND (blocker for polish, not for launch): duplicate 'Other' profession pill in /professional/verification Step 1 — /api/config already includes 'Other' in professions dict, and verification.tsx:303 unconditionally appends another 'Other' → two identical pills render + React key warning fires on every mount.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Professional Verification – Step 1 Choose Profession", "issue": "Duplicate 'Other' pill renders. /api/config['professions'] already contains an 'Other' key, but /app/frontend/app/professional/verification.tsx:303 does `[...Object.keys(professions), 'Other']` which appends a second 'Other'. Visible in screenshots (two Other chips at the bottom of the Step 1 grid) and produces the React console error 'Encountered two children with the same key' on every mount. Fix: drop the trailing 'Other' from the spread (Object.keys already includes it), or de-dupe with `Array.from(new Set([...Object.keys(professions), 'Other']))`.", "testID": "ver-prof-Other", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Professional Home (Pro mode)", "issues": ["Requests tab in the bottom bar is visible with an unread badge, but there is no stable testID on the tab button (e.g. tab-requests). Only the badge count text is exposed. Non-blocking."]}
+    ],
+    "react_native_issues": [
+      {"component": "Verification screen key collision", "issue": "React key warning fires because two children share the key 'Other' in the professions Pressable list. Reference: /app/frontend/app/professional/verification.tsx:303. Same root cause as the UI bug above."},
+      {"component": "shadow* deprecation (pre-existing)", "issue": "'shadow* style props are deprecated. Use boxShadow' warnings still fire from onboarding / profile-setup surfaces on web. Non-blocking (already reported in iteration_52.json)."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter54_prelaunch.py",
+    "/app/backend/tests/test_iter54_prelaunch_extra.py",
+    "/app/test_reports/pytest/pytest_iter54_verify.xml",
+    "/app/test_reports/pytest/pytest_iter54_extra.xml"
+  ],
+  "action_items": [
+    "FIX (small): /app/frontend/app/professional/verification.tsx:303 — de-duplicate the 'Other' profession pill. Either drop the trailing string (backend already ships 'Other' in /api/config['professions']) or wrap with `Array.from(new Set(...))`. This will also silence the recurring React 'two children with same key' console error.",
+    "OPTIONAL: add a stable testID (e.g. testID='tab-requests') to the Requests bottom-tab button in the pro layout to make future regression scripts cheaper."
+  ],
+  "critical_code_review_comments": [
+    "Backend /api/professional/profile/me correctly auto-creates a professional_profiles doc for Approved verifications and is idempotent (no duplicates on repeated GETs).",
+    "Backend /api/pings/{id}/accept enforces range server-side (returns 409 'This person is outside your current range') so the UI 'in_range' flag is not the sole gate — good defence in depth.",
+    "Backend /api/professional/profile/{id} public view does not include document base64 payloads (verified by string-scan of the JSON body).",
+    "Backend /api/verification/extract gracefully returns 200 with empty fields for tiny images / non-image types — never 500s.",
+    "Frontend /(auth)/profile-setup enforces both min-2 photos AND (per spec) the display_name field, but when both are blank only the photo error surfaces (the display_name check is not reached first). Minor UX ordering; not a blocker because the display_name field defaults to `user.name` on first mount, so real users rarely see this."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter54_prelaunch_extra.py (new — 6 tests covering verified-pro auto-create, public profile leak, extract endpoint, out-of-range 409)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "95% (1 duplicate-pill UI bug + 1 pre-existing shadow* warning; no functional blockers)"},
+  "seed_data_creation": "Registered iter54qa-fe-<ts>@example.com + several iter54x-<uuid>@example.com fresh users for the pytest suite. All cleaned up in the module fixture teardown (db.users.delete_many + verification_submissions + verification_documents + pings + professional_profiles).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter54 pre-launch package is green. Only touch-up left: de-dupe the 'Other' profession pill in /app/frontend/app/professional/verification.tsx:303 (single-line change) — this also silences a recurring React key warning on every mount of the verification screen. To reproduce: goto /professional/verification while logged in → open React devtools / console → observe two 'Other' pills at the tail of Step 1 and 'Encountered two children with the same key' error. Backend regression: `EXPO_PUBLIC_BACKEND_URL=<preview> pytest backend/tests/test_iter54_prelaunch.py backend/tests/test_iter54_prelaunch_extra.py -v` (16 tests). Do NOT run browser flows on /control (production backend). Preview Resend key returns 401 by design — email_events rows are still written; ignore email 401s.",
+  "rca_of_issue": "Duplicate 'Other' pill root cause: /api/config already returns 'Other' inside the professions dict (backend server.py). verification.tsx line 303 renders `pills([...Object.keys(professions), 'Other'], ...)` — the trailing 'Other' is redundant. Because both instances share the same testID/key, React logs the key-collision warning and Playwright's query_selector_all returns 2 matches. Reproduction: any user opens /professional/verification. Mitigation: change to `pills(Array.from(new Set([...Object.keys(professions), 'Other'])), ...)` OR simply `pills(Object.keys(professions), ...)` since backend already includes it. One-line fix, no state migration."
+}

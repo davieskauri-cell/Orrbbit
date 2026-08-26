@@ -300,7 +300,7 @@ export default function VerificationScreen() {
                   style={{ marginTop: spacing.md, minHeight: 44 }}
                 />
                 <Text style={styles.step}>STEP 1 · CHOOSE PROFESSION</Text>
-                {pills([...Object.keys(professions), "Other"], (o) => profession === o, (o) => { setProfession(o); setCategories([]); }, "ver-prof")}
+                {pills(Array.from(new Set([...Object.keys(professions), "Other"])), (o) => profession === o, (o) => { setProfession(o); setCategories([]); }, "ver-prof")}
                 {profession === "Other" && (
                   <TextInput testID="ver-prof-other" style={[styles.input, { marginTop: spacing.sm }]} value={professionOther} onChangeText={setProfessionOther}
                     placeholder="Please specify your profession" placeholderTextColor={colors.textTertiary} />

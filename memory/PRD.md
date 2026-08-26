@@ -566,3 +566,24 @@ No logic/branding changes — pure consistency polish across the mobile app.
 
 ## Iter53 — Browser Control Centre → LIVE production backend (June 2026) — ACTIVE IN PREVIEW BROWSER NOW; included in next redeploy
 - Owner-requested: desktop/browser Control Centre must administer production. Added EXPO_PUBLIC_CONTROL_BACKEND_URL (frontend/.env) consumed only by ControlContext/Shell; product app in preview untouched. Preview browser /control now shows LIVE PRODUCTION banner, boots LIVE mode, and authenticates against the production admin accounts (owner credentials). Verified request wiring to https://nearby-connect-93.emergent.host. Fixed "[object Object]" error rendering for validation errors. CRITICAL QA RULE: never run UI test flows against /control in the browser anymore (LIVE data) — see test_result.md Iter53 warning.
+
+## Iter54 — Pre-launch package (June 2026) — FIX IMPLEMENTED; PRODUCTION REDEPLOY & OWNER VERIFICATION REQUIRED
+Implemented (restore point: tag iter53-restore-point):
+- #1 Onboarding: signup→email verify (hard gate)→Profile Setup (new Display Name field, min-2 photos)→Set Vibe→Radar; resume at correct incomplete step via app/index.tsx + verify-email routing; display_name added to users (legacy-safe, optional in backend).
+- #2 Desktop verification: POST /api/verification/desktop-link emails secure 24h single-use link (pro_desktop_verification template with __CTX_LINK__ CTA); GET /api/verification/web branded responsive form; POST /api/verification/web/submit routes through SAME submit_verification handler/queue. backend/verification_web.py.
+- #3/#4 "Other" (with specify inputs) for professions and categories; backend accepts "Other — X" via profession_other/categories_other.
+- #5 Merged Steps 3+4 → UPLOAD CREDENTIALS: file upload mandatory per document, pre-fill notice text, EDIT + REMOVE per document; AI pre-fill via POST /api/verification/extract (emergentintegrations gpt-5.4 vision, images only, best-effort, user always reviews). EMERGENT_LLM_KEY added to backend/.env.
+- #6 Identity: min 2 ID documents (Passport/Driver Licence/Birth Certificate/Other+specify), stored PRIVATELY in verification_documents (kind=identity); never public; legacy submissions without identity docs still valid.
+- #7 Verified pro reopen bug: GET /professional/profile/me auto-creates the pro profile from an Approved verification (auto_created_from_verification) — backend authoritative.
+- #8 View Profile button in verified pro header → own public professional profile preview (no docs leaked — test-verified).
+- #9 Help-offer acceptance now notifies the professional with a safe, non-compulsory meet-up encouragement (consent/safety tools unchanged).
+- #10 Email links: all app-path CTAs now route via GET /api/email/open?to=… branded interstitial (never 404); /api/email/verify unchanged; password reset uses codes (no link). Desktop verification links direct+valid.
+- #11 Radar sheet label simplified to professionals-nearby count only; chevron aligned next to label.
+- #12 ProfessionalRequestCard: name/meta column minWidth 0 + numberOfLines, category chip moved to own wrapping row.
+- #13 Control Centre secure doc viewer: GET /api/control/verifications/{sub}/documents/{doc}/file (RBAC verifications perm, audited admin_audit_logs action verification_document_viewed, no-store, no public URLs) + View Document buttons in control/verifications.tsx (credentials + identity).
+- #14 New verification → email to support@orrbbit.com (admin_new_verification, no attachments) + existing pending-review counts remain real backend data.
+- #15 Dashboard polish: verified header buttons wrap; View Profile added.
+- #16 Out-of-range: /api/pings returns in_range; accept blocked server-side (409) when out of range; pings UI shows "Outside your current range" + Remove; completed connections untouched.
+- #17 Legacy-safe: no resets, optional new fields, legacy submit path test-verified.
+Tests: tests/test_iter54_prelaunch.py 10/10 + testing-agent extra suite 6/6 + frontend flows pass (iteration_54.json); 66 green across prior suites. Fixed duplicate "Other" pill post-test.
+Owner actions: redeploy (then /api/version=iter52 tag still applies; new flows live), verify Resend key in production sends admin/support + desktop-link emails, real-device QA of verification + onboarding.
