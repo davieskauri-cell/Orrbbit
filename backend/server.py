@@ -93,6 +93,7 @@ class DemoLoginIn(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
+    display_name: Optional[str] = None  # public-facing name chosen at Profile Setup
     bio: Optional[str] = None
     interests: Optional[List[str]] = None
     photo_url: Optional[str] = None
@@ -1009,7 +1010,7 @@ async def update_profile(body: ProfileUpdate, user: dict = Depends(get_current_u
     # sanitise all free-text profile input (no HTML, hard length caps)
     if "bio" in fields:
         fields["bio"] = _clean_text(fields["bio"], BIO_MAX_CHARS)
-    for f in ("name", "city", "country", "home_city", "occupation", "education", "languages"):
+    for f in ("name", "display_name", "city", "country", "home_city", "occupation", "education", "languages"):
         if f in fields:
             fields[f] = _clean_text(fields[f], 80)
     if "interests" in fields:
@@ -1576,6 +1577,7 @@ async def list_pings(user: dict = Depends(get_current_user)):
     pings = await db.pings.find({"to_user_id": user["id"]}).to_list(200)
     pings.sort(key=lambda p: p["created_at"], reverse=True)
     blocked = await get_blocked_ids(user["id"])
+    my_radius = min(user.get("radius", 250) or 250, plan_max_radius(user))
     out = []
     for p in pings:
         if p["from_user_id"] in blocked:
@@ -1583,13 +1585,20 @@ async def list_pings(user: dict = Depends(get_current_user)):
         u = await db.users.find_one({"id": p["from_user_id"]})
         if not u:
             continue
+        # Range eligibility (Iter54): stale pings from people now outside the
+        # permitted radius stay visible but cannot be actioned.
+        in_range = True
+        if user.get("lat") is not None and u.get("lat") is not None:
+            in_range = haversine(user["lat"], user["lng"], u["lat"], u["lng"]) <= my_radius
         info = {
             "id": u["id"], "name": u.get("name"), "age": u.get("age"),
             "photo_url": u.get("photo_url"), "vibe": u.get("vibe"), "bio": u.get("bio", ""),
             "intent": _vd(u).get("intent"), "context": _vd(u).get("context"),
             "mutual_reason": mutual_reason(user, u),
         }
-        out.append(ping_payload(p, info))
+        pl = ping_payload(p, info)
+        pl["in_range"] = in_range
+        out.append(pl)
     return out
 
 
@@ -1619,9 +1628,22 @@ async def accept_ping(ping_id: str, user: dict = Depends(get_current_user)):
     blocked = await get_blocked_ids(user["id"])
     if ping["from_user_id"] in blocked:
         raise HTTPException(status_code=403, detail="You can't connect with this user")
+    # Range eligibility is authoritative server-side (Iter54)
+    sender = await db.users.find_one({"id": ping["from_user_id"]})
+    if sender and user.get("lat") is not None and sender.get("lat") is not None:
+        my_radius = min(user.get("radius", 250) or 250, plan_max_radius(user))
+        if haversine(user["lat"], user["lng"], sender["lat"], sender["lng"]) > my_radius:
+            raise HTTPException(status_code=409, detail="This person is outside your current range")
     new_status = "accepted" if ping.get("kind") == "request" else "recent"
     await db.pings.update_one({"id": ping_id}, {"$set": {"status": new_status}})
     match = await create_match_docs(user["id"], ping["from_user_id"])
+    # Iter54 — gently encourage real-world connection (never compulsory)
+    if ping.get("kind") == "request" and ping.get("about") == "help_offer":
+        await notify(ping["from_user_id"], "connection_accepted",
+                     f"{user.get('name') or 'Your connection'} accepted your offer 🤝",
+                     "Great start! When it feels right for both of you, consider suggesting a meet-up "
+                     "somewhere public and convenient. Keep chatting in Orrbbit — safety tools like "
+                     "blocking and reporting are always available.")
     return {"match": match}
 
 
@@ -2507,6 +2529,9 @@ class VerificationV2In(BaseModel):
     full_name: str
     id_type: str
     documents: list[VerificationDocIn]
+    profession_other: Optional[str] = ""
+    categories_other: Optional[str] = ""
+    identity_documents: Optional[list[VerificationDocIn]] = None
 
 
 class ModeIn(BaseModel):
@@ -2833,10 +2858,64 @@ async def upsert_pro_profile(body: ProProfileIn, user: dict = Depends(get_curren
     return doc
 
 
+class ExtractIn(BaseModel):
+    file_b64: str
+    file_type: Optional[str] = ""
+
+
+@api_router.post("/verification/extract")
+async def extract_credential_fields(body: ExtractIn, user: dict = Depends(get_current_user)):
+    """Securely pre-fill credential fields from an uploaded document (server-side only).
+
+    Best-effort: returns empty fields when extraction isn't supported (e.g. PDFs)
+    or fails — the user always reviews and edits before submitting.
+    """
+    empty = {"doc_name": "", "issuer": "", "license_number": "", "issue_date": "", "expiry_date": ""}
+    if not (body.file_type or "").startswith("image/"):
+        return {"fields": empty, "extracted": False}
+    if len(body.file_b64) > 8_000_000:
+        return {"fields": empty, "extracted": False}
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        chat = LlmChat(
+            api_key=os.environ.get("EMERGENT_LLM_KEY", ""),
+            session_id=f"cred-extract-{uuid.uuid4().hex[:10]}",
+            system_message=("You extract fields from professional credential documents. "
+                            "Reply ONLY with minified JSON: {\"doc_name\":\"\",\"issuer\":\"\","
+                            "\"license_number\":\"\",\"issue_date\":\"\",\"expiry_date\":\"\"}. "
+                            "Dates as YYYY-MM-DD. Use empty strings when unsure. Never invent values."),
+        ).with_model("openai", "gpt-5.4")
+        resp = await chat.send_message(UserMessage(
+            text="Extract the credential fields from this document.",
+            file_contents=[ImageContent(image_base64=body.file_b64)]))
+        import json as _json
+        txt = str(resp).strip()
+        if txt.startswith("```"):
+            txt = txt.strip("`").replace("json", "", 1).strip()
+        data = _json.loads(txt)
+        fields = {k: str(data.get(k, "") or "")[:120] for k in empty}
+        return {"fields": fields, "extracted": any(fields.values())}
+    except Exception as e:
+        logger.warning(f"credential extraction failed: {e}")
+        return {"fields": empty, "extracted": False}
+
+
 @api_router.get("/professional/profile/me")
 async def my_pro_profile(user: dict = Depends(get_current_user)):
     prof = await db.professional_profiles.find_one({"user_id": user["id"]})
     ver = await _verification_status(user["id"])
+    # Backend-authoritative repair (Iter54): an Approved professional must never be
+    # sent back through profile setup because the profile doc is missing.
+    if not prof and ver.get("status") == "Approved":
+        prof = {
+            "id": str(uuid.uuid4()), "user_id": user["id"],
+            "profession": ver.get("profession") or "Professional",
+            "categories": ver.get("categories") or [],
+            "bio": "", "open_to_paying": False, "free_advice": True,
+            "is_draft": False, "auto_created_from_verification": True,
+            "created_at": now_iso(), "updated_at": now_iso(),
+        }
+        await db.professional_profiles.insert_one(dict(prof))
     if prof:
         prof.pop("_id", None)
     return {"profile": prof, "verification": ver}
@@ -2949,10 +3028,21 @@ async def nearby_professionals(
 # --------------------- Verification (V2: credential system) ---------------------
 @api_router.post("/verification/submit")
 async def submit_verification(body: VerificationV2In, user: dict = Depends(get_current_user)):
-    if body.profession not in PROFESSIONS:
+    other_prof = (body.profession_other or "").strip()[:60]
+    if body.profession == "Other":
+        if not other_prof:
+            raise HTTPException(status_code=400, detail="Please specify your profession")
+        profession = f"Other — {other_prof}"
+        cats = [c.strip()[:60] for c in body.categories if c.strip()][:8]
+    elif body.profession in PROFESSIONS:
+        profession = body.profession
+        valid_cats = set(PROFESSIONS[body.profession])
+        cats = [c for c in body.categories if c in valid_cats]
+    else:
         raise HTTPException(status_code=400, detail="Invalid profession")
-    valid_cats = set(PROFESSIONS[body.profession])
-    cats = [c for c in body.categories if c in valid_cats]
+    other_cat = (body.categories_other or "").strip()[:60]
+    if other_cat:
+        cats.append(f"Other — {other_cat}")
     if not cats:
         raise HTTPException(status_code=400, detail="Pick at least one category for your profession")
     if not body.full_name.strip() or not body.id_type.strip():
@@ -2983,11 +3073,33 @@ async def submit_verification(body: VerificationV2In, user: dict = Depends(get_c
                 "file_b64": d.file_b64, "file_type": d.file_type or "", "file_name": d.file_name or "",
                 "created_at": now_iso(),
             })
+    # Identity documents (PRIVATE — admin-only; min 2 when supplied by new clients; legacy clients unaffected)
+    id_docs_meta = []
+    if body.identity_documents is not None:
+        if len(body.identity_documents) < 2:
+            raise HTTPException(status_code=400, detail="Please add at least 2 identity documents")
+        if len(body.identity_documents) > 5:
+            raise HTTPException(status_code=400, detail="Maximum 5 identity documents")
+        for d in body.identity_documents:
+            if not d.doc_name.strip():
+                raise HTTPException(status_code=400, detail="Each identity document needs a type")
+            if not d.file_b64:
+                raise HTTPException(status_code=400, detail="Each identity document needs an uploaded file")
+            if d.file_type and d.file_type not in DOC_TYPES_ALLOWED:
+                raise HTTPException(status_code=400, detail="Only PDF, JPG and PNG files are accepted")
+            did = str(uuid.uuid4())
+            id_docs_meta.append({"id": did, "doc_name": d.doc_name.strip()[:80],
+                                 "file_name": (d.file_name or "")[:120], "file_type": d.file_type or "",
+                                 "has_file": True, "kind": "identity"})
+            doc_files.append({"id": did, "submission_id": sub_id, "user_id": user["id"], "kind": "identity",
+                              "file_b64": d.file_b64, "file_type": d.file_type or "",
+                              "file_name": d.file_name or "", "created_at": now_iso()})
     doc = {
         "id": sub_id, "user_id": user["id"],
-        "profession": body.profession, "categories": cats,
-        "category": PROFESSION_BROAD.get(body.profession, "Other"),  # broad category (legacy field)
-        "identity": {"full_name": body.full_name.strip(), "id_type": body.id_type.strip()},
+        "profession": profession, "categories": cats,
+        "category": PROFESSION_BROAD.get(profession, "Other"),  # broad category (legacy field)
+        "identity": {"full_name": body.full_name.strip(), "id_type": body.id_type.strip(),
+                     "documents": id_docs_meta},
         "documents": docs_meta,
         "status": "Pending Review", "submitted_at": now_iso(), "reviewed_at": None, "reviewer": None,
         "notes": [], "public_note": "", "reminders_sent": [],
@@ -3002,9 +3114,12 @@ async def submit_verification(body: VerificationV2In, user: dict = Depends(get_c
     if doc_files:
         await db.verification_documents.insert_many([dict(f) for f in doc_files])
     await notify(user["id"], "verification_submitted", "Verification submitted",
-                 f"Your {body.profession} verification is with the review team.")
+                 f"Your {profession} verification is with the review team.")
     _es_fire(email_service.send("pro_application_received", user=user, entity_id=sub_id,
-                                ctx={"profession": body.profession}))
+                                ctx={"profession": profession}))
+    # Admin notification — never attach documents (metadata only)
+    _es_fire(email_service.send("admin_new_verification", to_email="support@orrbbit.com",
+                                entity_id=sub_id, ctx={"profession": profession, "name": user.get("name") or "A user"}))
     return {"ok": True, "status": "Pending Review", "submission_id": sub_id}
 
 
@@ -3600,6 +3715,12 @@ _control_email.set_service(email_service)
 app.include_router(_email_mod.email_user_router)
 app.include_router(_control_email.control_email_router)
 app.include_router(_control_email.resend_webhook_router)
+
+# Iter54 — desktop/laptop Professional Verification (same account, workflow and queue)
+import verification_web as _ver_web  # noqa: E402
+app.include_router(_ver_web.build_web_verification(
+    db, get_current_user, email_service, _es_fire, PROFESSIONS,
+    submit_verification, VerificationV2In), prefix="/api")
 
 
 @app.on_event("startup")

@@ -161,6 +161,21 @@ _t("verify_email", "Verify your Orrbbit email", "Verify your email",
 _t("welcome", "Welcome to Orrbbit 🎉", "Welcome to Orrbbit, {name}!",
    "You're in! Orrbbit connects you with real people and verified professionals right nearby. Set your vibe, switch on your radar and see who's around you.",
    cta=("Open Orrbbit", "/"), trigger="On registration")
+_t("pro_desktop_verification", "Complete your Orrbbit Professional Verification",
+   "Finish verification on your computer",
+   "You asked to complete your Professional Verification on a desktop or laptop. "
+   "Use the secure button below on your computer — it links to the same Orrbbit account "
+   "and review process. The link expires in 24 hours and can only be used once.",
+   cta=("Complete Verification", "__CTX_LINK__"),
+   trigger="User requests desktop verification link")
+
+_t("admin_new_verification", "New Professional Verification awaiting review",
+   "New verification submitted",
+   "{name} has submitted a Professional Verification for <b>{profession}</b>. "
+   "It is awaiting review in the Orrbbit Control Centre → Professional Verification queue. "
+   "Documents are available securely inside the Control Centre only.",
+   trigger="New professional verification submitted (to support inbox)")
+
 _t("password_reset", "Reset your Orrbbit password", "Reset your Orrbbit password",
    'Use the code below to reset your password. It expires in {ttl_min} minutes.<br><br><div style="text-align:center;">{code_box}</div><br>If you didn\'t request this, you can safely ignore this email — your password won\'t change.',
    trigger="POST /api/auth/forgot-password")
@@ -369,9 +384,15 @@ def build_email(key: str, ctx: dict, *, unsub_url: str | None = None,
         cta_label, path = tpl["cta"]
         if path == "__VERIFY_LINK__":
             cta_url = verify_url
+        elif path == "__CTX_LINK__":
+            # Full action URL provided by the caller (e.g. secure desktop verification link)
+            cta_url = ctx.get("action_url")
         else:
             path = _fmt(path, ctx)
-            cta_url = f"{APP_URL}{path}" if path.startswith("/") else None  # same-origin only
+            # App-action paths must never 404 (the public host serves only the API).
+            # Route them through the branded interstitial that guides the user into the app.
+            from urllib.parse import quote as _q
+            cta_url = f"{PUBLIC_BASE_URL}/api/email/open?to={_q(path)}" if path.startswith("/") else None
     html, text = render_layout(
         preheader=_fmt(tpl["preheader"], ctx), heading=heading, body_html=body_html,
         cta_label=cta_label, cta_url=cta_url,

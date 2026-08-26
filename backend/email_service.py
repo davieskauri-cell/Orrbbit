@@ -344,6 +344,21 @@ def bind(server, svc: EmailService):
         label = PREF_CATEGORIES[data["cat"]].lower()
         return _page("You're unsubscribed", f"You'll no longer receive {label} from Orrbbit. Security and account emails will still be delivered. You can re-enable this anytime in the app under Settings → Email Preferences.")
 
+    @email_user_router.get("/email/open")
+    async def email_open(to: str = "/"):
+        """Branded landing for app-action links in emails — never 404s.
+
+        The public host serves only the API, so email CTAs land here with a clear
+        path into the Orrbbit app instead of a broken page.
+        """
+        dest = to if to.startswith("/") else "/"
+        label = dest.strip("/").split("?")[0].replace("-", " ").replace("/", " → ").title() or "Home"
+        return _branded_page(
+            "Continue in the Orrbbit app",
+            f"This action ({label}) happens inside the Orrbbit app. Open Orrbbit on your phone to continue. "
+            "If you don't have the app yet, scan the QR code on your Orrbbit access page to get it.",
+            icon="check")
+
     @email_user_router.get("/email/verify")
     async def verify_email(token: str = ""):
         data = svc.decode_token(token, "verify_email")

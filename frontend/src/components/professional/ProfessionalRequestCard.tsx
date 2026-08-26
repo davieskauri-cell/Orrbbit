@@ -20,16 +20,20 @@ export default function ProfessionalRequestCard({
     <View style={[styles.card, shadow.card]} testID={`pro-request-${r.id}`}>
       <View style={styles.headRow}>
         <Avatar uri={r.user?.photo_url} name={r.user?.name} size={46} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={styles.name}>{r.user?.name}</Text>
-          <Text style={styles.meta}>
+        <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
+          <Text style={styles.name} numberOfLines={1}>{r.user?.name}</Text>
+          <Text style={styles.meta} numberOfLines={1}>
             {[r.user?.distance != null ? distLabel(r.user.distance) : null, timeAgo(r.created_at)].filter(Boolean).join(" · ")}
           </Text>
         </View>
-        <View style={styles.catChip}>
-          <Text style={styles.catText}>{r.category}</Text>
-        </View>
       </View>
+      {!!r.category && (
+        <View style={styles.chipRow}>
+          <View style={styles.catChip}>
+            <Text style={styles.catText} numberOfLines={1}>{r.category}</Text>
+          </View>
+        </View>
+      )}
       {!!r.message && (
         <Text style={styles.message} numberOfLines={3}>
           “{r.message}”
@@ -71,6 +75,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  chipRow: { flexDirection: "row", flexWrap: "wrap" },
   name: { color: colors.text, fontSize: font.base, fontWeight: "800" },
   meta: { color: colors.textSecondary, fontSize: font.sm },
   catChip: {

@@ -21,7 +21,12 @@ export default function VerifyEmailGate() {
 
   const checkVerified = async () => {
     const u: any = await refreshUser().catch(() => null);
-    if (u?.email_verified) router.replace(u?.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
+    if (u?.email_verified) {
+      // Continue onboarding at the correct step: Profile Setup → Set Vibe → Radar
+      if (u?.vibe) router.replace("/(tabs)");
+      else if ((u?.photos || []).length < 2) router.replace("/(auth)/profile-setup");
+      else router.replace("/(auth)/choose-vibe");
+    }
     return !!u?.email_verified;
   };
 

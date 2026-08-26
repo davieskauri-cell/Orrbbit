@@ -28,6 +28,7 @@ export default function ProfileSetup() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
+  const [displayName, setDisplayName] = useState((user as any)?.display_name || user?.name || "");
   const [bio, setBio] = useState(user?.bio || "");
   const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
@@ -82,10 +83,14 @@ export default function ProfileSetup() {
       setError("Please add at least 2 photos.");
       return;
     }
+    if (!displayName.trim()) {
+      setError("Please choose a display name.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
-      const updated = await updateProfile({ bio, interests: selected });
+      const updated = await updateProfile({ display_name: displayName.trim(), bio, interests: selected });
       setUser(updated as any);
       router.push("/(auth)/choose-vibe");
     } catch (e: any) {
@@ -107,6 +112,17 @@ export default function ProfileSetup() {
         )}
         <Text style={styles.title}>Tell us about you</Text>
         <Text style={styles.sub}>This is what people nearby will see.</Text>
+
+        <Text style={styles.label}>Display name</Text>
+        <TextInput
+          testID="setup-display-name"
+          value={displayName}
+          onChangeText={setDisplayName}
+          placeholder="How you'll appear to people nearby"
+          placeholderTextColor={colors.textTertiary}
+          maxLength={40}
+          style={[styles.bioInput, { minHeight: 44 }]}
+        />
 
         <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />

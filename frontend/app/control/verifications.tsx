@@ -15,7 +15,7 @@ const QUEUES = [
 ];
 
 export default function Verifications() {
-  const { req, mode } = useCC();
+  const { req, mode, download } = useCC();
   const [queue, setQueue] = useState('Pending');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
@@ -78,6 +78,17 @@ export default function Verifications() {
               <View key={d.id} style={s.docChip}>
                 <Text style={{ fontSize: 12, color: CC.navy, fontWeight: '600' }}>📄 {d.doc_name}</Text>
                 <Text style={{ fontSize: 11, color: CC.sub }}>{d.issuer}{d.expiry_date ? ` · exp ${d.expiry_date}` : ''}</Text>
+                {d.has_file ? (
+                  <Btn small variant="ghost" title="View Document"
+                    onPress={() => download(`/verifications/${sub.id}/documents/${d.id}/file`, d.file_name || `${d.doc_name}.pdf`).catch((e: any) => setError(e.message))} />
+                ) : null}
+              </View>
+            ))}
+            {(sub.identity?.documents || []).map((d: any) => (
+              <View key={d.id} style={[s.docChip, { borderColor: CC.orange }]}>
+                <Text style={{ fontSize: 12, color: CC.navy, fontWeight: '600' }}>🪪 {d.doc_name} (identity — private)</Text>
+                <Btn small variant="ghost" title="View Document"
+                  onPress={() => download(`/verifications/${sub.id}/documents/${d.id}/file`, d.file_name || `${d.doc_name}.pdf`).catch((e: any) => setError(e.message))} />
               </View>
             ))}
           </View>

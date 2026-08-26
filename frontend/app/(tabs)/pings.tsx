@@ -122,6 +122,7 @@ function PeoplePingsScreen() {
                   {s.items.map((p) => {
                     const vibe = vibeMap[p.vibe];
                     const isRequest = p.kind === "request";
+                    const outOfRange = (p as any).in_range === false && (p.status === "new" || p.status === "recent");
                     return (
                       <View key={p.id} style={styles.row} testID={`ping-row-${p.id}`}>
                         <Avatar uri={p.user.photo_url} name={p.user.name} size={52} ringColor={vibe?.color} />
@@ -142,9 +143,18 @@ function PeoplePingsScreen() {
                             <Text style={styles.meta}>·</Text>
                             <Text style={styles.meta}>{timeAgo(p.created_at)}</Text>
                           </View>
+                          {outOfRange && (
+                            <Text style={styles.outOfRange} testID={`ping-out-of-range-${p.id}`}>
+                              Outside your current range
+                            </Text>
+                          )}
                         </View>
                         <View style={styles.actions}>
-                          {isRequest && p.status === "new" ? (
+                          {outOfRange ? (
+                            <Pressable testID={`ping-remove-${p.id}`} onPress={() => dismiss(p.id)}>
+                              <Text style={styles.dismissText}>Remove</Text>
+                            </Pressable>
+                          ) : isRequest && p.status === "new" ? (
                             <>
                               <Pressable
                                 testID={`request-accept-${p.id}`}
@@ -263,4 +273,5 @@ const styles = StyleSheet.create({
   viewText: { color: "#FFF", fontSize: font.sm, fontWeight: "700" },
   statusText: { fontSize: font.sm, fontWeight: "800" },
   dismissText: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "600", padding: 4 },
+  outOfRange: { color: colors.pink, fontSize: font.sm, fontWeight: "700" },
 });

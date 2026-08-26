@@ -2,6 +2,7 @@ import { api } from "@/src/lib/api";
 
 export const updateProfile = (fields: {
   name?: string;
+  display_name?: string;
   bio?: string;
   interests?: string[];
   photo_url?: string | null;

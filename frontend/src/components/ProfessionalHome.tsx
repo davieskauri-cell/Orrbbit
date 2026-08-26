@@ -94,7 +94,6 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
   const [showRadius, setShowRadius] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [pendingSent, setPendingSent] = useState(0);
   const [preview, setPreview] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [quick, setQuick] = useState<{ online: boolean; availableNow: boolean; verified: boolean; topRated: boolean; category: string | null }>({
@@ -121,8 +120,6 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
         const p = await api<any>(`/professionals?lat=${coords.lat}&lng=${coords.lng}${proFiltersToQuery(filters)}`);
         setPros(p.professionals);
       }
-      const reqs = await api<any>("/professional/connect/requests");
-      setPendingSent(reqs.pending_sent || 0);
     } catch {}
   }, [coords, filters]);
 
@@ -166,8 +163,6 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
         .toLowerCase()
         .includes(q)
   );
-  const newOffers = offers.filter((o) => o.status === "new").length;
-  const availNow = shown.filter((p: any) => p.active_now && p.availability === "Available now").length;
   const filterCount = activeFilterCount(filters);
 
   const applyFilters = (f: ProFilters) => {
@@ -189,15 +184,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
       (!quick.category || p.primary_category === quick.category)
   );
 
-  const sheetLabel = [
-    `${shown.length} professional${shown.length === 1 ? "" : "s"} nearby`,
-    `${availNow} available now`,
-    `${shown.length} verified`,
-    pendingSent ? `${pendingSent} pending` : null,
-    newOffers ? `${newOffers} new offer${newOffers === 1 ? "" : "s"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const sheetLabel = `${shown.length} professional${shown.length === 1 ? "" : "s"} nearby`;
 
   return (
     <View style={{ flex: 1 }} testID="need-help-home">
@@ -476,6 +463,9 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
           <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
             <Text style={styles.smallBtnText}>Edit</Text>
           </Pressable>
+          <Pressable testID="view-pro-profile" style={styles.smallBtn} onPress={() => me?.id && router.push(`/professional/profile/${me.id}` as any)}>
+            <Text style={styles.smallBtnText}>View Profile</Text>
+          </Pressable>
           <Pressable testID="go-verification" style={styles.smallBtn} onPress={() => router.push("/professional/verification")}>
             <Text style={styles.smallBtnText}>Verification</Text>
           </Pressable>
@@ -625,7 +615,7 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
     <RNAnimated.View style={[styles.sheet, { height: anim }]} testID={testID}>
       <Pressable style={styles.sheetHeader} onPress={() => toggle(!expanded)} testID={`${testID}-header`} {...pan.panHandlers}>
         <View style={styles.sheetHandle} />
-        <View style={styles.rowBetween}>
+        <View style={[styles.rowBetween, { justifyContent: "flex-start", gap: 6 }]}>
           <Text style={styles.sheetLabel}>{collapsedLabel}</Text>
           <Ionicons name={expanded ? "chevron-down" : "chevron-up"} size={16} color={colors.textSecondary} />
         </View>
@@ -671,7 +661,7 @@ const styles = StyleSheet.create({
   sheetHeader: { paddingHorizontal: spacing.lg, paddingTop: 6, paddingBottom: spacing.sm, gap: 6 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center" },
   sheetLabel: { color: colors.text, fontSize: font.base, fontWeight: "800" },
-  compactProfileRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
+  compactProfileRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
   previewOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
   previewSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: spacing.xl, gap: spacing.sm, paddingBottom: spacing.xxl },
   previewName: { color: colors.text, fontSize: font.xl, fontWeight: "800" },

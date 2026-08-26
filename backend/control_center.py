@@ -510,6 +510,37 @@ async def action_required(admin: dict = Depends(require_perm("dashboard")), mode
     }
 
 
+@control_router.get("/verifications/{sub_id}/documents/{doc_id}/file")
+async def control_verification_doc_file(sub_id: str, doc_id: str, request: Request,
+                                        admin: dict = Depends(require_perm("verifications"))):
+    """Securely stream a submitted credential/identity document to an authorised admin.
+
+    - RBAC enforced (verifications permission)
+    - no permanent public URL (admin bearer token required per request)
+    - every view is written to the audit log
+    """
+    sub = await db.verification_submissions.find_one({"id": sub_id})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    f = await db.verification_documents.find_one({"id": doc_id, "submission_id": sub_id})
+    if not f or not f.get("file_b64"):
+        raise HTTPException(status_code=404, detail="No file stored for this document")
+    ip, _ = _client_info(request)
+    await audit(admin, "verification_document_viewed", "verification", sub_id,
+                new_value={"doc_id": doc_id, "kind": f.get("kind", "credential"),
+                           "file_name": f.get("file_name", "")}, ip=ip)
+    import base64
+    from fastapi.responses import Response
+    try:
+        blob = base64.b64decode(f["file_b64"])
+    except Exception:
+        raise HTTPException(status_code=422, detail="Stored file is unreadable")
+    media = f.get("file_type") or "application/octet-stream"
+    return Response(content=blob, media_type=media,
+                    headers={"Content-Disposition": f'inline; filename="{(f.get("file_name") or "document")[:80]}"',
+                             "Cache-Control": "no-store, private"})
+
+
 # ----------------------------- Users -----------------------------
 @control_router.get("/users")
 async def control_users(q: Optional[str] = None, status: Optional[str] = None,

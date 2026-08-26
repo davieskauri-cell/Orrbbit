@@ -10,7 +10,7 @@ import { showAlert } from "@/src/lib/alert";
 import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import { colors, spacing, radius, font } from "@/src/theme";
 
-const ID_TYPES = ["Passport", "Driver licence", "Government ID"];
+const ID_TYPES = ["Passport", "Driver Licence", "Birth Certificate", "Other"];
 
 type Doc = {
   doc_name: string; issuer: string; issue_date: string; expiry_date: string;
@@ -36,6 +36,25 @@ export default function VerificationScreen() {
   const [draft, setDraft] = useState<Doc>(emptyDoc());
   const [fullName, setFullName] = useState("");
   const [idType, setIdType] = useState<string | null>(null);
+  const [professionOther, setProfessionOther] = useState("");
+  const [categoryOther, setCategoryOther] = useState("");
+  const [otherCatOn, setOtherCatOn] = useState(false);
+  const [idDocs, setIdDocs] = useState<Doc[]>([]);
+  const [idDraftType, setIdDraftType] = useState<string | null>(null);
+  const [idOtherLabel, setIdOtherLabel] = useState("");
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [desktopSent, setDesktopSent] = useState(false);
+
+  const sendDesktopLink = async () => {
+    try {
+      await api("/verification/desktop-link", { method: "POST" });
+      setDesktopSent(true);
+      showAlert("Link sent ✓", "We've emailed you a secure verification link. Open it on your desktop or laptop within 24 hours.");
+    } catch (e: any) {
+      showAlert("Couldn't send link", e.message || "Try again.");
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -82,6 +101,25 @@ export default function VerificationScreen() {
         b64 = await FileSystem.readAsStringAsync(a.uri, { encoding: "base64" as any });
       }
       setDraft((d) => ({ ...d, file_b64: b64, file_type: a.mimeType || "application/pdf", file_name: a.name, doc_name: d.doc_name || (a.name || "").replace(/\.[^.]+$/, "") }));
+      // Secure server-side pre-fill (best effort) — user always reviews and edits
+      if ((a.mimeType || "").startsWith("image/")) {
+        setExtracting(true);
+        api<any>("/verification/extract", { method: "POST", body: { file_b64: b64, file_type: a.mimeType } })
+          .then((r) => {
+            if (r?.extracted) {
+              setDraft((d) => ({
+                ...d,
+                doc_name: r.fields.doc_name || d.doc_name,
+                issuer: d.issuer || r.fields.issuer,
+                license_number: d.license_number || r.fields.license_number,
+                issue_date: d.issue_date || r.fields.issue_date,
+                expiry_date: d.expiry_date || r.fields.expiry_date,
+              }));
+            }
+          })
+          .catch(() => {})
+          .finally(() => setExtracting(false));
+      }
     } catch (e: any) {
       showAlert("Couldn't attach file", e.message || "Try again.");
     }
@@ -89,26 +127,62 @@ export default function VerificationScreen() {
 
   const addDoc = () => {
     setError(null);
+    if (!draft.file_b64) { setError("Upload the credential document first — it's required."); return; }
     if (!draft.doc_name.trim()) { setError("Each document needs a name."); return; }
-    if (docs.length >= 10) { setError("Maximum 10 documents."); return; }
-    setDocs([...docs, draft]);
+    if (editIndex !== null) {
+      setDocs(docs.map((d, i) => (i === editIndex ? draft : d)));
+      setEditIndex(null);
+    } else {
+      if (docs.length >= 10) { setError("Maximum 10 documents."); return; }
+      setDocs([...docs, draft]);
+    }
     setDraft(emptyDoc());
+  };
+
+  const addIdDoc = async () => {
+    setError(null);
+    if (!idDraftType) { setError("Choose the ID document type first."); return; }
+    if (idDraftType === "Other" && !idOtherLabel.trim()) { setError("Please specify the ID document type."); return; }
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"], copyToCacheDirectory: true });
+      if (res.canceled || !res.assets?.[0]) return;
+      const a = res.assets[0];
+      if ((a.size || 0) > 5 * 1024 * 1024) { showAlert("File too large", "Maximum 5MB per document."); return; }
+      let b64 = "";
+      if (Platform.OS === "web" && a.uri.startsWith("data:")) b64 = a.uri.split(",")[1] || "";
+      else {
+        const FileSystem = await import("expo-file-system/legacy");
+        b64 = await FileSystem.readAsStringAsync(a.uri, { encoding: "base64" as any });
+      }
+      const label = idDraftType === "Other" ? `Other — ${idOtherLabel.trim()}` : idDraftType;
+      setIdDocs((cur) => [...cur, { ...emptyDoc(), doc_name: label, file_b64: b64, file_type: a.mimeType || "application/pdf", file_name: a.name }]);
+      setIdDraftType(null); setIdOtherLabel("");
+    } catch (e: any) { showAlert("Couldn't attach file", e.message || "Try again."); }
   };
 
   const submit = async () => {
     setError(null);
     if (!profession) return setError("Step 1: choose your profession.");
-    if (categories.length === 0) return setError("Step 2: pick at least one category.");
-    if (docs.length === 0) return setError("Step 3: add at least one credential document.");
-    if (!fullName.trim() || !idType) return setError("Add your full legal name and ID type.");
+    if (profession === "Other" && !professionOther.trim()) return setError("Step 1: please specify your profession.");
+    if (profession !== "Other" && categories.length === 0 && !(otherCatOn && categoryOther.trim())) return setError("Step 2: pick at least one category.");
+    if (profession === "Other" && !(otherCatOn && categoryOther.trim()) && categories.length === 0) return setError("Step 2: describe what you offer.");
+    if (docs.length === 0) return setError("Upload Credentials: add at least one credential document.");
+    if (idDocs.length < 2) return setError("Identity: add at least 2 ID documents.");
+    if (!fullName.trim() || !idType) return setError("Add your full legal name and primary ID type.");
     setBusy(true);
     try {
       await api("/verification/submit", {
         method: "POST",
-        body: { profession, categories, full_name: fullName.trim(), id_type: idType, documents: docs.map((d) => ({ ...d, expiry_date: d.expiry_date || null })) },
+        body: {
+          profession, categories, full_name: fullName.trim(), id_type: idType,
+          profession_other: professionOther.trim() || undefined,
+          categories_other: otherCatOn ? categoryOther.trim() : undefined,
+          documents: docs.map((d) => ({ ...d, expiry_date: d.expiry_date || null })),
+          identity_documents: idDocs,
+        },
       });
       setShowForm(false);
-      setDocs([]);
+      setDocs([]); setIdDocs([]);
       load();
     } catch (e: any) {
       setError(e.message || "Couldn't submit.");
@@ -219,22 +293,41 @@ export default function VerificationScreen() {
             )}
             {(status.status === "Not Submitted" || showForm) && (
               <>
+                <SecondaryButton
+                  testID="ver-desktop-link"
+                  title={desktopSent ? "✓ Desktop link sent — check your email" : "Complete on desktop/laptop"}
+                  onPress={sendDesktopLink}
+                  style={{ marginTop: spacing.md, minHeight: 44 }}
+                />
                 <Text style={styles.step}>STEP 1 · CHOOSE PROFESSION</Text>
-                {pills(Object.keys(professions), (o) => profession === o, (o) => { setProfession(o); setCategories([]); }, "ver-prof")}
+                {pills([...Object.keys(professions), "Other"], (o) => profession === o, (o) => { setProfession(o); setCategories([]); }, "ver-prof")}
+                {profession === "Other" && (
+                  <TextInput testID="ver-prof-other" style={[styles.input, { marginTop: spacing.sm }]} value={professionOther} onChangeText={setProfessionOther}
+                    placeholder="Please specify your profession" placeholderTextColor={colors.textTertiary} />
+                )}
 
                 {!!profession && (
                   <>
                     <Text style={styles.step}>STEP 2 · CHOOSE CATEGORIES</Text>
                     <Text style={styles.helper}>You can only offer services inside your verified categories.</Text>
-                    {pills(catOptions, (o) => categories.includes(o), (o) => setCategories(categories.includes(o) ? categories.filter((c) => c !== o) : [...categories, o]), "ver-cat")}
+                    {pills([...catOptions, "Other"], (o) => (o === "Other" ? otherCatOn : categories.includes(o)),
+                      (o) => (o === "Other" ? setOtherCatOn(!otherCatOn) : setCategories(categories.includes(o) ? categories.filter((c) => c !== o) : [...categories, o])), "ver-cat")}
+                    {otherCatOn && (
+                      <TextInput testID="ver-cat-other" style={[styles.input, { marginTop: spacing.sm }]} value={categoryOther} onChangeText={setCategoryOther}
+                        placeholder="Please specify your category" placeholderTextColor={colors.textTertiary} />
+                    )}
                   </>
                 )}
 
-                <Text style={styles.step}>STEP 3 · UPLOAD CREDENTIALS</Text>
-                <Text style={styles.helper}>PDF, JPG or PNG · up to 10 documents · degrees, licences, registrations, memberships, insurance, checks.</Text>
-                <SecondaryButton testID="ver-pick-file" title={draft.file_name ? `📎 ${draft.file_name}` : "Attach File (optional)"} onPress={pickFile} style={{ marginTop: spacing.md, minHeight: 44 }} />
-
-                <Text style={styles.step}>STEP 4 · DOCUMENT DETAILS</Text>
+                <Text style={styles.step}>UPLOAD CREDENTIALS</Text>
+                <Text style={styles.helper}>PDF, JPG or PNG · up to 10 documents · degrees, licences, registrations, memberships, insurance, checks. A document upload is required for each credential.</Text>
+                <SecondaryButton testID="ver-pick-file" title={draft.file_name ? `📎 ${draft.file_name}` : "Upload Document (required)"} onPress={pickFile} style={{ marginTop: spacing.md, minHeight: 44 }} />
+                {extracting && <Text style={styles.helper}>Reading your document to pre-fill details…</Text>}
+                {!!draft.file_b64 && (
+                  <Text style={styles.helper} testID="ver-prefill-note">
+                    We&rsquo;ll use the information in your uploaded document to help pre-fill the details below. Please review and edit the information before continuing.
+                  </Text>
+                )}
                 {field("doc_name", "Document Name *", "e.g. CIPD Level 7 Certificate")}
                 {field("issuer", "Issuing Organisation", "e.g. CIPD")}
                 <View style={{ flexDirection: "row", gap: spacing.sm }}>
@@ -243,7 +336,7 @@ export default function VerificationScreen() {
                 </View>
                 {field("doc_number", "Document Number (optional)", "e.g. #12345")}
                 {field("notes", "Notes (optional)", "Anything the reviewer should know")}
-                <SecondaryButton testID="ver-add-doc" title="+ Add Document" onPress={addDoc} style={{ marginTop: spacing.md, minHeight: 44 }} />
+                <SecondaryButton testID="ver-add-doc" title={editIndex !== null ? "Save Document" : "+ Add Document"} onPress={addDoc} style={{ marginTop: spacing.md, minHeight: 44 }} />
 
                 {docs.map((d, i) => (
                   <View key={i} style={styles.docRow} testID={`ver-doc-row-${i}`}>
@@ -252,17 +345,40 @@ export default function VerificationScreen() {
                       <Text style={styles.docName}>{d.doc_name}{d.file_name ? ` · ${d.file_name}` : ""}</Text>
                       <Text style={styles.docMeta}>{[d.issuer, d.expiry_date ? `Expires ${d.expiry_date}` : null].filter(Boolean).join(" · ")}</Text>
                     </View>
-                    <Pressable onPress={() => setDocs(docs.filter((_, j) => j !== i))} hitSlop={8}>
-                      <Ionicons name="close" size={15} color={colors.textTertiary} />
+                    <Pressable testID={`ver-doc-edit-${i}`} onPress={() => { setDraft(d); setEditIndex(i); }} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                      <Text style={{ color: colors.teal, fontSize: 12, fontWeight: "800" }}>EDIT</Text>
+                    </Pressable>
+                    <Pressable testID={`ver-doc-remove-${i}`} onPress={() => { setDocs(docs.filter((_, j) => j !== i)); if (editIndex === i) { setEditIndex(null); setDraft(emptyDoc()); } }} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+                      <Text style={{ color: colors.pink, fontSize: 12, fontWeight: "800" }}>REMOVE</Text>
                     </Pressable>
                   </View>
                 ))}
 
                 <Text style={styles.step}>IDENTITY</Text>
+                <Text style={styles.helper}>Minimum 2 ID documents. Identity documents are private — never shown on your profile, to other users, or in emails. Only authorised Orrbbit administrators can view them.</Text>
                 <Text style={styles.label}>Full Legal Name</Text>
                 <TextInput testID="ver-name" style={styles.input} value={fullName} onChangeText={setFullName} placeholder="As shown on your ID" placeholderTextColor={colors.textTertiary} />
-                <Text style={styles.label}>ID Type</Text>
+                <Text style={styles.label}>Primary ID Type</Text>
                 {pills(ID_TYPES, (o) => idType === o, setIdType, "ver-id")}
+                <Text style={styles.label}>Add ID Documents ({idDocs.length}/2 minimum)</Text>
+                {pills(ID_TYPES, (o) => idDraftType === o, setIdDraftType, "ver-iddoc")}
+                {idDraftType === "Other" && (
+                  <TextInput testID="ver-iddoc-other" style={[styles.input, { marginTop: spacing.sm }]} value={idOtherLabel} onChangeText={setIdOtherLabel}
+                    placeholder="Please specify the document type" placeholderTextColor={colors.textTertiary} />
+                )}
+                <SecondaryButton testID="ver-add-iddoc" title="Upload ID Document" onPress={addIdDoc} style={{ marginTop: spacing.md, minHeight: 44 }} />
+                {idDocs.map((d, i) => (
+                  <View key={i} style={styles.docRow} testID={`ver-iddoc-row-${i}`}>
+                    <Ionicons name="id-card" size={15} color={colors.teal} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.docName}>{d.doc_name}</Text>
+                      <Text style={styles.docMeta}>{d.file_name}</Text>
+                    </View>
+                    <Pressable testID={`ver-iddoc-remove-${i}`} onPress={() => setIdDocs(idDocs.filter((_, j) => j !== i))} hitSlop={8}>
+                      <Text style={{ color: colors.pink, fontSize: 12, fontWeight: "800" }}>REMOVE</Text>
+                    </Pressable>
+                  </View>
+                ))}
 
                 <Text style={styles.helper}>Documents are never shown to other users — Orrbbit administrators only. Approval is manual.</Text>
                 {error && <Text testID="ver-error" style={styles.error}>{error}</Text>}

@@ -22,7 +22,11 @@ export default function Index() {
 
   if (!token) return <Redirect href="/(auth)/onboarding" />;
   if (user && !user.email_verified && !user.is_demo) return <Redirect href="/(auth)/verify-email" />;
-  if (!user?.vibe) return <Redirect href="/(auth)/choose-vibe" />;
+  if (!user?.vibe) {
+    // Resume onboarding at the correct incomplete step (never restart completed steps)
+    if ((user?.photos || []).length < 2) return <Redirect href="/(auth)/profile-setup" />;
+    return <Redirect href="/(auth)/choose-vibe" />;
+  }
   return <Redirect href="/(tabs)" />;
 }
 
