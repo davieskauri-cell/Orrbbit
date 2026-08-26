@@ -587,3 +587,7 @@ Implemented (restore point: tag iter53-restore-point):
 - #17 Legacy-safe: no resets, optional new fields, legacy submit path test-verified.
 Tests: tests/test_iter54_prelaunch.py 10/10 + testing-agent extra suite 6/6 + frontend flows pass (iteration_54.json); 66 green across prior suites. Fixed duplicate "Other" pill post-test.
 Owner actions: redeploy (then /api/version=iter52 tag still applies; new flows live), verify Resend key in production sends admin/support + desktop-link emails, real-device QA of verification + onboarding.
+
+## Iter55 — Final pre-launch polish (June 2026) — FIX IMPLEMENTED; PRODUCTION REDEPLOY & OWNER VERIFICATION REQUIRED
+- 71% completion root cause fixed (% = required only; onboarding presents all required incl. new Current city gate); Pending queue status mismatch fixed via NEEDS_REVIEW_STATUSES; Control Centre Notifications centre (real-data, persistent per-admin read state, badge, deep-nav) + Broadcasts rename; Professional header restructured (photo/display name/title/verified + actions row below, filter chips removed); web verification responsive polish; CUSTOMER_WEB_BASE_URL env for orrbbit.com customer links (owner: attach custom domain via Publish panel + support sets env; links keep working on .host until then).
+- Tests: iter55 pytest 10/10, testing agent iteration_55 all green, 56 regression green. Restore point tag iter54-restore-point.
