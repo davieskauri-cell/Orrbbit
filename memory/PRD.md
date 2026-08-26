@@ -591,3 +591,9 @@ Owner actions: redeploy (then /api/version=iter52 tag still applies; new flows l
 ## Iter55 — Final pre-launch polish (June 2026) — FIX IMPLEMENTED; PRODUCTION REDEPLOY & OWNER VERIFICATION REQUIRED
 - 71% completion root cause fixed (% = required only; onboarding presents all required incl. new Current city gate); Pending queue status mismatch fixed via NEEDS_REVIEW_STATUSES; Control Centre Notifications centre (real-data, persistent per-admin read state, badge, deep-nav) + Broadcasts rename; Professional header restructured (photo/display name/title/verified + actions row below, filter chips removed); web verification responsive polish; CUSTOMER_WEB_BASE_URL env for orrbbit.com customer links (owner: attach custom domain via Publish panel + support sets env; links keep working on .host until then).
 - Tests: iter55 pytest 10/10, testing agent iteration_55 all green, 56 regression green. Restore point tag iter54-restore-point.
+
+## Iter56 — Final correction pass (June 2026) — FIX IMPLEMENTED; PRODUCTION REDEPLOY + DOMAIN CONFIG REQUIRED
+- Domain: orrbbit.com routes to a DIFFERENT older deployment (would 404 all links) — links stay on working host; switching is config-only once owner re-points domain + support sets CUSTOMER_WEB_BASE_URL=https://orrbbit.com.
+- Profile Setup: full profile fields added (Country, From/home city, conversation prompt — all optional, testIDs setup-country/setup-home-city/setup-prompt-q/a).
+- Professional Radar: profile header removed from radar top; Filters + Radius controls restored (parity with People radar); payment/fresh filter sheet; Edit/View/Verification actions moved into the requests bottom sheet. Playwright-verified.
+- Tests: iter54+iter55 suites 20/20 green post-change.
