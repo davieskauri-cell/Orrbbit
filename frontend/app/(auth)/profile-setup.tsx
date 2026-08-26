@@ -30,6 +30,10 @@ export default function ProfileSetup() {
   const { user, setUser } = useAuth();
   const [displayName, setDisplayName] = useState((user as any)?.display_name || user?.name || "");
   const [city, setCity] = useState(user?.city || "");
+  const [homeCity, setHomeCity] = useState((user as any)?.home_city || "");
+  const [country, setCountry] = useState((user as any)?.country || "");
+  const [promptQ, setPromptQ] = useState("");
+  const [promptA, setPromptA] = useState("");
   const [bio, setBio] = useState(user?.bio || "");
   const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
@@ -103,7 +107,15 @@ export default function ProfileSetup() {
     setError("");
     setBusy(true);
     try {
-      const updated = await updateProfile({ display_name: displayName.trim(), city: city.trim(), bio, interests: selected });
+      const updated = await updateProfile({
+        display_name: displayName.trim(),
+        city: city.trim(),
+        bio,
+        interests: selected,
+        ...(homeCity.trim() ? { home_city: homeCity.trim() } : {}),
+        ...(country.trim() ? { country: country.trim() } : {}),
+        ...(promptQ.trim() && promptA.trim() ? { prompts: [{ prompt: promptQ.trim(), answer: promptA.trim() }] } : {}),
+      });
       setUser(updated as any);
       router.push("/(auth)/choose-vibe");
     } catch (e: any) {
@@ -147,6 +159,22 @@ export default function ProfileSetup() {
           maxLength={60}
           style={[styles.bioInput, { minHeight: 44 }]}
         />
+
+        <Text style={styles.label}>Country (optional)</Text>
+        <TextInput testID="setup-country" value={country} onChangeText={setCountry} placeholder="e.g. Australia"
+          placeholderTextColor={colors.textTertiary} maxLength={60} style={[styles.bioInput, { minHeight: 44 }]} />
+
+        <Text style={styles.label}>From — home city (optional)</Text>
+        <TextInput testID="setup-home-city" value={homeCity} onChangeText={setHomeCity} placeholder="e.g. Auckland, New Zealand"
+          placeholderTextColor={colors.textTertiary} maxLength={60} style={[styles.bioInput, { minHeight: 44 }]} />
+
+        <Text style={styles.label}>Conversation prompt (optional)</Text>
+        <TextInput testID="setup-prompt-q" value={promptQ} onChangeText={setPromptQ} placeholder="e.g. Ask me about…"
+          placeholderTextColor={colors.textTertiary} maxLength={80} style={[styles.bioInput, { minHeight: 44 }]} />
+        {!!promptQ.trim() && (
+          <TextInput testID="setup-prompt-a" value={promptA} onChangeText={setPromptA} placeholder="Your answer"
+            placeholderTextColor={colors.textTertiary} maxLength={160} style={[styles.bioInput, { minHeight: 44, marginTop: 8 }]} />
+        )}
 
         <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />

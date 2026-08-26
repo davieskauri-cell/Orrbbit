@@ -401,6 +401,10 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
   const [requests, setRequests] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [verRequired, setVerRequired] = useState(false);
+  const [showRadius, setShowRadius] = useState(false);
+  const [showCanHelpFilters, setShowCanHelpFilters] = useState(false);
+  const [payment, setPayment] = useState<string | null>(null);
+  const [freshOnly, setFreshOnly] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -409,12 +413,14 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
       setVerification(mine.verification);
       if (coords && mine.profile) {
         let q = `/professional/requests?lat=${coords.lat}&lng=${coords.lng}`;
+        if (payment) q += `&payment=${encodeURIComponent(payment)}`;
+        if (freshOnly) q += "&max_age_hours=4";
         const res = await api<any>(q);
         setRequests(res.requests);
         setVerRequired(!!res.verification_required);
       }
     } catch {}
-  }, [coords]);
+  }, [coords, payment, freshOnly]);
 
   useEffect(() => {
     load();
@@ -447,32 +453,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
       };
   return (
     <Wrapper testID="can-help-home" {...wrapperProps}>
-      {profile && mapMode ? (
-        <View style={styles.proHeaderCard} testID="pro-profile-card">
-          <View style={styles.proHeaderTop}>
-            <Avatar uri={me?.photo_url} name={me?.display_name || me?.name} size={56} ringColor={colors.teal} />
-            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-              <Text style={styles.proName} numberOfLines={1}>{me?.display_name || me?.name}</Text>
-              <Text style={styles.cardMeta} numberOfLines={1}>
-                {profile.profession}
-                {profile.primary_category ? ` · ${profile.primary_category}` : ""}
-              </Text>
-              <StatusBadge icon="shield-checkmark" label="Verified by Orrbbit" />
-            </View>
-          </View>
-          <View style={styles.proHeaderActions}>
-            <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
-              <Text style={styles.smallBtnText}>Edit Profile</Text>
-            </Pressable>
-            <Pressable testID="view-pro-profile" style={styles.smallBtn} onPress={() => me?.id && router.push(`/professional/profile/${me.id}` as any)}>
-              <Text style={styles.smallBtnText}>View Profile</Text>
-            </Pressable>
-            <Pressable testID="go-verification" style={styles.smallBtn} onPress={() => router.push("/professional/verification")}>
-              <Text style={styles.smallBtnText}>Verification</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : profile ? (
+      {profile && mapMode ? null : profile ? (
         <View style={[styles.card, shadow.card]} testID="pro-profile-card">
           <View style={styles.proRow}>
             <Avatar uri={me?.photo_url} name={me?.name} size={46} ringColor={verification.status === "Approved" ? colors.teal : colors.border} />
@@ -529,6 +510,9 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
               meName={me?.name}
               radiusSetting={me?.radius || 250}
               coords={coords}
+              onRadiusPress={() => setShowRadius(true)}
+              onFilters={() => setShowCanHelpFilters(true)}
+              filterCount={(payment ? 1 : 0) + (freshOnly ? 1 : 0)}
             />
           </View>
           <MapSheet
@@ -538,6 +522,24 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
             refreshing={refreshing}
             setRefreshing={setRefreshing}
           >
+            <View style={styles.proHeaderTop}>
+              <Avatar uri={me?.photo_url} name={me?.display_name || me?.name} size={44} ringColor={colors.teal} />
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text style={styles.proName} numberOfLines={1}>{me?.display_name || me?.name}</Text>
+                <StatusBadge icon="shield-checkmark" label="Verified by Orrbbit" />
+              </View>
+            </View>
+            <View style={[styles.proHeaderActions, { marginBottom: spacing.md }]}>
+              <Pressable testID="edit-pro-profile" style={styles.smallBtn} onPress={() => router.push("/professional/can-help")}>
+                <Text style={styles.smallBtnText}>Edit Profile</Text>
+              </Pressable>
+              <Pressable testID="view-pro-profile" style={styles.smallBtn} onPress={() => me?.id && router.push(`/professional/profile/${me.id}` as any)}>
+                <Text style={styles.smallBtnText}>View Profile</Text>
+              </Pressable>
+              <Pressable testID="go-verification" style={styles.smallBtn} onPress={() => router.push("/professional/verification")}>
+                <Text style={styles.smallBtnText}>Verification</Text>
+              </Pressable>
+            </View>
             {requests.length === 0 && (
               <View style={[styles.card, { alignItems: "center" }]} testID="no-requests-empty">
                 <Text style={styles.cardTitle}>No matching help requests nearby</Text>
@@ -555,6 +557,28 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
               </Pressable>
             ))}
           </MapSheet>
+          <RadiusSheet visible={showRadius} onClose={() => setShowRadius(false)} onChanged={load} />
+          {showCanHelpFilters && (
+            <Pressable style={styles.filterOverlay} onPress={() => setShowCanHelpFilters(false)}>
+              <Pressable style={[styles.previewSheet]} onPress={() => {}}>
+                <View style={styles.sheetHandle} />
+                <Text style={styles.cardTitle}>Filter requests</Text>
+                {["Open to paying", "Free advice"].map((p) => (
+                  <Pressable key={p} testID={`filter-pay-${p.replace(/\s+/g, "-")}`} style={styles.filterRow} onPress={() => setPayment(payment === p ? null : p)}>
+                    <Text style={styles.cardMeta}>{p}</Text>
+                    <Ionicons name={payment === p ? "checkmark-circle" : "ellipse-outline"} size={20} color={payment === p ? colors.teal : colors.border} />
+                  </Pressable>
+                ))}
+                <Pressable testID="filter-fresh" style={styles.filterRow} onPress={() => setFreshOnly(!freshOnly)}>
+                  <Text style={styles.cardMeta}>Posted in the last 4 hours</Text>
+                  <Ionicons name={freshOnly ? "checkmark-circle" : "ellipse-outline"} size={20} color={freshOnly ? colors.teal : colors.border} />
+                </Pressable>
+                <Pressable style={styles.smallBtn} onPress={() => setShowCanHelpFilters(false)}>
+                  <Text style={styles.smallBtnText}>Done</Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
         </>
       )}
     </Wrapper>
@@ -655,8 +679,10 @@ const styles = StyleSheet.create({
   sheetLabel: { color: colors.text, fontSize: font.base, fontWeight: "800" },
   compactProfileRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
   proHeaderCard: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.md },
-  proHeaderTop: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  proHeaderTop: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginBottom: spacing.sm },
   proHeaderActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  filterOverlay: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "rgba(15,23,42,0.35)", justifyContent: "flex-end", zIndex: 40 },
+  filterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   previewOverlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
   previewSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: spacing.xl, gap: spacing.sm, paddingBottom: spacing.xxl },
   previewName: { color: colors.text, fontSize: font.xl, fontWeight: "800" },

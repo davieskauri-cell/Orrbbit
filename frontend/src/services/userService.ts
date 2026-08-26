@@ -3,6 +3,9 @@ import { api } from "@/src/lib/api";
 export const updateProfile = (fields: {
   name?: string;
   display_name?: string;
+  home_city?: string;
+  country?: string;
+  prompts?: { prompt: string; answer: string }[];
   bio?: string;
   interests?: string[];
   photo_url?: string | null;

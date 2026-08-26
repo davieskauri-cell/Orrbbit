@@ -22,12 +22,10 @@ def now_iso():
 def build_web_verification(db, get_current_user, email_service, es_fire, professions: dict,
                            submit_handler, VerificationV2In):
     router = APIRouter(prefix="/verification")
-    # Customer-facing links prefer the official Orrbbit domain once configured.
-    # CUSTOMER_WEB_BASE_URL (e.g. https://orrbbit.com) must actually route to this
-    # backend before it is set — never fake the domain with broken links.
-    PUBLIC_BASE_URL = (os.environ.get("CUSTOMER_WEB_BASE_URL")
-                       or os.environ.get("PUBLIC_BASE_URL")
-                       or os.environ.get("APP_URL") or "").rstrip("/")
+    # Branded orrbbit.com links activate only via CUSTOMER_WEB_BASE_URL — see
+    # email_templates.py note (orrbbit.com currently routes to a different old app).
+    PUBLIC_BASE_URL = ((os.environ.get("CUSTOMER_WEB_BASE_URL") or "").rstrip("/")
+                       or (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("APP_URL") or "").rstrip("/"))
 
     @router.post("/desktop-link")
     async def desktop_link(user: dict = Depends(get_current_user)):
