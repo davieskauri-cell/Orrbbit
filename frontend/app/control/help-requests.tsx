@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Chip, Table, Tr, Td, Badge, Btn, Loading, EmptyText, ErrorState, Pager, ReauthModal } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const STATUSES = ['', 'active', 'paused', 'closed'];
 
@@ -63,7 +64,7 @@ export default function HelpRequests() {
                 <Td flex={1.2}>{r.user?.name || '—'}</Td>
                 <Td flex={0.9}>{r.payment || '—'}</Td>
                 <Td flex={0.8}><Badge status={r.status} /></Td>
-                <Td flex={0.9}>{String(r.created_at || '').slice(0, 10)}</Td>
+                <Td flex={0.9}>{fmtDT(String(r.created_at || ''), true)}</Td>
                 <Td flex={1.6}>
                   <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                     {r.status === 'active' ? <Btn small variant="outline" title="Close" disabled={busy} onPress={() => act(r.id, 'close')} /> : null}

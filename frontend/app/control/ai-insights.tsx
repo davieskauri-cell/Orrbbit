@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Btn, Loading, SectionTitle, Chip, EmptyText, ModalCard } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function AiInsights() {
   const { req, download, mode } = useCC();
@@ -54,7 +55,7 @@ export default function AiInsights() {
           <View key={r.id} style={s.row}>
             <View style={{ flex: 1 }}>
               <Text style={s.name}>{r.label}</Text>
-              <Text style={s.sub}>{String(r.created_at).slice(0, 16).replace('T', ' ')} · {r.generated_by} · {r.model}</Text>
+              <Text style={s.sub}>{fmtDT(String(r.created_at))} · {r.generated_by} · {r.model}</Text>
             </View>
             <Btn small variant="outline" title="View" onPress={() => setViewing(r)} />
             <Btn small variant="ghost" title="PDF" onPress={() => download(`/ai/insights/${r.id}/export?format=pdf`, `ai-report-${r.id.slice(0, 8)}.pdf`).catch((e) => setError(e.message))} />

@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Chip, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, Input, ReauthModal } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const TABS = [
   { key: 'pending', label: 'Pending' }, { key: 'actioned', label: 'Actioned' },
@@ -60,7 +61,7 @@ export default function Reports() {
               <Text style={s.reason}>{r.reason}</Text>
               <Text style={s.sub}>
                 Reported: <Text style={{ color: CC.teal }} onPress={() => r.target?.id && router.push(`/control/user/${r.target.id}` as any)}>{r.target?.name || 'Unknown'}</Text>
-                {'  ·  '}By: {r.reporter?.name || 'Unknown'} · {String(r.created_at).slice(0, 16).replace('T', ' ')}
+                {'  ·  '}By: {r.reporter?.name || 'Unknown'} · {fmtDT(String(r.created_at))}
               </Text>
               {r.details ? <Text style={[s.sub, { marginTop: 4 }]}>&ldquo;{r.details}&rdquo;</Text> : null}
             </View>

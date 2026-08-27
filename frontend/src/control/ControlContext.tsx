@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { setDateTimePrefs } from './datetime';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // The Control Centre can be pointed at a different backend than the product app
@@ -37,6 +38,9 @@ type Ctx = {
   sessionNotice: string | null;
   /** true = last authenticated API call succeeded; false = backend unreachable; null = not yet known. */
   backendOk: boolean | null;
+  /** Display-only date/time preferences (stored timestamps stay UTC). */
+  dtPrefs: { tz: string; fmt: string };
+  setDtPrefs: (tz: string, fmt: string) => void;
   login: (email: string, password: string) => Promise<AdminUser>;
   logout: (notice?: string) => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
@@ -55,6 +59,13 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
   const [booting, setBooting] = useState(true);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [dtPrefs, setDtPrefsState] = useState({ tz: 'UTC', fmt: 'DD-MM-YYYY' });
+
+  const setDtPrefs = useCallback((tz: string, fmt: string) => {
+    setDateTimePrefs(tz, fmt);
+    setDtPrefsState({ tz, fmt });
+    AsyncStorage.multiSet([['cc_tz', tz], ['cc_fmt', fmt]]);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -70,6 +81,11 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
           setAdmin(JSON.parse(a));
         }
         if (n) setSessionNotice(n);
+        const [tz, fmt] = await AsyncStorage.multiGet(['cc_tz', 'cc_fmt']).then((r) => r.map((x) => x[1]));
+        if (tz || fmt) {
+          setDateTimePrefs(tz || 'UTC', fmt || 'DD-MM-YYYY');
+          setDtPrefsState({ tz: tz || 'UTC', fmt: fmt || 'DD-MM-YYYY' });
+        }
         // Only Preview restores a stored data mode. Production always boots LIVE
         // so real users/KPIs are never silently replaced by demo data.
         if (IS_PREVIEW_ENV && (m === 'live' || m === 'demo')) setModeState(m);
@@ -211,8 +227,8 @@ export function ControlProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ admin, token, mode, booting, sessionNotice, backendOk, login, logout, changePassword, reauth, setMode, req, download }),
-    [admin, token, mode, booting, sessionNotice, backendOk, login, logout, changePassword, reauth, setMode, req, download]
+    () => ({ admin, token, mode, booting, sessionNotice, backendOk, dtPrefs, setDtPrefs, login, logout, changePassword, reauth, setMode, req, download }),
+    [admin, token, mode, booting, sessionNotice, backendOk, dtPrefs, setDtPrefs, login, logout, changePassword, reauth, setMode, req, download]
   );
 
   return <ControlCtx.Provider value={value}>{children}</ControlCtx.Provider>;

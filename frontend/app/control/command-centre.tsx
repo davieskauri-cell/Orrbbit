@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Chip, Badge, Loading, EmptyText, ErrorState, Btn } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const CATEGORIES = [
   { key: '', label: 'All' }, { key: 'users', label: 'Users' }, { key: 'professionals', label: 'Professionals' },
@@ -71,7 +72,7 @@ export default function CommandCentre() {
                   {it.extra ? ` (${it.extra})` : ''}
                 </Text>
                 <Text style={s.sub}>
-                  {it.category}{it.location ? ` · ${it.location}` : ''} · {String(it.time).slice(0, 16).replace('T', ' ')}
+                  {it.category}{it.location ? ` · ${it.location}` : ''} · {fmtDT(String(it.time))}
                 </Text>
               </View>
               {it.status ? <Badge status={it.status} /> : null}

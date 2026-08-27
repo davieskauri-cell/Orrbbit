@@ -271,6 +271,10 @@ const styles = StyleSheet.create({
   sub: { color: colors.textSecondary, fontSize: font.base, paddingHorizontal: spacing.xl, marginTop: 2, marginBottom: spacing.md },
   filters: { paddingHorizontal: spacing.xl, gap: spacing.sm, alignItems: "center" },
   capNote: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", paddingVertical: spacing.lg },
+  capCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, gap: 4, alignItems: "center" },
+  capTitle: { color: colors.text, fontSize: font.base, fontWeight: "700", textAlign: "center" },
+  capText: { color: colors.textSecondary, fontSize: font.sm, textAlign: "center" },
+  capLink: { color: colors.teal, fontSize: font.sm, fontWeight: "700", marginTop: 4 },
   filterChip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

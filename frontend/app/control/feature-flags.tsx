@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Loading, ReauthModal, ModalCard, Btn } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function FeatureFlags() {
   const { req, reauth, mode } = useCC();
@@ -52,7 +53,7 @@ export default function FeatureFlags() {
                   {f.inverted ? <Badge status="pending" label="ON = blocked" /> : null}
                 </View>
                 <Text style={s.desc}>{f.desc}</Text>
-                {f.updated_by ? <Text style={s.meta}>Last changed by {f.updated_by} · {String(f.updated_at).slice(0, 16).replace('T', ' ')}</Text> : null}
+                {f.updated_by ? <Text style={s.meta}>Last changed by {f.updated_by} · {fmtDT(String(f.updated_at))}</Text> : null}
               </View>
               <Badge status={f.inverted ? (f.enabled ? 'banned' : 'active') : (f.enabled ? 'active' : 'banned')}
                 label={f.inverted ? (f.enabled ? 'ACTIVE' : 'off') : (f.enabled ? 'enabled' : 'DISABLED')} />

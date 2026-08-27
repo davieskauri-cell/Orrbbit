@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { useCC } from './ControlContext';
 import { CC } from './theme';
 import { Card, SectionTitle, KpiCard, Loading, EmptyText, ErrorState, Badge } from './ui';
+import { fmtDT } from './datetime';
 
 export function BarList({ items, color }: { items: { label: string; count: number }[]; color?: string }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -74,7 +75,7 @@ export default function RadarPanel({ kind }: { kind: 'people' | 'professional' }
               <Text style={s.sub}>{u.city || '—'}{u.vibe ? ` · ${String(u.vibe).replace(/_/g, ' ')}` : ''}{u.primary_category ? ` · ${u.primary_category}` : ''}</Text>
             </View>
             {u.availability ? <Badge status={u.availability === 'Available now' ? 'active' : 'pending'} label={u.availability} /> : null}
-            <Text style={s.sub}>{u.last_active ? String(u.last_active).slice(0, 16).replace('T', ' ') : ''}</Text>
+            <Text style={s.sub}>{u.last_active ? fmtDT(String(u.last_active)) : ''}</Text>
           </View>
         ))}
         {!(data.sample || []).length ? <EmptyText>No activity right now.</EmptyText> : null}

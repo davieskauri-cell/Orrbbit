@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
+import PromptsEditor from "@/src/components/PromptsEditor";
 import { updateProfile, addPhoto, removePhoto } from "@/src/services/userService";
 import PhotoGrid from "@/src/components/PhotoGrid";
 import InterestChip from "@/src/components/InterestChip";
@@ -32,8 +33,7 @@ export default function ProfileSetup() {
   const [city, setCity] = useState(user?.city || "");
   const [homeCity, setHomeCity] = useState((user as any)?.home_city || "");
   const [country, setCountry] = useState((user as any)?.country || "");
-  const [promptQ, setPromptQ] = useState("");
-  const [promptA, setPromptA] = useState("");
+  const [promptItems, setPromptItems] = useState<{ prompt: string; answer: string }[]>([]);
   const [bio, setBio] = useState(user?.bio || "");
   const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
@@ -114,7 +114,9 @@ export default function ProfileSetup() {
         interests: selected,
         ...(homeCity.trim() ? { home_city: homeCity.trim() } : {}),
         ...(country.trim() ? { country: country.trim() } : {}),
-        ...(promptQ.trim() && promptA.trim() ? { prompts: [{ prompt: promptQ.trim(), answer: promptA.trim() }] } : {}),
+        ...(promptItems.some((p) => p.answer.trim())
+          ? { prompts: promptItems.filter((p) => p.answer.trim()).slice(0, 3) }
+          : {}),
       });
       setUser(updated as any);
       router.push("/(auth)/choose-vibe");
@@ -168,13 +170,8 @@ export default function ProfileSetup() {
         <TextInput testID="setup-home-city" value={homeCity} onChangeText={setHomeCity} placeholder="e.g. Auckland, New Zealand"
           placeholderTextColor={colors.textTertiary} maxLength={60} style={[styles.bioInput, { minHeight: 44 }]} />
 
-        <Text style={styles.label}>Conversation prompt (optional)</Text>
-        <TextInput testID="setup-prompt-q" value={promptQ} onChangeText={setPromptQ} placeholder="e.g. Ask me about…"
-          placeholderTextColor={colors.textTertiary} maxLength={80} style={[styles.bioInput, { minHeight: 44 }]} />
-        {!!promptQ.trim() && (
-          <TextInput testID="setup-prompt-a" value={promptA} onChangeText={setPromptA} placeholder="Your answer"
-            placeholderTextColor={colors.textTertiary} maxLength={160} style={[styles.bioInput, { minHeight: 44, marginTop: 8 }]} />
-        )}
+        <Text style={styles.label}>Conversation prompts (optional)</Text>
+        <PromptsEditor prompts={promptItems} onChange={setPromptItems} />
 
         <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />

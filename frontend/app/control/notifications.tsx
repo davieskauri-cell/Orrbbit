@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Chip, Btn, Badge, Loading, EmptyText, ErrorState, SectionTitle, Table, Tr, Td } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const AUDIENCES = [
   { key: 'everyone', label: 'Everyone' }, { key: 'professionals', label: 'Professionals' },
@@ -100,7 +101,7 @@ export default function Notifications() {
                 <Td flex={0.7}>{n.delivered}</Td>
                 <Td flex={0.9}><Badge status={n.status === 'sent' ? 'active' : 'pending'} label={n.status} /></Td>
                 <Td flex={1.3}>{n.created_by}</Td>
-                <Td>{String(n.sent_at || n.scheduled_at || n.created_at || '').slice(0, 16).replace('T', ' ')}</Td>
+                <Td>{fmtDT(String(n.sent_at || n.scheduled_at || n.created_at || ''))}</Td>
               </Tr>
             ))}
           </Table>

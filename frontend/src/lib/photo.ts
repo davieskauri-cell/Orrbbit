@@ -6,8 +6,8 @@ const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || "";
  * database and resolved against the current backend at render time.
  * Includes a stable version param for controlled cache refresh (no random cache-busting).
  */
-export function resolvePhotoUri(uri?: string | null, version?: number | string | null): string | null {
-  if (!uri) return null;
+export function resolvePhotoUri(uri?: string | null, version?: number | string | null): string | undefined {
+  if (!uri) return undefined;
   let out = uri;
   if (uri.startsWith("/api/")) out = `${BACKEND}${uri}`;
   if (version && !out.startsWith("data:")) out += `${out.includes("?") ? "&" : "?"}v=${version}`;

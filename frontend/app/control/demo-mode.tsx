@@ -91,10 +91,10 @@ export default function DemoModeControls() {
 
 const s = StyleSheet.create({
   title: { color: CC.text, fontSize: 16, fontWeight: '800' },
-  desc: { color: CC.textSecondary, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 },
+  desc: { color: CC.sub, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: 1, borderColor: CC.border },
   label: { color: CC.text, fontSize: 14, fontWeight: '700' },
-  hint: { color: CC.textSecondary, fontSize: 12, marginTop: 2 },
+  hint: { color: CC.sub, fontSize: 12, marginTop: 2 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   ok: { color: '#16A34A', fontSize: 13, marginTop: 10, fontWeight: '600' },
   err: { color: '#DC2626', fontSize: 13, marginTop: 10 },

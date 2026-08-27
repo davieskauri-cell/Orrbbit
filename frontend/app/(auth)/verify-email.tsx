@@ -141,7 +141,7 @@ export default function VerifyEmailGate() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, alignItems: "center", paddingHorizontal: spacing.xl },
+  root: { flex: 1, backgroundColor: colors.surface, alignItems: "center", paddingHorizontal: spacing.xl },
   brand: { alignItems: "center", gap: spacing.sm, marginBottom: spacing.xl },
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800", marginBottom: spacing.sm },
   sub: { color: colors.textSecondary, fontSize: font.base, textAlign: "center", lineHeight: 21 },

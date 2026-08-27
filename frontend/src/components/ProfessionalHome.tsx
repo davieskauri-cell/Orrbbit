@@ -70,7 +70,7 @@ export default function ProfessionalHome() {
           { value: "can_help", label: "I Can Help", testID: "role-seg-can", accessibilityLabel: "I can help" },
         ]}
         value={role}
-        onChange={(v) => pickRole(v)}
+        onChange={(v) => pickRole(v as "need_help" | "can_help")}
         style={{ marginTop: 0, marginBottom: spacing.xs }}
       />
       {role === "need_help" ? (

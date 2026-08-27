@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Btn, Loading, SectionTitle, EmptyText, ModalCard, ReauthModal } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function Backups() {
   const { req, download, reauth, admin } = useCC();
@@ -55,7 +56,7 @@ export default function Backups() {
           {!items.length ? <EmptyText>No backups yet. Run your first manual backup above.</EmptyText> : items.map((b) => (
             <View key={b.id} style={s.row}>
               <View style={{ flex: 1 }}>
-                <Text style={s.name}>{String(b.started_at).slice(0, 19).replace('T', ' ')} — {b.size_mb} MB</Text>
+                <Text style={s.name}>{fmtDT(b.started_at)} — {b.size_mb} MB</Text>
                 <Text style={s.sub}>{b.path} · by {b.by}</Text>
               </View>
               <Badge status={b.status === 'completed' ? 'active' : 'banned'} label={b.status} />
@@ -67,7 +68,7 @@ export default function Backups() {
       )}
       <ModalCard visible={!!confirmRestore} title="Restore database?" onClose={() => setConfirmRestore(null)}>
         <Text style={{ color: CC.text, marginBottom: 16 }}>
-          ⚠ This REPLACES the entire current database with the snapshot from {String(confirmRestore?.started_at || '').slice(0, 19).replace('T', ' ')}.
+          ⚠ This REPLACES the entire current database with the snapshot from {fmtDT(confirmRestore?.started_at)}.
           Everything created since then will be lost. Re-authentication is required.
         </Text>
         <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end' }}>

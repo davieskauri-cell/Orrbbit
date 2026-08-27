@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   cancelBtn: { alignItems: "center", paddingVertical: 10, minHeight: 42, justifyContent: "center" },
   cancelText: { color: colors.textSecondary, fontWeight: "600" },
   sheetOverlay: { flex: 1, backgroundColor: "rgba(8,26,53,0.5)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#FFF", borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.sm, maxHeight: "80%" },
+  sheet: { backgroundColor: "#FFF", borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.sm, maxHeight: "80%" },
   sheetHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 4 },
   sheetIconWrap: { alignSelf: "center", width: 48, height: 48, borderRadius: 24, backgroundColor: colors.tealSoft, alignItems: "center", justifyContent: "center" },
   sheetTitle: { color: NAVY, fontSize: font.lg, fontWeight: "800", textAlign: "center" },

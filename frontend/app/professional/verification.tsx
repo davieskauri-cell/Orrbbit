@@ -111,7 +111,7 @@ export default function VerificationScreen() {
                 ...d,
                 doc_name: r.fields.doc_name || d.doc_name,
                 issuer: d.issuer || r.fields.issuer,
-                license_number: d.license_number || r.fields.license_number,
+                doc_number: d.doc_number || r.fields.license_number || "",
                 issue_date: d.issue_date || r.fields.issue_date,
                 expiry_date: d.expiry_date || r.fields.expiry_date,
               }));

@@ -6,6 +6,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const STATUSES = [
   { key: '', label: 'All' }, { key: 'active', label: 'Active' },
@@ -60,7 +61,7 @@ export default function Users() {
                 <Td flex={0.9}>{u.app_mode === 'professional' ? 'Professional' : 'People'}</Td>
                 <Td flex={0.7}>{u.plan || 'free'}</Td>
                 <Td><Badge status={u.admin_status === 'banned' ? 'banned' : u.admin_status === 'hidden_pending_review' ? 'suspended' : 'active'} /></Td>
-                <Td>{String(u.created_at || '').slice(0, 10)}</Td>
+                <Td>{fmtDT(String(u.created_at || ''), true)}</Td>
               </Tr>
             ))}
           </Table>

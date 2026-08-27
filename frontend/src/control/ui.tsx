@@ -63,9 +63,9 @@ export function Input(props: any) {
   return <TextInput placeholderTextColor={CC.sub} {...props} style={[s.input, props.style]} />;
 }
 
-export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) {
+export function Chip({ label, active, onPress, testID }: { label: string; active?: boolean; onPress: () => void; testID?: string }) {
   return (
-    <Pressable onPress={onPress} style={[s.chip, active && { backgroundColor: CC.tealSoft, borderColor: CC.teal }]}>
+    <Pressable testID={testID} onPress={onPress} style={[s.chip, active && { backgroundColor: CC.tealSoft, borderColor: CC.teal }]}>
       <Text style={[s.chipText, active && { color: CC.navy, fontWeight: '700' }]}>{label}</Text>
     </Pressable>
   );

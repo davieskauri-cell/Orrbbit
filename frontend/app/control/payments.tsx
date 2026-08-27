@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Btn, Loading, SectionTitle, Table, Tr, Td, EmptyText } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function Payments() {
   const { req, mode } = useCC();
@@ -37,7 +38,7 @@ export default function Payments() {
           <View style={s.chip}><Text style={s.chipK}>Provider</Text><Badge status="not_configured" label={integ.provider.name || 'none'} /></View>
           <View style={s.chip}><Text style={s.chipK}>Environment</Text><Badge status="not_configured" label={integ.provider.environment || 'n/a'} /></View>
           <View style={s.chip}><Text style={s.chipK}>Webhook</Text><Badge status="pending" label={integ.webhook.status} /></View>
-          <View style={s.chip}><Text style={s.chipK}>Last webhook</Text><Text style={s.chipV}>{integ.webhook.last_received ? String(integ.webhook.last_received).slice(0, 16).replace('T', ' ') : 'never'}</Text></View>
+          <View style={s.chip}><Text style={s.chipK}>Last webhook</Text><Text style={s.chipV}>{integ.webhook.last_received ? fmtDT(String(integ.webhook.last_received)) : 'never'}</Text></View>
           <View style={s.chip}><Text style={s.chipK}>Last sync</Text><Text style={s.chipV}>{integ.last_successful_sync || 'never'}</Text></View>
         </View>
         <Text style={s.sub}>Webhook endpoint: <Text style={{ fontWeight: '700' }}>{integ.webhook.url}</Text> · Supported events: {integ.webhook.supported_events.join(', ')}</Text>
@@ -60,7 +61,7 @@ export default function Payments() {
                 <Td>{String(p.plan).replace('_', ' ')}</Td>
                 <Td flex={0.7}>{`$${p.amount}`}</Td>
                 <Td flex={0.9}><Badge status={p.refunded ? 'closed' : p.status === 'succeeded' ? 'active' : 'banned'} label={p.refunded ? 'refunded' : p.status} /></Td>
-                <Td flex={0.9}>{String(p.created_at).slice(0, 10)}</Td>
+                <Td flex={0.9}>{fmtDT(String(p.created_at), true)}</Td>
                 <Td>
                   {data.actions_enabled && p.status === 'succeeded' && !p.refunded
                     ? <Btn small variant="outline" title="Refund (demo)" onPress={() => refund(p.id)} />

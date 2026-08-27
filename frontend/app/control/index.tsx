@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, KpiCard, Badge, Btn, SectionTitle, MiniChart, Loading, EmptyText, ErrorState } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const KPI_DEFS: [string, string, string?][] = [
   ['total_users', 'Total Users'], ['online_users', 'Online Users'], ['new_users_today', 'New Users Today'],
@@ -96,7 +97,7 @@ export default function Dashboard() {
             <KpiCard label="Email failures (24h)" value={status.email_failures_24h} accent={status.email_failures_24h > 0 ? CC.red : undefined} />
           </View>
           <Text style={{ color: CC.sub, fontSize: 11, marginTop: 8 }}>
-            Last successful email: {status.last_successful_email ? status.last_successful_email.slice(0, 16).replace('T', ' ') : 'none yet'} · Demo data excluded
+            Last successful email: {status.last_successful_email ? fmtDT(status.last_successful_email) : 'none yet'} · Demo data excluded
           </Text>
         </Card>
       ) : null}
@@ -132,7 +133,7 @@ export default function Dashboard() {
           <View key={v.id} style={s.actionRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.actionName}>{v.user?.name} — {v.profession}</Text>
-              <Text style={s.actionSub}>Verification pending since {String(v.submitted_at).slice(0, 10)}</Text>
+              <Text style={s.actionSub}>Verification pending since {fmtDT(String(v.submitted_at), true)}</Text>
             </View>
             <Btn small variant="teal" title="Approve" onPress={() => decide(v.id, 'approve')} />
             <Btn small variant="danger" title="Reject" onPress={() => decide(v.id, 'reject')} />
@@ -143,7 +144,7 @@ export default function Dashboard() {
           <View key={r.id} style={s.actionRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.actionName}>Report — {r.reason}</Text>
-              <Text style={s.actionSub}>By {r.user?.name || 'Unknown'} · {String(r.created_at).slice(0, 10)}</Text>
+              <Text style={s.actionSub}>By {r.user?.name || 'Unknown'} · {fmtDT(String(r.created_at), true)}</Text>
             </View>
             <Btn small variant="outline" title="Review" onPress={() => router.push('/control/reports' as any)} />
           </View>
@@ -200,7 +201,7 @@ function ActivityPreview() {
             <Text style={{ fontWeight: '700' }}>{it.name || 'System'}</Text> · {String(it.type).replace(/_/g, ' ')}
             {it.location ? ` · ${it.location}` : ''}
           </Text>
-          <Text style={s.feedTime}>{String(it.time).slice(0, 16).replace('T', ' ')}</Text>
+          <Text style={s.feedTime}>{fmtDT(String(it.time))}</Text>
         </View>
       ))}
     </View>

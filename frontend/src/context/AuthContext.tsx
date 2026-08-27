@@ -46,6 +46,7 @@ export type User = {
   is_demo: boolean;
   high_density_demo?: boolean;
   app_mode?: string;
+  professional_role?: string | null;
   people_min_age?: number;
   people_max_age?: number;
   people_allow_age_expansion?: boolean;
@@ -85,7 +86,7 @@ type AuthValue = {
   demoLogin: (email?: string) => Promise<User>;
   signOut: () => Promise<void>;
   setUser: (u: User) => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 };
 
 const AuthContext = createContext<AuthValue | undefined>(undefined);

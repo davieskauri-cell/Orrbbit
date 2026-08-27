@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Btn, Loading, EmptyText, ErrorState } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const ICONS: Record<string, string> = {
   verification_review: '🛡️', annual_review_due: '📅', more_info_requested: '📨',
@@ -48,7 +49,7 @@ export default function ControlAlerts() {
       {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
         <>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <Badge label={`${data.unread} unread`} tone={data.unread ? 'orange' : 'green'} />
+            <Badge label={`${data.unread} unread`} status={data.unread ? 'Pending' : 'approved'} />
             <Pressable onPress={() => setFilter(filter === 'all' ? 'unread' : 'all')} style={{ paddingVertical: 4, paddingHorizontal: 10 }}>
               <Text style={{ color: CC.teal, fontWeight: '800', fontSize: 12 }}>{filter === 'all' ? 'Show unread only' : 'Show all'}</Text>
             </Pressable>
@@ -65,7 +66,7 @@ export default function ControlAlerts() {
                   <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                     <Text style={{ fontWeight: n.read ? '600' : '800', color: CC.navy, fontSize: 14 }}>{n.title}</Text>
                     <Text style={{ color: CC.sub, fontSize: 12 }} numberOfLines={2}>{n.desc}</Text>
-                    <Text style={{ color: CC.sub, fontSize: 11 }}>{(n.at || '').slice(0, 16).replace('T', ' ')} · {n.status} · {n.action}</Text>
+                    <Text style={{ color: CC.sub, fontSize: 11 }}>{fmtDT((n.at || ''))} · {n.status} · {n.action}</Text>
                   </View>
                   {!n.read && (
                     <Pressable onPress={() => markRead([n.id])} hitSlop={8}>

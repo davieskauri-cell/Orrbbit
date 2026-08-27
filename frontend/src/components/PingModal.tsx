@@ -64,7 +64,7 @@ export default function PingModal() {
                 {activePing.user.name}, {activePing.user.age}
               </Text>
               <VibePill vibe={vibe} small />
-              <Text style={styles.distance}>{distLabel(activePing.distance)}</Text>
+              {activePing.distance != null && <Text style={styles.distance}>{distLabel(activePing.distance)}</Text>}
             </View>
           </View>
           {!!activePing.user.bio && (

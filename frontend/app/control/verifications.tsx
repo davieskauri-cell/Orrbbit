@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Chip, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, Input } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const QUEUES = [
   { key: 'Pending', label: 'Pending' }, { key: 'Approved', label: 'Verified' },
@@ -62,10 +63,10 @@ export default function Verifications() {
             <View style={{ flex: 1, minWidth: 200 }}>
               <Text style={s.name}>{sub.user?.name} — {sub.profession}</Text>
               <Text style={s.sub}>{sub.user?.email} · {(sub.categories || []).join(', ')}</Text>
-              <Text style={s.sub}>Submitted {String(sub.submitted_at).slice(0, 10)}{sub.valid_until ? ` · valid until ${sub.valid_until}` : ''}</Text>
+              <Text style={s.sub}>Submitted {fmtDT(String(sub.submitted_at), true)}{sub.valid_until ? ` · valid until ${sub.valid_until}` : ''}</Text>
               {sub.credential_last_reviewed_at ? (
                 <Text style={s.sub}>
-                  Reviewed {String(sub.credential_last_reviewed_at).slice(0, 10)} · Next review {String(sub.credential_next_review_at || '').slice(0, 10)}
+                  Reviewed {fmtDT(String(sub.credential_last_reviewed_at), true)} · Next review {fmtDT(String(sub.credential_next_review_at || ''), true)}
                   {sub.review_due ? '  ' : ''}
                 </Text>
               ) : null}

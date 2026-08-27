@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Loading, SectionTitle, Table, Tr, Td, KpiCard, EmptyText, ErrorState } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function Subscriptions() {
   const { req, mode } = useCC();
@@ -56,7 +57,7 @@ export default function Subscriptions() {
                 <Td flex={0.9}><Badge status={sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'new' : sub.status === 'past_due' ? 'pending' : 'closed'} label={sub.status} /></Td>
                 <Td flex={0.8}>{sub.billing_period}</Td>
                 <Td flex={0.6}>{sub.trial ? 'Yes' : '—'}</Td>
-                <Td>{sub.renews_at ? String(sub.renews_at).slice(0, 10) : sub.cancelled_at ? `cancelled ${String(sub.cancelled_at).slice(0, 10)}` : '—'}</Td>
+                <Td>{sub.renews_at ? fmtDT(String(sub.renews_at), true) : sub.cancelled_at ? `cancelled ${fmtDT(String(sub.cancelled_at), true)}` : '—'}</Td>
                 <Td>{sub.provider_ref}</Td>
               </Tr>
             ))}

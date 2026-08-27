@@ -6,6 +6,7 @@ import Shell from '../../../src/control/Shell';
 import { useCC, ApiError } from '../../../src/control/ControlContext';
 import { CC } from '../../../src/control/theme';
 import { Card, Badge, Btn, SectionTitle, Loading, EmptyText, ReauthModal, ModalCard } from '../../../src/control/ui';
+import { fmtDT } from '../../../src/control/datetime';
 
 const ACTIONS: { key: string; label: string; variant: any; confirm: string }[] = [
   { key: 'suspend', label: 'Suspend', variant: 'outline', confirm: 'Suspend this user? They will be hidden from the radar.' },
@@ -122,7 +123,7 @@ export default function UserDetail() {
               <Text style={{ fontSize: 13, color: CC.text, fontWeight: '600' }}>{e.label}</Text>
               {e.detail ? <Text style={s.sub}>{e.detail}</Text> : null}
             </View>
-            <Text style={s.sub}>{String(e.time).slice(0, 16).replace('T', ' ')}</Text>
+            <Text style={s.sub}>{fmtDT(String(e.time))}</Text>
           </View>
         ))}
       </Card>

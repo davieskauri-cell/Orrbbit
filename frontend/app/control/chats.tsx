@@ -5,6 +5,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, SectionTitle } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function Chats() {
   const { req, mode } = useCC();
@@ -57,7 +58,7 @@ export default function Chats() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.name}>{c.participants.map((p: any) => p.name || 'Unknown').join(' ↔ ')}</Text>
-                <Text style={s.sub}>Connected {String(c.created_at).slice(0, 10)} · {c.message_count} messages</Text>
+                <Text style={s.sub}>Connected {fmtDT(String(c.created_at), true)} · {c.message_count} messages</Text>
               </View>
               <Badge status={c.active ? 'active' : 'closed'} label={c.active ? 'active' : 'ended'} />
               <Btn small variant="outline" title="View" onPress={() => openConvo(c)} />
@@ -72,7 +73,7 @@ export default function Chats() {
           <View key={i} style={s.msg}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: CC.navy }}>{m.sender_name || m.sender_id}</Text>
             <Text style={{ fontSize: 13, color: CC.text }}>{m.text || m.body}</Text>
-            <Text style={{ fontSize: 10, color: CC.sub }}>{String(m.created_at || '').slice(0, 16).replace('T', ' ')}</Text>
+            <Text style={{ fontSize: 10, color: CC.sub }}>{fmtDT(String(m.created_at || ''))}</Text>
           </View>
         ))}
       </ModalCard>

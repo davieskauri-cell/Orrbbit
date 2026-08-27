@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC, ApiError } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Table, Tr, Td, Badge, Btn, Loading, EmptyText, SectionTitle, Chip, ReauthModal } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const ROLES = ['super_admin', 'operations', 'verification', 'support', 'moderation', 'marketing', 'finance', 'analytics'];
 
@@ -72,8 +73,8 @@ export default function Admins() {
                     <Td><Badge status="actioned" label={a.role.replace('_', ' ')} /></Td>
                     <Td flex={0.8}><Badge status={a.is_active ? 'active' : 'suspended'} label={a.is_active ? 'active' : 'disabled'} /></Td>
                     <Td><Badge status={a.must_change_password ? 'pending' : 'active'} label={a.must_change_password ? 'change required' : 'set'} /></Td>
-                    <Td flex={1.1}>{a.last_login_at ? String(a.last_login_at).slice(0, 16).replace('T', ' ') : 'Never'}</Td>
-                    <Td>{String(a.created_at || '').slice(0, 10)}</Td>
+                    <Td flex={1.1}>{a.last_login_at ? fmtDT(String(a.last_login_at)) : 'Never'}</Td>
+                    <Td>{fmtDT(String(a.created_at || ''), true)}</Td>
                   </Tr>
                 ))}
               </Table>

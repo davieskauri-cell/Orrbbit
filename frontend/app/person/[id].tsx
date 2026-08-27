@@ -176,7 +176,7 @@ export default function PersonPreview() {
               onMomentumScrollEnd={(e) => setPhotoIdx(Math.min(photos.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / pageW))))}
               testID="profile-gallery"
             >
-              {photos.map((p, i) => (
+              {photos.map((p: string, i: number) => (
                 <Pressable key={`${i}-${p.slice(0, 24)}`} onPress={() => setExpanded(true)} testID={`gallery-photo-${i}`}>
                   {failed[i] ? (
                     <View style={[styles.photoFallback, { width: pageW, height: 400 }]}>
@@ -209,7 +209,7 @@ export default function PersonPreview() {
           )}
           {photos.length > 1 && (
             <View style={styles.dotsRow}>
-              {photos.map((_, i) => (
+              {photos.map((_: string, i: number) => (
                 <View key={i} style={[styles.dot, i === photoIdx && styles.dotActive]} />
               ))}
             </View>
@@ -292,7 +292,7 @@ export default function PersonPreview() {
             <>
               <Text style={styles.sectionLabel}>INTERESTS</Text>
               <View style={styles.chips}>
-                {user.interests.map((i) => (
+                {user.interests.map((i: string) => (
                   <InterestChip key={i} label={i} />
                 ))}
               </View>
@@ -303,7 +303,7 @@ export default function PersonPreview() {
             <>
               <Text style={styles.sectionLabel}>YOU BOTH LIKE</Text>
               <View style={styles.chips} testID="mutual-interests">
-                {user.mutual_interests.slice(0, 4).map((i) => (
+                {user.mutual_interests.slice(0, 4).map((i: string) => (
                   <InterestChip key={i} label={i} selected />
                 ))}
                 {user.mutual_interests.length > 4 && (
@@ -318,7 +318,7 @@ export default function PersonPreview() {
           {!!user.prompts?.length && (
             <>
               <Text style={styles.sectionLabel}>ABOUT ME</Text>
-              {user.prompts.slice(0, 3).map((p, i) => (
+              {user.prompts.slice(0, 3).map((p: { prompt: string; answer: string }, i: number) => (
                 <View key={`${p.prompt}-${i}`} style={styles.promptCard} testID={`profile-prompt-${i}`}>
                   <Text style={styles.promptTitle}>{p.prompt}</Text>
                   <Text style={styles.promptAnswer}>“{p.answer}”</Text>
@@ -405,7 +405,7 @@ export default function PersonPreview() {
             contentOffset={{ x: photoIdx * width, y: 0 }}
             onMomentumScrollEnd={(e) => setPhotoIdx(Math.min(photos.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / width))))}
           >
-            {photos.map((p, i) => (
+            {photos.map((p: string, i: number) => (
               <View key={`x-${i}`} style={{ width, justifyContent: "center" }}>
                 <Image
                   source={{ uri: resolvePhotoUri(p) || p }}

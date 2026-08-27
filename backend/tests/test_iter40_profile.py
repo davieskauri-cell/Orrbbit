@@ -67,11 +67,12 @@ def test_incomplete_profile_hidden_then_visible_when_complete():
     me = requests.get(f"{API}/auth/me", headers=_h(ct)).json()
     assert me["people_discoverable"] is False
     comp = requests.get(f"{API}/users/me/completion", headers=_h(ct)).json()
-    assert comp["discoverable"] is False and len(comp["missing"]) == 2  # photos + bio (email pre-verified in tests)
-    # add 3 photos + 40-char bio + verified email → discoverable
+    assert comp["discoverable"] is False and len(comp["missing"]) == 3  # photos + bio + interests (email pre-verified in tests)
+    # add 3 photos + 40-char bio + 3 interests + verified email → discoverable
     r = requests.put(f"{API}/users/me", headers=_h(ct), json={
         "photos": [IMG % i for i in range(3)],
         "bio": "Marketing person who loves golf, coffee and discovering Melbourne live music.",
+        "interests": ["Golf", "Coffee", "Live music"],
     })
     assert r.status_code == 200, r.text
     _verify_email(cu["id"])
@@ -88,6 +89,7 @@ def test_one_photo_not_enough_two_is():
     requests.put(f"{API}/users/me", headers=_h(ct), json={
         "photos": [IMG % "a"],
         "bio": "A long enough bio that easily satisfies the forty character requirement here.",
+        "interests": ["Golf", "Coffee", "Live music"],
     })
     _verify_email(cu["id"])
     # 1 photo → not discoverable

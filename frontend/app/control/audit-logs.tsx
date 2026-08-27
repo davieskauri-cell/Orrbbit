@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Table, Tr, Td, Badge, Loading, EmptyText, Pager } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function AuditLogs() {
   const { req, mode } = useCC();
@@ -33,7 +34,7 @@ export default function AuditLogs() {
           <Table columns={['When', 'Admin', 'Action', 'Target', 'Mode', 'Changes', 'IP']} widths={[1.1, 1.4, 1.2, 1.3, 0.5, 1.8, 0.8]}>
             {!data.items.length ? <EmptyText>No audit entries.</EmptyText> : data.items.map((a: any) => (
               <Tr key={a.id}>
-                <Td flex={1.1}>{String(a.at).slice(0, 16).replace('T', ' ')}</Td>
+                <Td flex={1.1}>{fmtDT(String(a.at))}</Td>
                 <Td flex={1.4}>{a.admin_email}</Td>
                 <Td flex={1.2}><Badge status={a.action.includes('ban') || a.action.includes('delete') ? 'banned' : 'actioned'} label={a.action} /></Td>
                 <Td flex={1.3}>{`${a.target_type}: ${String(a.target_id).slice(0, 14)}`}</Td>

@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, KpiCard, Badge, SectionTitle, Loading, EmptyText, ErrorState, Table, Tr, Td, Btn } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 export default function SystemHealth() {
   const { req } = useCC();
@@ -64,7 +65,7 @@ export default function SystemHealth() {
           data.queues.scheduled_notifications.map((n: any) => (
             <View key={n.id} style={s.qRow}>
               <Text style={{ fontSize: 13, color: CC.text, flex: 1 }}>{n.title}</Text>
-              <Text style={{ fontSize: 12, color: CC.sub }}>{n.targeted} targets · fires {String(n.scheduled_at).slice(0, 16).replace('T', ' ')}</Text>
+              <Text style={{ fontSize: 12, color: CC.sub }}>{n.targeted} targets · fires {fmtDT(String(n.scheduled_at))}</Text>
             </View>
           ))}
       </Card>

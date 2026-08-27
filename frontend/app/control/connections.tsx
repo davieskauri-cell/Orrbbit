@@ -6,6 +6,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager, KpiCard } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const TABS = [
   { key: 'pending', label: 'Pending' }, { key: 'accepted', label: 'Accepted' },
@@ -59,7 +60,7 @@ export default function Connections() {
                 <Td flex={0.9}>{r.about || 'connect'}</Td>
                 <Td>{String(r.vibe || '').replace(/_/g, ' ')}</Td>
                 <Td flex={0.9}><Badge status={r.display_status} /></Td>
-                <Td>{String(r.created_at || '').slice(0, 16).replace('T', ' ')}</Td>
+                <Td>{fmtDT(String(r.created_at || ''))}</Td>
               </Tr>
             ))}
           </Table>

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import PromptsEditor, { MAX_PROMPTS } from "@/src/components/PromptsEditor";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { showAlert } from "@/src/lib/alert";
@@ -25,19 +26,6 @@ const INTERESTS = [
   "Sport", "Dating", "Study", "Career", "Golf", "Food", "Walking", "Tech",
 ];
 
-const PROMPT_LIBRARY = [
-  "Ask me about...",
-  "My ideal weekend is...",
-  "Something I'm working towards...",
-  "You'll probably find me...",
-  "I'm always up for...",
-  "A random fact about me...",
-  "Currently obsessed with...",
-  "The easiest way to start a conversation with me is...",
-  "I moved here from...",
-  "I'd love to meet people who...",
-];
-const MAX_PROMPTS = 3;
 type Prompt = { prompt: string; answer: string };
 
 export default function EditProfile() {
@@ -55,7 +43,6 @@ export default function EditProfile() {
   const [education, setEducation] = useState(user?.education || "");
   const [languages, setLanguages] = useState(user?.languages || "");
   const [prompts, setPrompts] = useState<Prompt[]>(user?.prompts || []);
-  const [showPromptPicker, setShowPromptPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -140,20 +127,6 @@ export default function EditProfile() {
     }
   };
 
-  const addPrompt = (p: string) => {
-    setPrompts((prev) => [...prev, { prompt: p, answer: "" }]);
-    setShowPromptPicker(false);
-  };
-  const setAnswer = (i: number, answer: string) =>
-    setPrompts((prev) => prev.map((x, idx) => (idx === i ? { ...x, answer } : x)));
-  const removePrompt = (i: number) => setPrompts((prev) => prev.filter((_, idx) => idx !== i));
-  const movePromptUp = (i: number) =>
-    setPrompts((prev) => {
-      if (i === 0) return prev;
-      const next = [...prev];
-      [next[i - 1], next[i]] = [next[i], next[i - 1]];
-      return next;
-    });
 
   const save = async () => {
     setError("");
@@ -242,49 +215,7 @@ export default function EditProfile() {
 
         <Text style={styles.sectionHeading}>Conversation prompts ({prompts.length}/{MAX_PROMPTS})</Text>
         <Text style={styles.hintText}>Optional — give people an easy way to start a conversation.</Text>
-        {prompts.map((p, i) => (
-          <View key={`${p.prompt}-${i}`} style={styles.promptCard} testID={`prompt-card-${i}`}>
-            <View style={styles.promptHead}>
-              <Text style={styles.promptTitle}>{p.prompt}</Text>
-              {i > 0 && (
-                <Pressable testID={`prompt-up-${i}`} onPress={() => movePromptUp(i)} hitSlop={8}>
-                  <Ionicons name="arrow-up" size={16} color={colors.textSecondary} />
-                </Pressable>
-              )}
-              <Pressable testID={`prompt-remove-${i}`} onPress={() => removePrompt(i)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={16} color={colors.pink} />
-              </Pressable>
-            </View>
-            <TextInput
-              testID={`prompt-answer-${i}`}
-              value={p.answer}
-              onChangeText={(t) => setAnswer(i, t)}
-              multiline
-              maxLength={180}
-              style={[styles.input, { minHeight: 60, textAlignVertical: "top" }]}
-              placeholder="Your answer (up to 180 characters)…"
-              placeholderTextColor={colors.textTertiary}
-            />
-          </View>
-        ))}
-        {prompts.length < MAX_PROMPTS && !showPromptPicker && (
-          <Pressable testID="add-prompt" style={styles.addPromptBtn} onPress={() => setShowPromptPicker(true)}>
-            <Ionicons name="add" size={18} color={colors.teal} />
-            <Text style={styles.addPromptText}>Add a prompt</Text>
-          </Pressable>
-        )}
-        {showPromptPicker && (
-          <View style={styles.promptPicker} testID="prompt-picker">
-            {PROMPT_LIBRARY.filter((p) => !prompts.some((x) => x.prompt === p)).map((p) => (
-              <Pressable key={p} testID={`prompt-option-${p.slice(0, 12)}`} style={styles.promptOption} onPress={() => addPrompt(p)}>
-                <Text style={styles.promptOptionText}>{p}</Text>
-              </Pressable>
-            ))}
-            <Pressable onPress={() => setShowPromptPicker(false)} style={{ alignSelf: "center", padding: spacing.sm }}>
-              <Text style={{ color: colors.textSecondary, fontWeight: "700" }}>Cancel</Text>
-            </Pressable>
-          </View>
-        )}
+        <PromptsEditor prompts={prompts} onChange={setPrompts} />
 
         <Text style={styles.sectionHeading}>Interests</Text>
         <View style={styles.chips}>

@@ -4,6 +4,7 @@ import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, SectionTitle, KpiCard, Badge, Btn, Input, Table, Tr, Td, EmptyText, Loading, Pager, ModalCard, Chip } from '../../src/control/ui';
+import { fmtDT } from '../../src/control/datetime';
 
 const TABS = ['Templates', 'Events', 'Failures & Bounces'];
 
@@ -134,7 +135,7 @@ export default function EmailsAdmin() {
               <Table columns={['When', 'Template', 'To', 'Subject', 'Status', 'Resend ID', '']} widths={[1, 1.2, 1.4, 1.5, 0.7, 1, 0.7]}>
                 {!events.items.length ? <EmptyText>No email events.</EmptyText> : events.items.map((e: any) => (
                   <Tr key={e.id}>
-                    <Td flex={1}>{String(e.created_at).slice(0, 16).replace('T', ' ')}</Td>
+                    <Td flex={1}>{fmtDT(String(e.created_at))}</Td>
                     <Td flex={1.2}><Text style={{ fontSize: 11, fontWeight: '600', color: CC.navy }}>{e.template}{e.is_test ? ' (test)' : ''}</Text></Td>
                     <Td flex={1.4}><Text style={{ fontSize: 11 }} numberOfLines={1}>{e.to_email}</Text></Td>
                     <Td flex={1.5}><Text style={{ fontSize: 11, color: CC.sub }} numberOfLines={1}>{e.subject}</Text></Td>
@@ -172,12 +173,12 @@ export default function EmailsAdmin() {
             </Card>
           ) : null}
           <Card>
-            <SectionTitle>Scheduler last run: {stats.scheduler_last_run ? String(stats.scheduler_last_run).slice(0, 19).replace('T', ' ') : 'not yet'}</SectionTitle>
+            <SectionTitle>Scheduler last run: {stats.scheduler_last_run ? fmtDT(stats.scheduler_last_run) : 'not yet'}</SectionTitle>
             <SectionTitle>Recent failures</SectionTitle>
             <Table columns={['When', 'Template', 'To', 'Reason', '']} widths={[1, 1.2, 1.4, 2, 0.7]}>
               {!stats.recent_failures.length ? <EmptyText>No failures 🎉</EmptyText> : stats.recent_failures.map((e: any) => (
                 <Tr key={e.id}>
-                  <Td flex={1}>{String(e.created_at).slice(0, 16).replace('T', ' ')}</Td>
+                  <Td flex={1}>{fmtDT(String(e.created_at))}</Td>
                   <Td flex={1.2}>{e.template}</Td>
                   <Td flex={1.4}><Text style={{ fontSize: 11 }} numberOfLines={1}>{e.to_email}</Text></Td>
                   <Td flex={2}><Text style={{ fontSize: 10, color: CC.red }} numberOfLines={2}>{e.failure_reason}</Text></Td>
@@ -193,7 +194,7 @@ export default function EmailsAdmin() {
                 <Tr key={s.email}>
                   <Td flex={1.6}>{s.email}</Td>
                   <Td flex={1}><Badge status="banned" label={s.reason} /></Td>
-                  <Td flex={1}>{String(s.created_at).slice(0, 10)}</Td>
+                  <Td flex={1}>{fmtDT(String(s.created_at), true)}</Td>
                   <Td flex={0.8}><Btn small title="Remove" onPress={() => unsuppress(s.email)} /></Td>
                 </Tr>
               ))}

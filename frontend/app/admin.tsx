@@ -55,7 +55,7 @@ export default function AdminScreen() {
         <View style={{ marginTop: spacing.xl, alignItems: "center", gap: spacing.md }}>
           <Text style={styles.sub}>{error}</Text>
           <Pressable onPress={load} style={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.teal }}>
-            <Text style={{ color: "#fff", fontFamily: font.bold }}>Retry</Text>
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Retry</Text>
           </Pressable>
         </View>
       ) : null}
