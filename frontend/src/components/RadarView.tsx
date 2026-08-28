@@ -77,6 +77,7 @@ type ZoomSV = { scale: SharedValue<number>; tx: SharedValue<number>; ty: SharedV
 function MapAnchor({
   cx,
   cy,
+  oy = CY,
   w,
   h,
   z,
@@ -85,6 +86,7 @@ function MapAnchor({
 }: {
   cx: number;
   cy: number;
+  oy?: number;
   w: number;
   h: number;
   z: ZoomSV;
@@ -94,7 +96,7 @@ function MapAnchor({
   const a = useAnimatedStyle(() => ({
     transform: [
       { translateX: z.tx.value + CX + (cx - CX) * z.scale.value - w / 2 },
-      { translateY: z.ty.value + CY + (cy - CY) * z.scale.value - h / 2 },
+      { translateY: z.ty.value + oy + (cy - oy) * z.scale.value - h / 2 },
     ],
   }));
   return (
@@ -108,18 +110,20 @@ function MapAnchor({
 function ZoomRing({
   m,
   maxDist,
+  maxR = MAX_R,
   z,
   selected,
   active,
 }: {
   m: number;
   maxDist: number;
+  maxR?: number;
   z: ZoomSV;
   selected: boolean;
   active: boolean;
 }) {
   const a = useAnimatedStyle(() => {
-    const r = (m / maxDist) * MAX_R * z.scale.value;
+    const r = (m / maxDist) * maxR * z.scale.value;
     return {
       width: r * 2,
       height: r * 2,
@@ -143,15 +147,15 @@ function ZoomRing({
 }
 
 /** Ring distance label — crisp text that tracks its ring under zoom/pan. */
-function RingLabelA({ m, maxDist, z }: { m: number; maxDist: number; z: ZoomSV }) {
+function RingLabelA({ m, maxDist, maxR = MAX_R, cy = CY, z }: { m: number; maxDist: number; maxR?: number; cy?: number; z: ZoomSV }) {
   const a = useAnimatedStyle(() => ({
     transform: [
       { translateX: z.tx.value },
-      { translateY: z.ty.value + CY - (m / maxDist) * MAX_R * z.scale.value - 14 - CY },
+      { translateY: z.ty.value - (m / maxDist) * maxR * z.scale.value - 14 },
     ],
   }));
   return (
-    <Reanimated.View pointerEvents="none" style={[styles.ringLabelWrap, a]}>
+    <Reanimated.View pointerEvents="none" style={[styles.ringLabelWrap, { top: cy }, a]}>
       <Text style={styles.ringLabel}>{m >= 1000 ? "1 km" : `${m}m`}</Text>
     </Reanimated.View>
   );
@@ -180,9 +184,17 @@ type Props = {
   onRadiusPress?: () => void;
   onLearnMore?: () => void;
   filterCount?: number;
+  /** Optional dynamic height — when provided the radar fills that space
+   *  (used by the Professional Radar to occupy all available screen height).
+   *  Defaults to the classic MAP_H so the People radar is unchanged. */
+  height?: number;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height }: Props) {
+  // dynamic vertical geometry — centre and max ring radius derive from the real height
+  const mapH = Math.max(300, Math.round(height || MAP_H));
+  const cy = mapH / 2;
+  const maxR = Math.min(mapH / 2 - 26, MAP_W / 2 - 10); // rings never crop off-screen horizontally
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -238,7 +250,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
     .maxPointers(1)
     .onUpdate((e) => {
       const boundX = ((scale.value - 1) * MAP_W) / 2;
-      const boundY = ((scale.value - 1) * MAP_H) / 2;
+      const boundY = ((scale.value - 1) * mapH) / 2;
       tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
       ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
     })
@@ -312,12 +324,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   // place nearby users (fuzzed positions only) — centre coordinates in map space
   const placed = users.map((u) => {
     const approx = getApproximateDisplayLocation(u, radiusSetting);
-    const r = Math.min(approx.distance / MAX_DIST, 1) * MAX_R;
+    const r = Math.min(approx.distance / MAX_DIST, 1) * maxR;
     const rad = (approx.bearing * Math.PI) / 180;
     return {
       u,
       x: CX + r * Math.sin(rad),
-      y: CY - r * Math.cos(rad),
+      y: cy - r * Math.cos(rad),
       color: (u as any).pro ? colors.teal : (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
       bearing: approx.bearing,
       dist: approx.distance,
@@ -380,7 +392,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
         singles[i] = {
           ...singles[i],
           x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 26), MAP_W - 26),
-          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 26), MAP_H - 26),
+          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 26), mapH - 26),
         };
       }
     }
@@ -388,11 +400,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   // keep the centre clear — nothing may sit under the "You" marker (it would block taps)
   const clearCentre = (px: number, py: number, brg: number, min: number) => {
     const dx = px - CX;
-    const dy = py - CY;
+    const dy = py - cy;
     const d = Math.hypot(dx, dy);
     if (d >= min) return { x: px, y: py };
     const ang = d > 0.5 ? Math.atan2(dy, dx) : ((brg - 90) * Math.PI) / 180;
-    return { x: CX + Math.cos(ang) * min, y: CY + Math.sin(ang) * min };
+    return { x: CX + Math.cos(ang) * min, y: cy + Math.sin(ang) * min };
   };
   singles = singles.map((p) => ({ ...p, ...clearCentre(p.x, p.y, p.bearing, 52) }));
   clusters = clusters.map((c) => ({ ...c, ...clearCentre(c.x, c.y, 0, 56) }));
@@ -423,9 +435,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   });
 
   return (
-    <View style={styles.mapArea} testID="radar-map">
+    <View style={[styles.mapArea, { height: mapH }]} testID="radar-map">
       <GestureDetector gesture={gestures}>
-        <View style={styles.radar}>
+        <View style={[styles.radar, { height: mapH }]}>
           {/* WORLD LAYER — only this zooms/pans (tiles + soft visuals) */}
           <Reanimated.View style={[styles.worldLayer, zoomStyle]} pointerEvents="none">
             {/* bright bird's-eye map centred on YOUR actual location (subtle 3D tilt) */}
@@ -435,13 +447,13 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                 <View
                   style={{
                     width: MAP_W * 2,
-                    height: MAP_H * 2,
+                    height: mapH * 2,
                     marginLeft: -MAP_W / 2,
-                    marginTop: -MAP_H / 2,
+                    marginTop: -mapH / 2,
                     transform: [{ scale: 0.5 }],
                   }}
                 >
-                  <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W * 2} height={MAP_H * 2} zoom={zoom + 1} />
+                  <MapTiles lat={loc.lat} lng={loc.lng} width={MAP_W * 2} height={mapH * 2} zoom={zoom + 1} />
                 </View>
                 {/* HIGH-DETAIL layer — sharper, higher-zoom tiles load on top while zoomed in */}
                 {tileBoost >= 2 && (
@@ -449,9 +461,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                     style={{
                       position: "absolute",
                       left: (-MAP_W * 3) / 2,
-                      top: (-MAP_H * 3) / 2,
+                      top: (-mapH * 3) / 2,
                       width: MAP_W * 4,
-                      height: MAP_H * 4,
+                      height: mapH * 4,
                       transform: [{ scale: 0.25 }],
                     }}
                   >
@@ -459,7 +471,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                       lat={loc.lat}
                       lng={loc.lng}
                       width={MAP_W * 4}
-                      height={MAP_H * 4}
+                      height={mapH * 4}
                       zoom={zoom + 2}
                       showFallback={false}
                     />
@@ -491,20 +503,20 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
               style={[
                 styles.radiusFill,
                 {
-                  width: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                  height: MAX_R * 2 * (radiusSetting / MAX_DIST),
-                  borderRadius: MAX_R * (radiusSetting / MAX_DIST),
+                  width: maxR * 2 * (radiusSetting / MAX_DIST),
+                  height: maxR * 2 * (radiusSetting / MAX_DIST),
+                  borderRadius: maxR * (radiusSetting / MAX_DIST),
                 },
               ]}
             />
 
             {/* rotating sweep */}
-            <Animated.View pointerEvents="none" style={[styles.sweep, { transform: [{ rotate }] }]}>
+            <Animated.View pointerEvents="none" style={[styles.sweep, { width: maxR, height: maxR, top: cy - maxR }, { transform: [{ rotate }] }]}>
               <LinearGradient
                 colors={["rgba(32,178,170,0.28)", "rgba(255,90,31,0.05)", "rgba(32,178,170,0)"]}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
-                style={styles.sweepGrad}
+                style={[styles.sweepGrad, { borderTopRightRadius: maxR }]}
               />
             </Animated.View>
 
@@ -518,10 +530,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           {/* OVERLAY LAYER — crisp components positioned by coordinates, never scaled */}
           <View style={styles.overlayLayer}>
             {rings.map((m) => (
-              <ZoomRing key={m} m={m} maxDist={MAX_DIST} z={z} selected={m === radiusSetting} active={m <= radiusSetting} />
+              <ZoomRing key={m} m={m} maxDist={MAX_DIST} maxR={maxR} z={z} selected={m === radiusSetting} active={m <= radiusSetting} />
             ))}
             {rings.map((m) => (
-              <RingLabelA key={`label-${m}`} m={m} maxDist={MAX_DIST} z={z} />
+              <RingLabelA key={`label-${m}`} m={m} maxDist={MAX_DIST} maxR={maxR} cy={cy} z={z} />
             ))}
 
             {/* me (exact position — visible only to you) */}
@@ -543,6 +555,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                   key={p.u.id}
                   cx={p.x}
                   cy={p.y}
+                  oy={cy}
                   w={size}
                   h={size}
                   z={z}
@@ -608,7 +621,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
 
             {/* clusters — adaptive pill markers: [count badge][content-width label] */}
             {clusterInfo.map((c) => (
-              <MapAnchor key={`cluster-${c.key}`} cx={c.x} cy={c.y} w={c.w} h={34} z={z} style={styles.blip}>
+              <MapAnchor key={`cluster-${c.key}`} cx={c.x} cy={c.y} oy={cy} w={c.w} h={34} z={z} style={styles.blip}>
                 {c.label ? (
                   <AdaptiveRadarPillMarker
                     testID={`radar-cluster-${c.key}`}

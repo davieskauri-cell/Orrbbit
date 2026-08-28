@@ -183,6 +183,7 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
   );
 
   const sheetLabel = `${shown.length} professional${shown.length === 1 ? "" : "s"} nearby`;
+  const [mapAreaH, setMapAreaH] = useState(0);
 
   return (
     <View style={{ flex: 1 }} testID="need-help-home">
@@ -198,9 +199,12 @@ function NeedHelpHome({ vibeMap, coords, me }: any) {
         />
       </View>
 
-      {/* Radius + Filters render on the map — same components & size as the People Radar */}
-      <View style={{ flex: 1, justifyContent: "flex-start" }}>
+      {/* Radius + Filters render on the map — same components & size as the People Radar.
+          The radar fills all remaining vertical space (measured, not fixed) so no blank
+          gap appears between the map and the bottom sheet on any screen height. */}
+      <View style={{ flex: 1, justifyContent: "flex-start" }} onLayout={(e) => setMapAreaH(Math.round(e.nativeEvent.layout.height))}>
         <RadarView
+          height={mapAreaH || undefined}
           users={shown.map((p: any) => ({
             id: `pro:${p.user_id}`,
             name: p.name,
@@ -405,6 +409,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
   const [showCanHelpFilters, setShowCanHelpFilters] = useState(false);
   const [payment, setPayment] = useState<string | null>(null);
   const [freshOnly, setFreshOnly] = useState(false);
+  const [mapAreaH, setMapAreaH] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -501,8 +506,11 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
 
       {profile && !verRequired && (
         <>
-          <View style={{ flex: 1 }}>
+          {/* Radar fills all remaining vertical space (measured) — the requests sheet
+              overlays its bottom edge like a modern map app, never a blank gap. */}
+          <View style={{ flex: 1 }} onLayout={(e) => setMapAreaH(Math.round(e.nativeEvent.layout.height))}>
             <RadarView
+              height={mapAreaH || undefined}
               users={reqUsers as any}
               vibeMap={vibeMap}
               onSelect={(u: any) => router.push(`/professional/request/${u.id.slice(4)}`)}
@@ -518,6 +526,7 @@ function CanHelpHome({ coords, vibeMap, me }: any) {
           <MapSheet
             testID="req-sheet"
             collapsedLabel={`${requests.length} matching request${requests.length === 1 ? "" : "s"} nearby`}
+            collapsedHint={requests.length === 0 ? "Increase your radius or adjust filters to find more" : undefined}
             onRefresh={load}
             refreshing={refreshing}
             setRefreshing={setRefreshing}
@@ -610,13 +619,18 @@ const qcStyles = StyleSheet.create({
   text: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
 });
 
-function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, setRefreshing }: any) {
+function MapSheet({ collapsedLabel, collapsedHint, children, testID, onRefresh, refreshing, setRefreshing }: any) {
   const [expanded, setExpanded] = useState(false);
   const H = Math.round(Dimensions.get("window").height * 0.52);
-  const anim = useRef(new RNAnimated.Value(56)).current;
+  const COLLAPSED = collapsedHint ? 76 : 56;
+  const anim = useRef(new RNAnimated.Value(COLLAPSED)).current;
+  useEffect(() => {
+    if (!expanded) anim.setValue(COLLAPSED);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [COLLAPSED]);
   const toggle = (open: boolean) => {
     setExpanded(open);
-    RNAnimated.spring(anim, { toValue: open ? H : 56, useNativeDriver: false, friction: 10 }).start();
+    RNAnimated.spring(anim, { toValue: open ? H : COLLAPSED, useNativeDriver: false, friction: 10 }).start();
   };
   const pan = useRef(
     PanResponder.create({
@@ -635,6 +649,9 @@ function MapSheet({ collapsedLabel, children, testID, onRefresh, refreshing, set
           <Text style={styles.sheetLabel}>{collapsedLabel}</Text>
           <Ionicons name={expanded ? "chevron-down" : "chevron-up"} size={16} color={colors.textSecondary} />
         </View>
+        {!!collapsedHint && !expanded && (
+          <Text style={styles.sheetHint} numberOfLines={1}>{collapsedHint}</Text>
+        )}
       </Pressable>
       {expanded && (
         <ScrollView
@@ -677,6 +694,7 @@ const styles = StyleSheet.create({
   sheetHeader: { paddingHorizontal: spacing.lg, paddingTop: 6, paddingBottom: spacing.sm, gap: 6 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center" },
   sheetLabel: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  sheetHint: { color: colors.textSecondary, fontSize: font.sm, marginTop: -2 },
   compactProfileRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
   proHeaderCard: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md, gap: spacing.md },
   proHeaderTop: { flexDirection: "row", alignItems: "center", gap: spacing.lg, marginBottom: spacing.sm },
