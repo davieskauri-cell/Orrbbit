@@ -17,7 +17,12 @@ const FILTERS = [
   { key: "coffee_drinks", label: "Coffee" },
   { key: "networking", label: "Networking" },
   { key: "need_advice", label: "Need Advice" },
-  { key: "gym_buddy", label: "Gym Buddy" },
+  { key: "gym_buddy", label: "Activity Buddy" },
+  { key: "new_friends", label: "New Friends" },
+  { key: "going_out", label: "Going Out" },
+  { key: "events", label: "Events" },
+  { key: "new_to_area", label: "New to Area" },
+  { key: "travelling", label: "Travelling" },
   { key: "exploring", label: "Exploring" },
 ];
 

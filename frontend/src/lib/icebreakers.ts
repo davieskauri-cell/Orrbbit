@@ -28,13 +28,38 @@ export const ICEBREAKERS: Record<string, string[]> = {
   ],
   gym_buddy: [
     "Hey, are you {name} from Orrbbit?",
-    "Looks like we both want a training partner.",
+    "Looks like we both want an activity buddy.",
     "What are you training today?",
   ],
   exploring: [
     "Hey, are you {name} from Orrbbit?",
     "Up for exploring the area together?",
     "Found anything cool around here?",
+  ],
+  new_friends: [
+    "Hey, are you {name} from Orrbbit?",
+    "Looks like we're both up for making new friends.",
+    "How's your week going?",
+  ],
+  going_out: [
+    "Hey, are you {name} from Orrbbit?",
+    "Looks like we both want to go out.",
+    "Know anywhere good around here tonight?",
+  ],
+  events: [
+    "Hey, are you {name} from Orrbbit?",
+    "Are you here for the event too?",
+    "What brings you along today?",
+  ],
+  new_to_area: [
+    "Hey, are you {name} from Orrbbit?",
+    "I saw you're new to the area — welcome!",
+    "How are you finding it so far?",
+  ],
+  travelling: [
+    "Hey, are you {name} from Orrbbit?",
+    "I saw you're visiting — how's the trip going?",
+    "Want any local tips while you're here?",
   ],
 };
 

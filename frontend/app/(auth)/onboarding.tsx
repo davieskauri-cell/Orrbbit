@@ -22,7 +22,7 @@ const PEOPLE_VIBES = [
   { label: "Networking", color: colors.teal },
   { label: "Coffee / Drinks", color: colors.orange },
   { label: "Relationship", color: colors.pink },
-  { label: "Gym Buddy", color: colors.success },
+  { label: "Activity Buddy", color: colors.success },
   { label: "Events", color: colors.orange },
   { label: "Campus", color: colors.purple },
 ];

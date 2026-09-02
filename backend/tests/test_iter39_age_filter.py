@@ -52,6 +52,7 @@ def _make_discoverable(user_id: str):
         "photos": [f"https://picsum.photos/seed/{user_id[:6]}-{i}/400/400" for i in range(3)],
         "bio": "Test profile bio that is comfortably longer than forty characters for discovery.",
         "email_verified": True,
+        "interests": ["Coffee", "Music", "Sport"],  # iter55 gate: 3+ interests required
     }})
     client.close()
 

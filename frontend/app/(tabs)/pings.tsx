@@ -17,8 +17,13 @@ const PHRASE: Record<string, string> = {
   open_to_chat: "is open to chat",
   coffee_drinks: "is up for coffee",
   relationship: "wants something real",
-  gym_buddy: "wants to train",
+  gym_buddy: "wants an activity buddy",
   exploring: "is exploring nearby",
+  new_friends: "wants to make new friends",
+  going_out: "wants to go out",
+  events: "is up for an event",
+  new_to_area: "is new to the area",
+  travelling: "is travelling and wants to meet people",
 };
 
 function timeAgo(iso: string) {

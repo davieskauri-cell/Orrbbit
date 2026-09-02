@@ -64,6 +64,8 @@ export type Vibe = {
   icon: string;
   ping_title: string | null;
   action: string | null;
+  hidden?: boolean;
+  extra?: boolean;
 };
 
 export type Ping = {

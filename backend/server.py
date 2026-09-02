@@ -497,22 +497,34 @@ VIBES = [
     {"key": "coffee_drinks", "label": "Coffee / Drinks", "description": "Grab a coffee or drink", "color": "#FF5A1F", "icon": "cafe", "ping_title": "Someone nearby is up for coffee ☕", "action": "Grab a Coffee"},
     {"key": "networking", "label": "Networking", "description": "Meet professionals", "color": "#20B2AA", "icon": "briefcase", "ping_title": "Someone nearby wants to network 💼", "action": "Let's Connect"},
     {"key": "need_advice", "label": "Need Advice", "description": "Get or offer advice", "color": "#8B5CF6", "icon": "help-circle", "ping_title": "Someone nearby needs advice 💬", "action": "Offer Advice"},
-    {"key": "gym_buddy", "label": "Gym Buddy", "description": "Train together", "color": "#22C55E", "icon": "barbell", "ping_title": "Someone nearby wants to train 🏋️", "action": "Let's Train"},
-    {"key": "exploring", "label": "Exploring", "description": "Discover nearby", "color": "#F59E0B", "icon": "walk", "ping_title": "Someone nearby wants to explore 🧭", "action": "Explore Together"},
+    # Activity Buddy keeps the original gym_buddy key so existing users migrate automatically.
+    {"key": "gym_buddy", "label": "Activity Buddy", "description": "Train, run or play together", "color": "#22C55E", "icon": "fitness", "ping_title": "Someone nearby wants an activity buddy 🏃", "action": "Team Up"},
+    {"key": "new_friends", "label": "New Friends", "description": "Make new friends nearby", "color": "#3B82F6", "icon": "people", "ping_title": "Someone nearby wants to make new friends 👋", "action": "Say Hi"},
+    {"key": "going_out", "label": "Going Out", "description": "Find people to hang out with", "color": "#EC4899", "icon": "musical-notes", "ping_title": "Someone nearby wants to go out 🎉", "action": "Let's Hang"},
+    {"key": "events", "label": "Events", "description": "Meet at local events", "color": "#0EA5E9", "icon": "calendar", "ping_title": "Someone nearby is up for an event 🎟️", "action": "Meet Up"},
+    {"key": "new_to_area", "label": "New to the Area", "description": "Recently moved here", "color": "#10B981", "icon": "map", "ping_title": "Someone new to the area wants to meet people 📍", "action": "Say Welcome"},
+    {"key": "travelling", "label": "Travelling", "description": "Visiting and want to meet people", "color": "#6366F1", "icon": "airplane", "ping_title": "A traveller nearby wants to meet people ✈️", "action": "Say Hello"},
+    # "extra" vibes live under the "More Options" section of the picker.
+    {"key": "exploring", "label": "Exploring", "description": "Discover nearby", "color": "#F59E0B", "icon": "walk", "ping_title": "Someone nearby wants to explore 🧭", "action": "Explore Together", "extra": True},
     {"key": "opportunity", "label": "Opportunity", "description": "Legacy — moved to Professional Mode", "color": "#F59E0B", "icon": "sparkles", "ping_title": "Opportunity nearby ✨", "action": "Connect to Discuss", "hidden": True},
-    {"key": "busy", "label": "Busy", "description": "Not available", "color": "#9CA3AF", "icon": "notifications-off", "ping_title": None, "action": None},
+    {"key": "busy", "label": "Busy", "description": "Not available", "color": "#9CA3AF", "icon": "notifications-off", "ping_title": None, "action": None, "extra": True},
 ]
 VIBE_KEYS = {v["key"] for v in VIBES}
 
 COMPAT = {
-    "open_to_chat": ["open_to_chat", "coffee_drinks", "exploring", "networking", "need_advice", "opportunity"],
+    "open_to_chat": ["open_to_chat", "coffee_drinks", "exploring", "networking", "need_advice", "opportunity", "new_friends", "going_out", "events", "new_to_area", "travelling"],
     "relationship": ["relationship"],
-    "coffee_drinks": ["open_to_chat", "coffee_drinks", "exploring"],
-    "networking": ["networking", "open_to_chat", "need_advice", "opportunity"],
+    "coffee_drinks": ["open_to_chat", "coffee_drinks", "exploring", "new_friends", "going_out", "new_to_area", "travelling"],
+    "networking": ["networking", "open_to_chat", "need_advice", "opportunity", "events"],
     "need_advice": ["need_advice", "networking", "open_to_chat", "opportunity"],
-    "gym_buddy": ["gym_buddy", "open_to_chat"],
-    "exploring": ["exploring", "coffee_drinks", "open_to_chat"],
+    "gym_buddy": ["gym_buddy", "open_to_chat", "new_friends"],
+    "exploring": ["exploring", "coffee_drinks", "open_to_chat", "new_friends", "new_to_area", "travelling"],
     "opportunity": ["opportunity", "networking", "need_advice", "open_to_chat"],
+    "new_friends": ["new_friends", "open_to_chat", "coffee_drinks", "going_out", "events", "new_to_area", "travelling", "exploring", "gym_buddy"],
+    "going_out": ["going_out", "coffee_drinks", "new_friends", "open_to_chat", "travelling", "events"],
+    "events": ["events", "going_out", "networking", "new_friends", "open_to_chat"],
+    "new_to_area": ["new_to_area", "new_friends", "open_to_chat", "coffee_drinks", "exploring", "travelling"],
+    "travelling": ["travelling", "new_friends", "open_to_chat", "coffee_drinks", "going_out", "exploring", "new_to_area"],
     "busy": [],
 }
 

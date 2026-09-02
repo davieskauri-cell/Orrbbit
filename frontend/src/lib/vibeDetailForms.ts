@@ -77,11 +77,38 @@ export const VIBE_FORMS: Record<string, DetailField[]> = {
     { key: "tags", label: "Tags", type: "multi", options: ["Career", "HR", "Business", "Study", "Life", "Fitness", "Confidence", "Next Steps"] },
   ],
   gym_buddy: [
-    { key: "training_type", label: "Training type", type: "multi", options: ["Weights", "Cardio", "Running", "Walking", "Boxing", "Yoga", "Pilates", "CrossFit", "Sport", "Golf", "General fitness"] },
+    { key: "training_type", label: "Activity type", type: "multi", options: ["Weights", "Cardio", "Running", "Walking", "Boxing", "Yoga", "Pilates", "CrossFit", "Tennis", "Basketball", "Football", "Team sports", "Golf", "General fitness"] },
     { key: "experience_level", label: "Experience level", type: "single", options: ["Beginner", "Intermediate", "Advanced", "Competitive"] },
-    { key: "looking_for", label: "Looking for", type: "multi", options: ["Training partner", "Accountability", "Walking buddy", "Gym session", "Running partner", "Sport partner"] },
+    { key: "looking_for", label: "Looking for", type: "multi", options: ["Training partner", "Accountability", "Walking buddy", "Gym session", "Running partner", "Sport partner", "Team to join"] },
     { key: "preferred_time", label: "Preferred time", type: "multi", options: ["Morning", "Lunch", "Afternoon", "Evening", "Weekend"] },
-    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Looking for a weights partner after work." },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Looking for a weights or tennis partner after work." },
+  ],
+  new_friends: [
+    { key: "intent", label: "Specific intention", type: "single", options: ["Make new friends", "Grow my circle", "Friends with shared interests", "Someone to hang out with", "Open to anything friendly"] },
+    { key: "looking_for", label: "Looking for", type: "multi", options: ["Similar interests", "Similar age", "Group hangouts", "One-on-one catch-ups", "Activity partners"] },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Keen to meet new people who love live music." },
+    { key: "tags", label: "Tags", type: "multi", options: ["Music", "Coffee", "Sport", "Food", "Gaming", "Movies", "Outdoors", "Books", "Travel", "Art"] },
+  ],
+  going_out: [
+    { key: "intent", label: "Specific intention", type: "single", options: ["Drinks tonight", "Live music", "Clubbing", "Dinner out", "Weekend plans", "Spontaneous hangout"] },
+    { key: "time", label: "When", type: "single", options: ["Now", "Tonight", "This weekend", "Flexible"] },
+    { key: "looking_for", label: "Looking for", type: "multi", options: ["A group to join", "Someone to go out with", "New spots", "Good company"] },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Looking for people to check out the laneway bars with." },
+  ],
+  events: [
+    { key: "intent", label: "Specific intention", type: "single", options: ["At an event now", "Going to an event", "Looking for events", "Meet before an event", "Meet after an event"] },
+    { key: "event_type", label: "Event type", type: "multi", options: ["Music / gig", "Sports", "Meetup", "Conference", "Festival", "Market", "Comedy", "Arts", "Community"] },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Heading to the gig at Forum — anyone else going?" },
+  ],
+  new_to_area: [
+    { key: "intent", label: "Specific intention", type: "single", options: ["Just moved here", "Moving here soon", "New to the neighbourhood", "Back after time away"] },
+    { key: "looking_for", label: "Looking for", type: "multi", options: ["Local tips", "New friends", "Coffee spots", "Activity partners", "A local to show me around"] },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. Moved here last month — keen to find my new local spots." },
+  ],
+  travelling: [
+    { key: "intent", label: "Specific intention", type: "single", options: ["Visiting for a few days", "Here for a few weeks", "Working while travelling", "Backpacking", "Business trip"] },
+    { key: "looking_for", label: "Looking for", type: "multi", options: ["Local recommendations", "Someone to explore with", "Coffee or a drink", "Fellow travellers", "A local guide"] },
+    { key: "context", label: "Short context", type: "text", placeholder: "e.g. In town until Sunday — what shouldn't I miss?" },
   ],
   exploring: [
     { key: "intent", label: "Exploring intention", type: "single", options: ["New to the area", "City walk", "Food spots", "Local attractions", "Events nearby", "Shopping", "Nature/walks", "Nightlife", "Hidden gems"] },

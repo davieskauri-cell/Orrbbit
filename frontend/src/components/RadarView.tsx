@@ -33,9 +33,14 @@ const SHORT_VIBE: Record<string, string> = {
   need_advice: "Advice",
   networking: "Networking",
   relationship: "Dating",
-  gym_buddy: "Gym",
+  gym_buddy: "Activity",
   exploring: "Exploring",
   opportunity: "Opportunity",
+  new_friends: "Friends",
+  going_out: "Going Out",
+  events: "Events",
+  new_to_area: "New Here",
+  travelling: "Travelling",
 };
 
 const AMBER = "#F59E0B";
