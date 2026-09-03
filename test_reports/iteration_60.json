@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only test of People Mode Events + Radar Hotspots. Radar chip and hotspot RENDER correctly (seeded Friday Drinks visible), Create Event FAB present, My Events (Hosting/Joined/Past) works, events privacy respected (no lat/lng in /api/events/nearby payload). BLOCKERS: (1) radar-events-chip OVERLAPS radar-radius-chip at 390px width — events chip stretches from left:12 to right:104 giving width=274px, fully covering the Radius chip beneath (regression vs. spec 'confirm it doesn't overlap Radius'). (2) Tapping radar-event-{id} does NOT open event-preview modal — hotspots render UNDER people markers (RadarView.tsx L561 comment), so overlapping avatars capture the tap; this blocks TEST 2/3/5/6/7/9 via testID selectors. Because of blocker #2 the full happy-path (preview→detail→join/leave, create, approval, host tools, report) could not be verified through UI selectors. React Native deprecation warnings observed but non-blocking.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RadarView (events chip)", "issue": "eventsChip inherits left:12 from radiusChip and only sets right:104 → events chip is 274px wide at 390px viewport and fully OVERLAPS the Radius chip (x=12..286 vs radius x=12..153). Ref: /app/frontend/src/components/RadarView.tsx:876", "testID": "radar-events-chip", "priority": "HIGH"},
+      {"component": "RadarView (hotspot tap)", "issue": "Tapping the radar-event-{id} Pressable does NOT open the event-preview modal in web preview. Event hotspots are rendered UNDER people markers by design (RadarView.tsx L561 comment: 'rendered UNDER people markers so they never overwhelm them'), so when a person avatar overlaps the hotspot (very common with Focus Map + 500m radius) the tap falls through to the person marker and setEvPreview is never called. Reproduced via Playwright click on [data-testid=radar-event-...] — event-preview element remained absent while a person preview opened instead. Ref: /app/frontend/src/components/RadarView.tsx:561-579", "testID": "radar-event-{id}", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Hotspot → preview → detail → join", "issue": "Blocked by hotspot z-order bug above — could not verify preview open, ev-preview-open button, event detail, join/leave, request-to-join, host tools, or report via UI. Backend /api/events/nearby returns hotspot correctly (verified) and /api/events/mine returns joined event; only the click surface is broken.", "affected_testIDs": ["radar-event-", "event-preview", "ev-preview-open", "event-title", "join-event", "leave-event", "edit-event", "cancel-event", "report-event"]}
+    ],
+    "design_issues": [
+      {"screen": "Radar", "issues": ["Events chip fully covers Radius chip at 390px — Radius chip becomes unreachable/invisible when Events chip is rendered", "Suggestion: give eventsChip explicit `left: '50%'` + `transform: translateX(-50%)` OR compute left from radiusChip width + gap; alternatively swap the trio to a top-centered horizontal row"]}
+    ],
+    "react_native_issues": [
+      {"component": "RadarView", "issue": "Deprecated inline shadow* and textShadow* style props (warnings in console). Should migrate to boxShadow / textShadow shorthand or Platform.select. Ref: /app/frontend/src/components/RadarView.tsx (styles: blip, glow, me, eventDot, eventName, eventMeta, radiusChip, ctrlBtn, filtersBtn, privacyPill)"},
+      {"component": "RadarView", "issue": "props.pointerEvents deprecated warning — several <View pointerEvents=...> should move to style.pointerEvents. Ref: RadarView.tsx L453, L455, L525, L535, L542 area"}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_60.json"],
+  "action_items": [
+    "FIX events chip positioning so it doesn't overlap Radius: at 390px viewport radius chip ends at ~153px and filters starts at ~296px — position events chip in that gap. E.g. change styles.eventsChip in RadarView.tsx L876 to `{ left: 160, right: undefined, borderColor: colors.orange + '55' }` OR use `alignSelf: 'center'` with `top: 12`.",
+    "FIX hotspot tap capture: either render hotspots ABOVE people markers OR raise the Pressable's hitSlop, OR add a transparent overlay Pressable at the hotspot center that stops propagation. Simplest fix: move the events map block AFTER singles.map so events are painted last and receive taps.",
+    "After fixes, retest TESTS 2,3,5,6,7,9 (preview modal → detail → join/leave/request/withdraw, create event flow, host edit/cancel, approval accept/decline, report event).",
+    "Migrate deprecated RN Web shadow*/textShadow*/pointerEvents props (non-blocking)."
+  ],
+  "critical_code_review_comments": [
+    "RadarView.tsx eventsChip style relies on cascade with radiusChip which sets left:12; explicit `left: undefined` doesn't remove the inherited left in StyleSheet.compose. Confirmed at runtime — bounding box shows x=12.",
+    "Event hotspot render order (L561-579) intentionally places events under people markers — this conflicts with the requirement that hotspot taps open the preview. Needs either z-index reordering or a dedicated tap capture layer.",
+    "Good: coord privacy is intact — /api/events/nearby response contains distance/bearing only, no lat/lng/latitude/longitude keys."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "~40% — chip/create-fab/my-events/coord-privacy verified; hotspot preview + detail + join + create + approval + host + report BLOCKED"},
+  "seed_data_creation": "None. Used pre-seeded Friday Drinks event (host james@intro.demo). Kauri was joined once during testing then left — auto-reverted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Blockers: (1) events chip overlaps radius chip — fix in RadarView.tsx styles.eventsChip. (2) radar-event-{id} taps fall through to overlapping person markers because events are painted below people in the overlay layer — reorder or add capture layer. After both fixes, re-run TESTS 2-9. Preview modal already wired correctly in /app/frontend/app/(tabs)/index.tsx L536-557; detail screen at /app/frontend/app/event/[id].tsx already has all required testIDs (event-title, join-event, leave-event, edit-event, cancel-event, report-event, view-attendees, accept-<uid>, decline-<uid>). Events sheet toggle/category/my-events-link all present in same index.tsx.",
+  "rca_of_issue": "Bug 1 (chip overlap): StyleSheet composition applies both radiusChip and eventsChip — radiusChip sets left:12 and eventsChip only overrides right:104. Since `left: undefined` doesn't unset the inherited left in React Native StyleSheet flattening, the chip renders anchored at left:12 AND right:104 → width becomes screen_width - 12 - 104 = 274px on 390px viewport, sitting on top of the Radius chip. Repro: open radar on 390px viewport, observe Events chip covers Radius chip. Mitigation: set explicit left in eventsChip (e.g. left: 160) or use alignSelf/center positioning. Bug 2 (tap fallthrough): RadarView.tsx renders event MapAnchors BEFORE singles (people) MapAnchors in the same overlay layer, so people avatars paint on top. Playwright click on [data-testid=radar-event-...] hits the element's centre; when a person avatar shares that pixel, the person's Pressable (rendered later, higher z) receives the tap. Repro: with 58 nearby people + Friday Drinks in the same map region, click hotspot — person preview opens instead. Mitigation: swap render order so events render AFTER singles/clusters, OR add zIndex to event MapAnchor style, OR render a top-most transparent Pressable at each hotspot centre that calls onSelectEvent."
+}

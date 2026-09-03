@@ -108,6 +108,8 @@ class TestVibeDetailsPersistence:
 class TestNearbyVibeDetails:
     def test_nearby_returns_vibe_detail_fields_and_max_100m(self, kauri_session):
         token, _ = kauri_session
+        # pin the radius this test asserts against (demo baseline may differ)
+        requests.put(f"{API}/users/me/state", headers=_headers(token), json={"radius": 100}, timeout=15)
         r = requests.get(
             f"{API}/nearby",
             params={"lat": KAURI_LAT, "lng": KAURI_LNG},

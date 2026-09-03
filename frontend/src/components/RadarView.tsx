@@ -16,6 +16,7 @@ import { AdaptiveRadarPillMarker, RadarClusterMarker, estimatePillWidth } from "
 import { getApproximateDisplayLocation, DEMO_LOCATION } from "@/src/services/locationService";
 import { colors, anim } from "@/src/theme";
 import type { NearbyUser, Vibe } from "@/src/context/AppContext";
+import { EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const MAP_W = SCREEN_W; // edge to edge
@@ -193,9 +194,14 @@ type Props = {
    *  (used by the Professional Radar to occupy all available screen height).
    *  Defaults to the classic MAP_H so the People radar is unchanged. */
   height?: number;
+  /** People Mode event hotspots (already distance/bearing quantized server-side). */
+  events?: { id: string; title: string; category: string; going: number; distance: number; bearing: number }[];
+  onSelectEvent?: (e: any) => void;
+  onEventsPress?: () => void;
+  eventsActive?: boolean;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height, events, onSelectEvent, onEventsPress, eventsActive }: Props) {
   // dynamic vertical geometry — centre and max ring radius derive from the real height
   const mapH = Math.max(300, Math.round(height || MAP_H));
   const cy = mapH / 2;
@@ -645,6 +651,27 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                 )}
               </MapAnchor>
             ))}
+
+            {/* Event hotspots — rendered LAST so taps land; sized to stay secondary to people markers */}
+            {(events || []).map((ev) => {
+              const rr = Math.min(ev.distance / MAX_DIST, 1) * maxR;
+              const rad = (ev.bearing * Math.PI) / 180;
+              const pos = clearCentre(CX + rr * Math.sin(rad), cy - rr * Math.cos(rad), ev.bearing, 60);
+              const size = Math.min(44 + Math.round(Math.min(ev.going, 24) * 0.7), 60); // popularity scaling
+              return (
+                <MapAnchor key={`ev-${ev.id}`} cx={pos.x} cy={pos.y} oy={cy} w={96} h={size + 34} z={z} style={styles.blip}>
+                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} style={{ alignItems: "center", width: 96 }}>
+                    <View style={[styles.eventGlow, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
+                    <View style={[styles.eventDot, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
+                      <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
+                    </View>
+                    <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
+                    <Text style={styles.eventMeta}>{ev.going} going · {ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}</Text>
+                  </Pressable>
+                </MapAnchor>
+              );
+            })}
+
           </View>
         </View>
       </GestureDetector>
@@ -681,6 +708,14 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
           <Ionicons name="resize" size={13} color={colors.teal} />
           <Text style={styles.radiusChipText}>Radius: {radiusSetting}m</Text>
           <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+        </Pressable>
+      )}
+
+      {/* events chip — between Radius and Filters */}
+      {onEventsPress && (
+        <Pressable testID="radar-events-chip" style={[styles.eventsChip, eventsActive && styles.eventsChipOn]} onPress={onEventsPress} hitSlop={8}>
+          <Ionicons name="flame" size={13} color={eventsActive ? "#FFF" : colors.orange} />
+          <Text style={[styles.radiusChipText, eventsActive && { color: "#FFF" }]}>Events</Text>
         </Pressable>
       )}
 
@@ -839,6 +874,42 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   focusChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: "700" },
+  eventsChip: {
+    position: "absolute",
+    top: 12,
+    right: 104,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderWidth: 1,
+    borderColor: colors.orange + "55",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    shadowColor: "#111827",
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  eventsChipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
+  eventGlow: { backgroundColor: "rgba(255,90,31,0.18)", borderWidth: 1, borderColor: "rgba(255,90,31,0.30)" },
+  eventDot: {
+    backgroundColor: colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+    shadowColor: "#FF5A1F",
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  eventName: { color: colors.text, fontSize: 11, fontWeight: "800", marginTop: 2, maxWidth: 92, textAlign: "center", textShadowColor: "#FFF", textShadowRadius: 3 },
+  eventMeta: { color: colors.textSecondary, fontSize: 10, fontWeight: "600", textShadowColor: "#FFF", textShadowRadius: 3 },
   radiusChip: {
     position: "absolute",
     top: 12,

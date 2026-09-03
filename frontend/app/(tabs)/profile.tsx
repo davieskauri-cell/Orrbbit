@@ -18,6 +18,7 @@ const MENU = [
   { icon: "create-outline", label: "Edit Profile", route: "/edit-profile", testID: "menu-edit-profile" },
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
   { icon: "id-card-outline", label: "Vibe Details", route: "/vibe-details", testID: "menu-vibe-details" },
+  { icon: "flame-outline", label: "My Events", route: "/my-events", testID: "menu-my-events" },
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
   { icon: "diamond-outline", label: "Orrbbit Plans", route: "/plans", testID: "menu-plans" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal } from "react-native";
 import { showAlert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +20,9 @@ import AppModeSwitch from "@/src/components/AppModeSwitch";
 import ProfessionalHome from "@/src/components/ProfessionalHome";
 import ProfessionalDisclaimerModal from "@/src/components/ProfessionalDisclaimerModal";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
+import { nearbyEvents, EVENT_CATEGORY_ICONS, type OrbEvent } from "@/src/services/eventService";
+
+const EVENT_CATS = ["All Events", ...Object.keys(EVENT_CATEGORY_ICONS)];
 
 export default function RadarScreen() {
   const insets = useSafeAreaInsets();
@@ -30,6 +33,22 @@ export default function RadarScreen() {
   const [showRadius, setShowRadius] = useState(false);
   const [preview, setPreview] = useState<NearbyUser | null>(null);
   const [, forceTick] = useState(0);
+  // People Mode Events
+  const [eventsOn, setEventsOn] = useState(true);
+  const [eventCat, setEventCat] = useState("All Events");
+  const [orbEvents, setOrbEvents] = useState<OrbEvent[]>([]);
+  const [evSheet, setEvSheet] = useState(false);
+  const [evPreview, setEvPreview] = useState<OrbEvent | null>(null);
+
+  const loadEvents = React.useCallback(() => {
+    if (!eventsOn) { setOrbEvents([]); return; }
+    const lat = coords?.lat ?? -37.8136;
+    const lng = coords?.lng ?? 144.9631;
+    nearbyEvents(lat, lng, eventCat === "All Events" ? undefined : eventCat)
+      .then((r) => setOrbEvents(r.events))
+      .catch(() => {});
+  }, [coords, eventsOn, eventCat]);
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
   // refresh the session countdown label every 30s
   useEffect(() => {
@@ -59,6 +78,7 @@ export default function RadarScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await refresh();
+    loadEvents();
     setRefreshing(false);
   };
 
@@ -198,6 +218,10 @@ export default function RadarScreen() {
               }}
               onRadiusPress={() => setShowRadius(true)}
               onLearnMore={() => router.push("/location-privacy")}
+              events={eventsOn ? orbEvents : []}
+              onSelectEvent={(e) => setEvPreview(e)}
+              onEventsPress={() => setEvSheet(true)}
+              eventsActive={eventsOn && orbEvents.length > 0}
             />
 
             {preview && preview.vibe === "opportunity" ? (
@@ -499,11 +523,99 @@ export default function RadarScreen() {
       </ScrollView>
 
       <RadiusSheet visible={showRadius} onClose={() => setShowRadius(false)} onChanged={refresh} />
+
+      {/* + Create Event — People Mode CTA */}
+      {!hidden && (
+        <Pressable testID="create-event-fab" style={[styles.eventFab, shadow.card, { bottom: insets.bottom + spacing.lg }]} onPress={() => router.push("/create-event")}>
+          <Ionicons name="add" size={18} color="#FFF" />
+          <Text style={styles.eventFabTxt}>Create Event</Text>
+        </Pressable>
+      )}
+
+      {/* Event hotspot preview — bottom sheet */}
+      <Modal visible={!!evPreview} transparent animationType="slide" onRequestClose={() => setEvPreview(null)}>
+        <Pressable style={styles.evSheetBg} onPress={() => setEvPreview(null)}>
+          {evPreview && (
+            <Pressable style={[styles.evSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}} testID="event-preview">
+              <View style={styles.evHandle} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={styles.evIcon}><Ionicons name={(EVENT_CATEGORY_ICONS[evPreview.category] || "flame") as any} size={22} color={colors.orange} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.evTitle} numberOfLines={1}>{evPreview.title} 🔥</Text>
+                  <Text style={styles.evMeta}>Approx. {evPreview.distance >= 1000 ? `${(evPreview.distance / 1000).toFixed(1)}km` : `${evPreview.distance}m`} away · {new Date(evPreview.start_datetime).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · {new Date(evPreview.start_datetime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>
+                </View>
+              </View>
+              <Text style={styles.evMeta2}>{evPreview.going} going{evPreview.spots_left != null ? ` · ${evPreview.spots_left} spot${evPreview.spots_left === 1 ? "" : "s"} left` : ""} · {evPreview.category} · {evPreview.join_type === "approval" ? "Approval required" : "Everyone"}</Text>
+              {!!evPreview.description && <Text style={styles.evDesc} numberOfLines={2}>“{evPreview.description}”</Text>}
+              <Text style={styles.evHost}>Hosted by {evPreview.host?.name}</Text>
+              <Pressable testID="ev-preview-open" style={styles.evJoinBtn} onPress={() => { const eid = evPreview.id; setEvPreview(null); router.push(`/event/${eid}`); }}>
+                <Text style={styles.evJoinTxt}>{evPreview.my_status === "accepted" ? "✓ JOINED · VIEW EVENT" : "VIEW & JOIN EVENT"}</Text>
+              </Pressable>
+            </Pressable>
+          )}
+        </Pressable>
+      </Modal>
+
+      {/* Events filter sheet */}
+      <Modal visible={evSheet} transparent animationType="slide" onRequestClose={() => setEvSheet(false)}>
+        <Pressable style={styles.evSheetBg} onPress={() => setEvSheet(false)}>
+          <Pressable style={[styles.evSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}} testID="events-sheet">
+            <View style={styles.evHandle} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={styles.evTitle}>Events on Radar</Text>
+              <Pressable testID="my-events-link" onPress={() => { setEvSheet(false); router.push("/my-events"); }}>
+                <Text style={{ color: colors.teal, fontWeight: "700", fontSize: font.sm }}>My Events</Text>
+              </Pressable>
+            </View>
+            <Pressable testID="events-toggle" style={styles.evToggleRow} onPress={() => setEventsOn(!eventsOn)}>
+              <Text style={styles.evToggleTxt}>Show events</Text>
+              <Ionicons name={eventsOn ? "toggle" : "toggle-outline"} size={30} color={eventsOn ? colors.teal : colors.textTertiary} />
+            </Pressable>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm }}>
+              {EVENT_CATS.map((c) => (
+                <Pressable key={c} testID={`ev-cat-${c}`} style={[styles.evCatChip, eventCat === c && styles.evCatChipOn]} onPress={() => setEventCat(c)}>
+                  <Text style={[styles.evCatTxt, eventCat === c && { color: "#FFF" }]}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {eventsOn && orbEvents.length === 0 && (
+              <View style={styles.evEmpty} testID="events-empty">
+                <Text style={styles.evEmptyTitle}>NO EVENTS NEARBY YET</Text>
+                <Text style={styles.evEmptyTxt}>Nothing happening around you? Create something.</Text>
+                <Pressable style={styles.evJoinBtn} onPress={() => { setEvSheet(false); router.push("/create-event"); }}>
+                  <Text style={styles.evJoinTxt}>+ CREATE EVENT</Text>
+                </Pressable>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  eventFab: { position: "absolute", right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 12, minHeight: 44 },
+  eventFabTxt: { color: "#FFF", fontWeight: "800", fontSize: font.sm },
+  evSheetBg: { flex: 1, backgroundColor: "rgba(17,24,39,0.4)", justifyContent: "flex-end" },
+  evSheet: { backgroundColor: "#FFF", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: spacing.xl, paddingTop: 8 },
+  evHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.md },
+  evIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.orangeSoft, alignItems: "center", justifyContent: "center" },
+  evTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  evMeta: { color: colors.textSecondary, fontSize: font.micro, marginTop: 2 },
+  evMeta2: { color: colors.textSecondary, fontSize: font.sm, marginTop: spacing.md, fontWeight: "600" },
+  evDesc: { color: colors.textSecondary, fontSize: font.sm, fontStyle: "italic", marginTop: 6, lineHeight: 19 },
+  evHost: { color: colors.textTertiary, fontSize: font.micro, marginTop: 6 },
+  evJoinBtn: { backgroundColor: colors.orange, borderRadius: 999, minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: spacing.lg, alignSelf: "stretch" },
+  evJoinTxt: { color: "#FFF", fontWeight: "800", fontSize: font.base, letterSpacing: 0.4 },
+  evToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, marginTop: 4 },
+  evToggleTxt: { color: colors.text, fontSize: font.base, fontWeight: "600" },
+  evCatChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  evCatChipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
+  evCatTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
+  evEmpty: { alignItems: "center", paddingVertical: spacing.lg, gap: 4 },
+  evEmptyTitle: { color: colors.text, fontWeight: "800", fontSize: font.sm, letterSpacing: 0.6 },
+  evEmptyTxt: { color: colors.textSecondary, fontSize: font.sm },
   container: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: "row",

@@ -3709,6 +3709,10 @@ import password_reset as _pwd_reset  # noqa: E402
 _pwd_reset.bind(_sys.modules[__name__])
 app.include_router(_pwd_reset.reset_router)
 
+import events as _events  # noqa: E402
+_events.bind(_sys.modules[__name__])
+app.include_router(_events.events_router)
+
 import legal_consent as _legal_mod  # noqa: E402
 _legal_mod.bind(_sys.modules[__name__])
 app.include_router(_legal_mod.legal_router)
