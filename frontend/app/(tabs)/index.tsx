@@ -524,14 +524,6 @@ export default function RadarScreen() {
 
       <RadiusSheet visible={showRadius} onClose={() => setShowRadius(false)} onChanged={refresh} />
 
-      {/* + Create Event — People Mode CTA */}
-      {!hidden && (
-        <Pressable testID="create-event-fab" style={[styles.eventFab, shadow.card, { bottom: insets.bottom + spacing.lg }]} onPress={() => router.push("/create-event")}>
-          <Ionicons name="add" size={18} color="#FFF" />
-          <Text style={styles.eventFabTxt}>Create Event</Text>
-        </Pressable>
-      )}
-
       {/* Event hotspot preview — bottom sheet */}
       <Modal visible={!!evPreview} transparent animationType="slide" onRequestClose={() => setEvPreview(null)}>
         <Pressable style={styles.evSheetBg} onPress={() => setEvPreview(null)}>
@@ -582,11 +574,11 @@ export default function RadarScreen() {
               <View style={styles.evEmpty} testID="events-empty">
                 <Text style={styles.evEmptyTitle}>NO EVENTS NEARBY YET</Text>
                 <Text style={styles.evEmptyTxt}>Nothing happening around you? Create something.</Text>
-                <Pressable style={styles.evJoinBtn} onPress={() => { setEvSheet(false); router.push("/create-event"); }}>
-                  <Text style={styles.evJoinTxt}>+ CREATE EVENT</Text>
-                </Pressable>
               </View>
             )}
+            <Pressable testID="events-sheet-create" style={styles.evJoinBtn} onPress={() => { setEvSheet(false); router.push("/create-event"); }}>
+              <Text style={styles.evJoinTxt}>+ CREATE EVENT</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -595,8 +587,6 @@ export default function RadarScreen() {
 }
 
 const styles = StyleSheet.create({
-  eventFab: { position: "absolute", right: spacing.lg, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 12, minHeight: 44 },
-  eventFabTxt: { color: "#FFF", fontWeight: "800", fontSize: font.sm },
   evSheetBg: { flex: 1, backgroundColor: "rgba(17,24,39,0.4)", justifyContent: "flex-end" },
   evSheet: { backgroundColor: "#FFF", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: spacing.xl, paddingTop: 8 },
   evHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.md },
