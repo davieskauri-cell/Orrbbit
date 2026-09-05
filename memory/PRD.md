@@ -651,3 +651,12 @@ Owner actions: redeploy (then /api/version=iter52 tag still applies; new flows l
 - Vibe colour bug FIXED: RadarView me-marker ring + centre pulse now use new meColor prop fed from vibeMap[user.vibe].color (single source of truth; was hardcoded teal). Vibe state flow audited: Set Vibe → updateVibe → setUser → radar re-render immediate.
 - Performance: radar marker placement (placed/singles/clusters/clusterInfo) wrapped in useMemo keyed on [users, mapH, maxR, radiusSetting, vibeMap] — placement no longer recomputed on every 8s-poll/parent re-render. tsc + lint clean. Startup freeze root cause not reproducible in Preview browser; heaviest render path (marker placement) memoized; no duplicate request loops found (nearby 8s / pings 20s / notifications 60s are intentional polls).
 - Tests: iter60 events 7/7; notification meta e2e script PASS; smoke screenshots verify radar layout/readability/preview/create-photo UI. Camera capture + photo library need real-device verification.
+
+## Iter65 — Events verification pass + 2 backend fixes (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- FIX 1: PUT /events/{id} (host edit) now persists cover_image — previously Change/Remove Photo during edit was silently dropped by the backend.
+- FIX 2: declining a join request now sends the requester an event_declined notification (with event_id) — previously a silent dead end.
+- Verified end-to-end (new suite backend/tests/test_iter65_verify.py, 6/6): photo create→detail→nearby persistence; edit change/remove photo persistence; notification meta for event_join_request/accepted/declined/updated/left/joined/cancelled (all carry event_id); deleted-event 404 fallback; vibe persistence across 6 vibes via PUT /users/me/state.
+- Playwright verified: radar paints 0.8s; QA event hotspot renders outer-position white-on-orange; notification tap → correct Event Detail; hero cover image renders; vibe change (networking→relationship) updates pill + You-marker ring colour immediately and persists after reload; 15s idle = ZERO request loops (nearby×2, others once).
+- Regression: iter60 events 7/7 + iter65 6/6 = 13/13 green.
+- QA cleanup: deleted 4 leftover QA events (Gym Session, Friday Drinks, Coffee & Connect, QA65 Sunset Run) + attendees + 429 stale QA notifications (QA scheduled / QA Iter22 announcements / TEST_ refs). DB now has 0 QA residue; kauri vibe restored to networking.
+- Real-device still required: camera capture, photo library on iOS/Android, native gestures/share.

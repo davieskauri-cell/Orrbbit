@@ -192,6 +192,7 @@ def bind(server):
                "start_datetime": body.start_datetime, "end_datetime": body.end_datetime,
                "capacity": (max(1, min(int(body.capacity), 500)) if body.capacity else None),
                "join_type": body.join_type if body.join_type in ("everyone", "approval") else ev["join_type"],
+               "cover_image": body.cover_image,
                "updated_at": now_iso()}
         await db.events.update_one({"id": event_id}, {"$set": upd})
         # notify accepted attendees about the update
@@ -299,6 +300,9 @@ def bind(server):
             {"$set": {"join_status": new_status}})
         if r.modified_count and action == "accept":
             await notify(attendee_id, "event_accepted", "You're in 🎉", f"Your request to join \"{ev['title']}\" was accepted.", meta={"event_id": event_id})
+        elif r.modified_count and action == "decline":
+            await notify(attendee_id, "event_declined", "Request update",
+                         f"Your request to join \"{ev['title']}\" wasn't accepted this time.", meta={"event_id": event_id})
         return {"ok": True, "join_status": new_status}
 
     @events_router.post("/{event_id}/report")
