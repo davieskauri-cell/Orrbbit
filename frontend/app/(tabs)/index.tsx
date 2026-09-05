@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal, Image as RNImage } from "react-native";
 import { showAlert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { Ionicons } from "@expo/vector-icons";
@@ -222,6 +222,7 @@ export default function RadarScreen() {
               onSelect={(u) => setPreview(u)}
               meUri={user?.photo_url}
               meName={user?.name}
+              meColor={myVibe?.color}
               radiusSetting={user?.radius || 250}
               coords={coords}
               onFilters={() => router.push("/privacy")}
@@ -570,7 +571,11 @@ export default function RadarScreen() {
             <Pressable style={[styles.evSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={() => {}} testID="event-preview">
               <View style={styles.evHandle} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <View style={styles.evIcon}><Ionicons name={(EVENT_CATEGORY_ICONS[evPreview.category] || "flame") as any} size={22} color={colors.orange} /></View>
+                {evPreview.cover_image ? (
+                  <RNImage source={{ uri: evPreview.cover_image }} style={{ width: 44, height: 44, borderRadius: 14 }} />
+                ) : (
+                  <View style={styles.evIcon}><Ionicons name={(EVENT_CATEGORY_ICONS[evPreview.category] || "flame") as any} size={22} color={colors.orange} /></View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.evTitle} numberOfLines={1}>{evPreview.title} 🔥</Text>
                   <Text style={styles.evMeta}>Approx. {evPreview.distance >= 1000 ? `${(evPreview.distance / 1000).toFixed(1)}km` : `${evPreview.distance}m`} away · {new Date(evPreview.start_datetime).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · {new Date(evPreview.start_datetime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>

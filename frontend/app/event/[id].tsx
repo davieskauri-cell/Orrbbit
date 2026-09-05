@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share, Modal, Image } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -115,9 +115,13 @@ export default function EventDetail() {
         <Pressable onPress={doShare} hitSlop={10} testID="event-share"><Ionicons name="share-outline" size={22} color={colors.text} /></Pressable>
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 120 }}>
-        <View style={[s.cover, shadow.card]}>
-          <Ionicons name={icon as any} size={44} color={colors.orange} />
-        </View>
+        {ev.cover_image ? (
+          <Image source={{ uri: ev.cover_image }} style={[s.cover, { backgroundColor: colors.border }]} resizeMode="cover" />
+        ) : (
+          <View style={[s.cover, shadow.card]}>
+            <Ionicons name={icon as any} size={44} color={colors.orange} />
+          </View>
+        )}
         {ev.status === "cancelled" && <View style={s.cancelBanner} testID="cancelled-banner"><Text style={s.cancelTxt}>EVENT CANCELLED</Text></View>}
         {ev.status === "completed" && <View style={[s.cancelBanner, { backgroundColor: colors.tealSoft }]}><Text style={[s.cancelTxt, { color: colors.teal }]}>COMPLETED</Text></View>}
         <Text style={s.title} testID="event-title">{ev.title}</Text>

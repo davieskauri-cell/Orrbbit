@@ -7,6 +7,8 @@ import { colors, spacing, font } from "@/src/theme";
 import { showAlert } from "@/src/lib/alert";
 import { useApp } from "@/src/context/AppContext";
 import { createEvent, editEvent, getEvent, EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
+import * as ImagePicker from "expo-image-picker";
+import { Image, Linking } from "react-native";
 
 const CATEGORIES = Object.keys(EVENT_CATEGORY_ICONS);
 const RADII = [250, 500, 750, 1000];
@@ -54,14 +56,40 @@ export default function CreateEvent() {
   const [desc, setDesc] = useState("");
   const [cap, setCap] = useState<number | null>(null);
   const [joinType, setJoinType] = useState<"everyone" | "approval">("everyone");
+  const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const days = dayOpts();
+
+  const pick = async (camera: boolean) => {
+    try {
+      if (camera) {
+        const perm = await ImagePicker.getCameraPermissionsAsync();
+        if (!perm.granted) {
+          const req = perm.canAskAgain ? await ImagePicker.requestCameraPermissionsAsync() : perm;
+          if (!req.granted) {
+            showAlert("Camera access needed", "Add an event photo with your camera by allowing access.", [
+              { text: "Not now", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]);
+            return;
+          }
+        }
+      }
+      const opts = { mediaTypes: ["images"] as any, allowsEditing: true, aspect: [16, 9] as [number, number], quality: 0.7, base64: true };
+      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      const b64 = res.assets[0].base64;
+      if (b64.length > 5_000_000) { showAlert("Photo too large", "Please choose a smaller photo."); return; }
+      setPhoto(`data:image/jpeg;base64,${b64}`);
+    } catch { showAlert("Error", "Couldn't load that photo. Please try again."); }
+  };
 
   useEffect(() => {
     if (!editing) return;
     getEvent(String(id)).then((ev) => {
       setTitle(ev.title); setCategory(ev.category); setLocationDisplay(ev.location_display === "Approximate area shown on radar" ? "" : ev.location_display);
       setRadius(ev.visibility_radius); setDesc(ev.description); setCap(ev.capacity); setJoinType(ev.join_type as any);
+      setPhoto(ev.cover_image || null);
       const st = new Date(ev.start_datetime); const en = new Date(ev.end_datetime);
       const di = Math.max(0, Math.min(6, Math.round((st.getTime() - Date.now()) / DAY_MS)));
       setDayIdx(di);
@@ -90,7 +118,8 @@ export default function CreateEvent() {
     try {
       const body = { title: title.trim(), description: desc.trim(), category, lat, lng,
         location_display: locationDisplay.trim(), location_privacy_type: locationDisplay.trim() ? "venue" : "area",
-        visibility_radius: radius, start_datetime: start, end_datetime: end, capacity: cap, join_type: joinType };
+        visibility_radius: radius, start_datetime: start, end_datetime: end, capacity: cap, join_type: joinType,
+        cover_image: photo };
       const ev = editing ? await editEvent(String(id), body) : await createEvent(body);
       if (editing) { router.back(); return; }
       showAlert("🎉 Your event is live", `${ev.title}\n\nPeople nearby can now discover your event on their Orrbbit Radar.`, [
@@ -109,6 +138,28 @@ export default function CreateEvent() {
         <View style={{ width: 24 }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+        <Text style={s.label}>EVENT PHOTO (optional)</Text>
+        {photo ? (
+          <View>
+            <Image source={{ uri: photo }} style={s.heroPreview} resizeMode="cover" />
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+              <Pressable testID="change-photo" style={s.photoBtn} onPress={() => pick(false)}><Text style={s.photoBtnTxt}>Change Photo</Text></Pressable>
+              <Pressable testID="remove-photo" style={s.photoBtn} onPress={() => setPhoto(null)}><Text style={[s.photoBtnTxt, { color: "#DC2626" }]}>Remove</Text></Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={s.photoRow}>
+            <Pressable testID="photo-library" style={s.photoAdd} onPress={() => pick(false)}>
+              <Ionicons name="images-outline" size={20} color={colors.orange} />
+              <Text style={s.photoAddTxt}>Photo Library</Text>
+            </Pressable>
+            <Pressable testID="photo-camera" style={s.photoAdd} onPress={() => pick(true)}>
+              <Ionicons name="camera-outline" size={20} color={colors.orange} />
+              <Text style={s.photoAddTxt}>Take Photo</Text>
+            </Pressable>
+          </View>
+        )}
+
         <Text style={s.label}>EVENT NAME</Text>
         <TextInput testID="event-name" style={s.input} value={title} onChangeText={setTitle} placeholder="e.g. Saturday Morning Run Club" placeholderTextColor={colors.textTertiary} maxLength={60} />
 
@@ -201,6 +252,12 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   chipTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   privNote: { color: colors.textTertiary, fontSize: font.micro, marginTop: 6, lineHeight: 16 },
+  heroPreview: { width: "100%", height: 160, borderRadius: 16, backgroundColor: colors.orangeSoft },
+  photoRow: { flexDirection: "row", gap: 10 },
+  photoAdd: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1.5, borderColor: colors.orange + "66", borderStyle: "dashed", borderRadius: 14, paddingVertical: 18, backgroundColor: colors.orangeSoft },
+  photoAddTxt: { color: colors.orange, fontWeight: "700", fontSize: font.sm },
+  photoBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  photoBtnTxt: { color: colors.text, fontWeight: "700", fontSize: font.sm },
   cta: { backgroundColor: colors.orange, borderRadius: 999, minHeight: 52, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   ctaTxt: { color: "#FFF", fontWeight: "800", fontSize: font.base, letterSpacing: 0.5 },
 });

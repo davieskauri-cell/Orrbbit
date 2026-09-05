@@ -198,7 +198,7 @@ def bind(server):
         atts = await db.event_attendees.find({"event_id": event_id, "join_status": "accepted"}).to_list(500)
         for a in atts:
             await notify(a["user_id"], "event_updated", "Event updated",
-                         f"The host updated \"{upd['title']}\". Check the latest details.")
+                         f"The host updated \"{upd['title']}\". Check the latest details.", meta={"event_id": event_id})
         return await _payload({**ev, **upd}, user)
 
     @events_router.post("/{event_id}/cancel")
@@ -211,7 +211,7 @@ def bind(server):
         atts = await db.event_attendees.find({"event_id": event_id, "join_status": "accepted"}).to_list(500)
         for a in atts:
             await notify(a["user_id"], "event_cancelled", "Event cancelled",
-                         f"\"{ev['title']}\" has been cancelled by the host.")
+                         f"\"{ev['title']}\" has been cancelled by the host.", meta={"event_id": event_id})
         return {"ok": True, "status": "cancelled"}
 
     @events_router.post("/{event_id}/join")
@@ -242,17 +242,17 @@ def bind(server):
             await db.event_attendees.insert_one(dict(rec))
         if status == "pending":
             await notify(ev["creator_user_id"], "event_join_request", "Join request",
-                         f"{user.get('name') or 'Someone'} wants to join \"{ev['title']}\".")
+                         f"{user.get('name') or 'Someone'} wants to join \"{ev['title']}\".", meta={"event_id": event_id})
         else:
             await notify(ev["creator_user_id"], "event_joined", "New attendee",
-                         f"{user.get('name') or 'Someone'} joined \"{ev['title']}\".")
+                         f"{user.get('name') or 'Someone'} joined \"{ev['title']}\".", meta={"event_id": event_id})
             cap = ev.get("capacity")
             if cap and going + 1 >= cap:
                 await db.events.update_one({"id": event_id}, {"$set": {"status": "full"}})
-                await notify(ev["creator_user_id"], "event_full", "Your event is now full", f"\"{ev['title']}\" has reached capacity.")
+                await notify(ev["creator_user_id"], "event_full", "Your event is now full", f"\"{ev['title']}\" has reached capacity.", meta={"event_id": event_id})
             elif cap and going + 1 >= cap - 1:
                 await notify(ev["creator_user_id"], "event_almost_full", "Your event is almost full",
-                             f"\"{ev['title']}\" — {going + 1} of {cap} spots filled.")
+                             f"\"{ev['title']}\" — {going + 1} of {cap} spots filled.", meta={"event_id": event_id})
         return {"ok": True, "join_status": status}
 
     @events_router.post("/{event_id}/leave")
@@ -263,7 +263,7 @@ def bind(server):
         ev = await db.events.find_one({"id": event_id})
         if ev and r.modified_count:
             await notify(ev["creator_user_id"], "event_left", "Attendance cancelled",
-                         f"{user.get('name') or 'Someone'} cancelled their attendance to \"{ev['title']}\".")
+                         f"{user.get('name') or 'Someone'} cancelled their attendance to \"{ev['title']}\".", meta={"event_id": event_id})
         if ev and ev.get("status") == "full":
             await db.events.update_one({"id": event_id}, {"$set": {"status": "active"}})
         return {"ok": True}
@@ -298,7 +298,7 @@ def bind(server):
             {"event_id": event_id, "user_id": attendee_id, "join_status": {"$in": ["pending", "accepted"]}},
             {"$set": {"join_status": new_status}})
         if r.modified_count and action == "accept":
-            await notify(attendee_id, "event_accepted", "You're in 🎉", f"Your request to join \"{ev['title']}\" was accepted.")
+            await notify(attendee_id, "event_accepted", "You're in 🎉", f"Your request to join \"{ev['title']}\" was accepted.", meta={"event_id": event_id})
         return {"ok": True, "join_status": new_status}
 
     @events_router.post("/{event_id}/report")

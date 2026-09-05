@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
 import { api } from "@/src/lib/api";
 
-type Notif = { id: string; type: string; title: string; body: string; read?: boolean; created_at: string };
+type Notif = { id: string; type: string; title: string; body: string; read?: boolean; created_at: string; event_id?: string };
 const FILTERS = ["All", "Event Updates", "Your Events", "Other"];
 const EVENT_TYPES = ["event_join_request", "event_joined", "event_left", "event_full", "event_almost_full"];
 const UPDATE_TYPES = ["event_accepted", "event_updated", "event_cancelled"];
@@ -67,14 +67,24 @@ export default function Notifications() {
           </View>
         )}
         {shown.map((n) => (
-          <View key={n.id} style={s.row} testID={`notif-${n.id}`}>
+          <Pressable
+            key={n.id}
+            style={s.row}
+            testID={`notif-${n.id}`}
+            onPress={() => {
+              // navigate by stored references — never by parsing text
+              if (n.event_id) router.push(`/event/${n.event_id}`);
+              else if (n.type.startsWith("verification") || n.type.startsWith("professional")) router.push("/professional/verification");
+            }}
+          >
             <View style={[s.dot, { backgroundColor: n.read ? colors.border : (EVENT_TYPES.includes(n.type) ? colors.teal : colors.orange) }]} />
             <View style={{ flex: 1 }}>
               <Text style={[s.title, !n.read && { fontWeight: "800" }]}>{n.title}</Text>
               <Text style={s.body}>{n.body}</Text>
               <Text style={s.time}>{ago(n.created_at)}</Text>
             </View>
-          </View>
+            {!!n.event_id && <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} style={{ marginTop: 4 }} />}
+          </Pressable>
         ))}
       </ScrollView>
     </View>

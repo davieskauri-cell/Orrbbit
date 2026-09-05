@@ -2445,10 +2445,11 @@ PROFESSION_BROAD: dict[str, str] = {
 DOC_TYPES_ALLOWED = {"application/pdf", "image/jpeg", "image/jpg", "image/png"}
 
 
-async def notify(user_id: str, ntype: str, title: str, body_text: str):
+async def notify(user_id: str, ntype: str, title: str, body_text: str, meta: Optional[dict] = None):
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()), "user_id": user_id, "type": ntype,
         "title": title, "body": body_text, "read": False, "created_at": now_iso(),
+        **(meta or {}),
     })
 
 

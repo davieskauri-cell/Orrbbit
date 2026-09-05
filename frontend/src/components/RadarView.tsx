@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated, Easing, Pressable, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -183,6 +183,8 @@ type Props = {
   onSelect: (u: NearbyUser) => void;
   meUri?: string | null;
   meName?: string | null;
+  /** Active-vibe colour for the current user's marker ring/pulse (single source of truth). */
+  meColor?: string | null;
   radiusSetting: number;
   coords?: { lat: number; lng: number } | null;
   onFilters?: () => void;
@@ -201,7 +203,7 @@ type Props = {
   eventsActive?: boolean;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height, events, onSelectEvent, onEventsPress, eventsActive }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meColor, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height, events, onSelectEvent, onEventsPress, eventsActive }: Props) {
   // dynamic vertical geometry — centre and max ring radius derive from the real height
   const mapH = Math.max(300, Math.round(height || MAP_H));
   const cy = mapH / 2;
@@ -332,118 +334,124 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
   const zoom = MAX_DIST <= 50 ? 18 : MAX_DIST <= 100 ? 17 : MAX_DIST <= 250 ? 16 : MAX_DIST <= 500 ? 15 : 14;
   const loc = coords || DEMO_LOCATION;
 
-  // place nearby users (fuzzed positions only) — centre coordinates in map space
-  const placed = users.map((u) => {
-    const approx = getApproximateDisplayLocation(u, radiusSetting);
-    const r = Math.min(approx.distance / MAX_DIST, 1) * maxR;
-    const rad = (approx.bearing * Math.PI) / 180;
-    return {
-      u,
-      x: CX + r * Math.sin(rad),
-      y: cy - r * Math.cos(rad),
-      color: (u as any).pro ? colors.teal : (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
-      bearing: approx.bearing,
-      dist: approx.distance,
-    };
-  });
-  // Focus Map: top 8-12 most relevant get individual markers, the rest collapse
-  // into clusters (hard cap of 24 individual avatars always holds)
-  const FOCUS = Math.min(FOCUS_MARKERS, MAX_MARKERS);
-  let singles = placed;
-  let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
-  if (placed.length > FOCUS) {
-    singles = placed.slice(0, FOCUS);
-    const buckets = new Map<string, typeof placed>();
-    placed.slice(FOCUS).forEach((p) => {
-      const sector = Math.floor((((p.bearing % 360) + 360) % 360) / 45);
-      const band = Math.min(2, Math.floor((p.dist / MAX_DIST) * 3));
-      const key = `${sector}-${band}`;
-      buckets.set(key, [...(buckets.get(key) || []), p]);
+  // memoised marker placement — recomputed only when data/geometry change,
+  // not on every parent poll re-render (startup/scroll performance)
+  const { singles, clusterInfo, clusters, clearCentre } = useMemo(() => {
+    // place nearby users (fuzzed positions only) — centre coordinates in map space
+    const placed = users.map((u) => {
+      const approx = getApproximateDisplayLocation(u, radiusSetting);
+      const r = Math.min(approx.distance / MAX_DIST, 1) * maxR;
+      const rad = (approx.bearing * Math.PI) / 180;
+      return {
+        u,
+        x: CX + r * Math.sin(rad),
+        y: cy - r * Math.cos(rad),
+        color: (u as any).pro ? colors.teal : (u.vibe && vibeMap[u.vibe]?.color) || colors.grey,
+        bearing: approx.bearing,
+        dist: approx.distance,
+      };
     });
-    const singletons: typeof placed = [];
-    buckets.forEach((group, key) => {
-      if (group.length === 1) {
-        singletons.push(group[0]);
-        return;
-      }
-      clusters.push({
-        key,
-        x: group.reduce((s, g) => s + g.x, 0) / group.length,
-        y: group.reduce((s, g) => s + g.y, 0) / group.length,
-        users: group.map((g) => g.u),
+    // Focus Map: top 8-12 most relevant get individual markers, the rest collapse
+    // into clusters (hard cap of 24 individual avatars always holds)
+    const FOCUS = Math.min(FOCUS_MARKERS, MAX_MARKERS);
+    let singles = placed;
+    let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
+    if (placed.length > FOCUS) {
+      singles = placed.slice(0, FOCUS);
+      const buckets = new Map<string, typeof placed>();
+      placed.slice(FOCUS).forEach((p) => {
+        const sector = Math.floor((((p.bearing % 360) + 360) % 360) / 45);
+        const band = Math.min(2, Math.floor((p.dist / MAX_DIST) * 3));
+        const key = `${sector}-${band}`;
+        buckets.set(key, [...(buckets.get(key) || []), p]);
       });
-    });
-    // leftover singletons merge into their nearest cluster (max 24 avatars stays true)
-    singletons.forEach((p) => {
-      if (clusters.length === 0) {
-        singles.push(p);
-        return;
-      }
-      let best = clusters[0];
-      let bestD = Infinity;
-      clusters.forEach((c) => {
-        const d = Math.hypot(c.x - p.x, c.y - p.y);
-        if (d < bestD) {
-          bestD = d;
-          best = c;
+      const singletons: typeof placed = [];
+      buckets.forEach((group, key) => {
+        if (group.length === 1) {
+          singletons.push(group[0]);
+          return;
         }
+        clusters.push({
+          key,
+          x: group.reduce((s, g) => s + g.x, 0) / group.length,
+          y: group.reduce((s, g) => s + g.y, 0) / group.length,
+          users: group.map((g) => g.u),
+        });
       });
-      best.users.push(p.u);
-    });
-  }
-  // spacing pass — avatars never stack directly on top of each other
-  const MIN_GAP = 40;
-  for (let i = 0; i < singles.length; i++) {
-    for (let j = 0; j < i; j++) {
-      const dx = singles[i].x - singles[j].x;
-      const dy = singles[i].y - singles[j].y;
-      const d = Math.hypot(dx, dy);
-      if (d < MIN_GAP) {
-        const ang = d > 0.5 ? Math.atan2(dy, dx) : i * 0.9;
-        singles[i] = {
-          ...singles[i],
-          x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 26), MAP_W - 26),
-          y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 26), mapH - 26),
-        };
+      // leftover singletons merge into their nearest cluster (max 24 avatars stays true)
+      singletons.forEach((p) => {
+        if (clusters.length === 0) {
+          singles.push(p);
+          return;
+        }
+        let best = clusters[0];
+        let bestD = Infinity;
+        clusters.forEach((c) => {
+          const d = Math.hypot(c.x - p.x, c.y - p.y);
+          if (d < bestD) {
+            bestD = d;
+            best = c;
+          }
+        });
+        best.users.push(p.u);
+      });
+    }
+    // spacing pass — avatars never stack directly on top of each other
+    const MIN_GAP = 40;
+    for (let i = 0; i < singles.length; i++) {
+      for (let j = 0; j < i; j++) {
+        const dx = singles[i].x - singles[j].x;
+        const dy = singles[i].y - singles[j].y;
+        const d = Math.hypot(dx, dy);
+        if (d < MIN_GAP) {
+          const ang = d > 0.5 ? Math.atan2(dy, dx) : i * 0.9;
+          singles[i] = {
+            ...singles[i],
+            x: Math.min(Math.max(singles[j].x + Math.cos(ang) * MIN_GAP, 26), MAP_W - 26),
+            y: Math.min(Math.max(singles[j].y + Math.sin(ang) * MIN_GAP, 26), mapH - 26),
+          };
+        }
       }
     }
-  }
-  // keep the centre clear — nothing may sit under the "You" marker (it would block taps)
-  const clearCentre = (px: number, py: number, brg: number, min: number) => {
-    const dx = px - CX;
-    const dy = py - cy;
-    const d = Math.hypot(dx, dy);
-    if (d >= min) return { x: px, y: py };
-    const ang = d > 0.5 ? Math.atan2(dy, dx) : ((brg - 90) * Math.PI) / 180;
-    return { x: CX + Math.cos(ang) * min, y: cy + Math.sin(ang) * min };
-  };
-  singles = singles.map((p) => ({ ...p, ...clearCentre(p.x, p.y, p.bearing, 52) }));
-  clusters = clusters.map((c) => ({ ...c, ...clearCentre(c.x, c.y, 0, 56) }));
-
-  // dominant vibe per cluster (drives bubble colour, label and heat zones)
-  const clusterInfo = clusters.map((c) => {
-    const counts: Record<string, number> = {};
-    c.users.forEach((u) => {
-      if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
-    });
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    const dominant = top && top[1] / c.users.length >= 0.5 ? top[0] : null;
-    const label =
-      dominant === "opportunity"
-        ? opportunityClusterLabel(c.users)
-        : dominant
-        ? SHORT_VIBE[dominant] || null
-        : null;
-    // adaptive pills have content-based width — clamp inside the visible radar
-    const w = estimatePillWidth(c.users.length, label);
-    return {
-      ...c,
-      x: Math.min(Math.max(c.x, w / 2 + 10), MAP_W - w / 2 - 10),
-      w,
-      color: (dominant && vibeMap[dominant]?.color) || colors.teal,
-      label,
+    // keep the centre clear — nothing may sit under the "You" marker (it would block taps)
+    const clearCentre = (px: number, py: number, brg: number, min: number) => {
+      const dx = px - CX;
+      const dy = py - cy;
+      const d = Math.hypot(dx, dy);
+      if (d >= min) return { x: px, y: py };
+      const ang = d > 0.5 ? Math.atan2(dy, dx) : ((brg - 90) * Math.PI) / 180;
+      return { x: CX + Math.cos(ang) * min, y: cy + Math.sin(ang) * min };
     };
-  });
+    singles = singles.map((p) => ({ ...p, ...clearCentre(p.x, p.y, p.bearing, 52) }));
+    clusters = clusters.map((c) => ({ ...c, ...clearCentre(c.x, c.y, 0, 56) }));
+
+    // dominant vibe per cluster (drives bubble colour, label and heat zones)
+    const clusterInfo = clusters.map((c) => {
+      const counts: Record<string, number> = {};
+      c.users.forEach((u) => {
+        if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
+      });
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      const dominant = top && top[1] / c.users.length >= 0.5 ? top[0] : null;
+      const label =
+        dominant === "opportunity"
+          ? opportunityClusterLabel(c.users)
+          : dominant
+          ? SHORT_VIBE[dominant] || null
+          : null;
+      // adaptive pills have content-based width — clamp inside the visible radar
+      const w = estimatePillWidth(c.users.length, label);
+      return {
+        ...c,
+        x: Math.min(Math.max(c.x, w / 2 + 10), MAP_W - w / 2 - 10),
+        w,
+        color: (dominant && vibeMap[dominant]?.color) || colors.teal,
+        label,
+      };
+    });
+    return { singles, clusterInfo, clusters, clearCentre };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, mapH, maxR, radiusSetting, vibeMap]);
 
   return (
     <View style={[styles.mapArea, { height: mapH }]} testID="radar-map">
@@ -534,7 +542,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
             {/* center pulse */}
             <Animated.View
               pointerEvents="none"
-              style={[styles.centerPulse, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+              style={[styles.centerPulse, meColor ? { backgroundColor: meColor } : null, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
             />
           </Reanimated.View>
 
@@ -549,7 +557,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
 
             {/* me (exact position — visible only to you) */}
             <Reanimated.View style={[styles.me, meAnchor]} pointerEvents="none">
-              <Avatar uri={meUri} name={meName} size={44} ringColor={colors.teal} />
+              <Avatar uri={meUri} name={meName} size={44} ringColor={meColor || colors.teal} />
               <View style={styles.mePointer} />
               <View style={styles.youLabel}>
                 <Text style={styles.youLabelText}>You</Text>
@@ -656,24 +664,25 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
             {(events || []).map((ev) => {
               const rr = Math.min(ev.distance / MAX_DIST, 1) * maxR;
               const rad = (ev.bearing * Math.PI) / 180;
-              const pos = clearCentre(CX + rr * Math.sin(rad), cy - rr * Math.cos(rad), ev.bearing, 60);
-              const size = Math.min(44 + Math.round(Math.min(ev.going, 24) * 0.7), 60); // popularity scaling
+              // keep events clear of the central People zone (min 55% of radar radius)
+              const minR = Math.max(110, maxR * 0.55);
+              const pos = clearCentre(CX + rr * Math.sin(rad), cy - rr * Math.cos(rad), ev.bearing, minR);
+              const size = Math.min(40 + Math.round(Math.min(ev.going, 24) * 0.6), 54);
+              const live = (ev as any).start_datetime && new Date((ev as any).start_datetime) <= new Date() && new Date() <= new Date((ev as any).end_datetime);
               return (
-                <MapAnchor key={`ev-${ev.id}`} cx={pos.x} cy={pos.y} oy={cy} w={96} h={size + 34} z={z} style={styles.blip}>
-                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} style={{ alignItems: "center", width: 96 }}>
+                <MapAnchor key={`ev-${ev.id}`} cx={pos.x} cy={pos.y} oy={cy} w={110} h={size + 44} z={z} style={styles.blip}>
+                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} hitSlop={8} style={{ alignItems: "center", width: 110 }}>
                     <View style={[styles.eventGlow, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
                     <View style={[styles.eventDot, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
                       <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
                     </View>
-                    <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
-                    <Text style={[styles.eventMeta, (ev as any).status === "full" && { color: colors.orange, fontWeight: "800" }]}>
-                      {(ev as any).status === "full"
-                        ? "FULL"
-                        : (ev as any).start_datetime && new Date((ev as any).start_datetime) <= new Date() && new Date() <= new Date((ev as any).end_datetime)
-                        ? "● Live now"
-                        : `${ev.going} going`}
-                      {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
-                    </Text>
+                    <View style={styles.eventPill}>
+                      <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
+                      <Text style={styles.eventMeta} numberOfLines={1}>
+                        {(ev as any).status === "full" ? "FULL" : live ? "● Live now" : `${ev.going} going`}
+                        {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
+                      </Text>
+                    </View>
                   </Pressable>
                 </MapAnchor>
               );
@@ -915,8 +924,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  eventName: { color: colors.text, fontSize: 11, fontWeight: "800", marginTop: 2, maxWidth: 92, textAlign: "center", textShadowColor: "#FFF", textShadowRadius: 3 },
-  eventMeta: { color: colors.textSecondary, fontSize: 10, fontWeight: "600", textShadowColor: "#FFF", textShadowRadius: 3 },
+  eventPill: { backgroundColor: colors.orange, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginTop: 3, maxWidth: 110, alignItems: "center", shadowColor: "#111827", shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  eventName: { color: "#FFF", fontSize: 11, fontWeight: "800", textAlign: "center" },
+  eventMeta: { color: "rgba(255,255,255,0.92)", fontSize: 10, fontWeight: "700" },
   radiusChip: {
     position: "absolute",
     top: 12,
