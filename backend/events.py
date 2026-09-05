@@ -14,8 +14,9 @@ from pydantic import BaseModel
 
 events_router = APIRouter(prefix="/api/events")
 
-EVENT_CATEGORIES = ["Social", "Coffee / Drinks", "Fitness", "Sport", "Networking",
-                    "Study", "Gaming", "Entertainment", "Community", "Other"]
+EVENT_CATEGORIES = ["Coffee / Drinks", "Fitness", "Walking / Running", "Sport", "Social",
+                    "Networking", "Study", "Food", "Games", "Outdoor", "Community",
+                    "Music", "Wellness", "Gaming", "Entertainment", "Other"]
 EVENT_RADII = [250, 500, 750, 1000]
 EVENT_REPORT_REASONS = ["Unsafe activity", "Harassment", "Spam", "Misleading event",
                         "Inappropriate content", "Illegal activity", "Other"]
@@ -193,6 +194,11 @@ def bind(server):
                "join_type": body.join_type if body.join_type in ("everyone", "approval") else ev["join_type"],
                "updated_at": now_iso()}
         await db.events.update_one({"id": event_id}, {"$set": upd})
+        # notify accepted attendees about the update
+        atts = await db.event_attendees.find({"event_id": event_id, "join_status": "accepted"}).to_list(500)
+        for a in atts:
+            await notify(a["user_id"], "event_updated", "Event updated",
+                         f"The host updated \"{upd['title']}\". Check the latest details.")
         return await _payload({**ev, **upd}, user)
 
     @events_router.post("/{event_id}/cancel")
@@ -237,16 +243,27 @@ def bind(server):
         if status == "pending":
             await notify(ev["creator_user_id"], "event_join_request", "Join request",
                          f"{user.get('name') or 'Someone'} wants to join \"{ev['title']}\".")
-        elif ev.get("capacity") and going + 1 >= ev["capacity"]:
-            await db.events.update_one({"id": event_id}, {"$set": {"status": "full"}})
+        else:
+            await notify(ev["creator_user_id"], "event_joined", "New attendee",
+                         f"{user.get('name') or 'Someone'} joined \"{ev['title']}\".")
+            cap = ev.get("capacity")
+            if cap and going + 1 >= cap:
+                await db.events.update_one({"id": event_id}, {"$set": {"status": "full"}})
+                await notify(ev["creator_user_id"], "event_full", "Your event is now full", f"\"{ev['title']}\" has reached capacity.")
+            elif cap and going + 1 >= cap - 1:
+                await notify(ev["creator_user_id"], "event_almost_full", "Your event is almost full",
+                             f"\"{ev['title']}\" — {going + 1} of {cap} spots filled.")
         return {"ok": True, "join_status": status}
 
     @events_router.post("/{event_id}/leave")
     async def leave_event(event_id: str, user: dict = Depends(get_current_user)):
-        await db.event_attendees.update_many(
+        r = await db.event_attendees.update_many(
             {"event_id": event_id, "user_id": user["id"], "join_status": {"$in": ["accepted", "pending"]}},
             {"$set": {"join_status": "cancelled"}})
         ev = await db.events.find_one({"id": event_id})
+        if ev and r.modified_count:
+            await notify(ev["creator_user_id"], "event_left", "Attendance cancelled",
+                         f"{user.get('name') or 'Someone'} cancelled their attendance to \"{ev['title']}\".")
         if ev and ev.get("status") == "full":
             await db.events.update_one({"id": event_id}, {"$set": {"status": "active"}})
         return {"ok": True}

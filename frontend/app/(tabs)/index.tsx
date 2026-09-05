@@ -50,6 +50,16 @@ export default function RadarScreen() {
   }, [coords, eventsOn, eventCat]);
   useEffect(() => { loadEvents(); }, [loadEvents]);
 
+  // notification bell unread count
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const poll = () => api<{ unread: number }>("/notifications").then((r) => { if (live) setUnreadCount(r.unread || 0); }).catch(() => {});
+    poll();
+    const t = setInterval(poll, 60000);
+    return () => { live = false; clearInterval(t); };
+  }, []);
+
   // refresh the session countdown label every 30s
   useEffect(() => {
     const t = setInterval(() => forceTick((n) => n + 1), 30000);
@@ -112,6 +122,10 @@ export default function RadarScreen() {
             {user?.is_demo && <Text style={styles.demoBadge} testID="demo-badge">DEMO</Text>}
           </View>
           <View style={styles.headerRight}>
+            <Pressable testID="notif-bell" onPress={() => router.push("/notifications")} style={styles.iconBtn}>
+              <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+              {unreadCount > 0 && <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View>}
+            </Pressable>
             <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
               <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
             </Pressable>
@@ -132,6 +146,10 @@ export default function RadarScreen() {
           {user?.is_demo && <Text style={styles.demoBadge} testID="demo-badge">DEMO</Text>}
         </View>
         <View style={styles.headerRight}>
+          <Pressable testID="notif-bell" onPress={() => router.push("/notifications")} style={styles.iconBtn}>
+            <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+            {unreadCount > 0 && <View style={styles.bellBadge}><Text style={styles.bellBadgeTxt}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View>}
+          </Pressable>
           <Pressable testID="settings-btn" onPress={() => router.push("/privacy")} style={styles.iconBtn}>
             <Ionicons name="settings-outline" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -352,6 +370,25 @@ export default function RadarScreen() {
             )}
 
             <View style={[styles.stats, shadow.card]}>
+              {eventsOn && orbEvents.length > 0 ? (
+                <>
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statNum, { color: colors.orange }]}>{orbEvents.length}</Text>
+                    <Text style={styles.statLabel}>Events Nearby</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statBox}>
+                    <Text style={[styles.statNum, { color: colors.teal }]}>{orbEvents.reduce((a, e) => a + (e.going || 0), 0)}</Text>
+                    <Text style={styles.statLabel}>People Going</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNum}>{(user?.radius || 250) >= 1000 ? "1km" : `${user?.radius || 250}m`}</Text>
+                    <Text style={styles.statLabel}>Radius</Text>
+                  </View>
+                </>
+              ) : (
+                <>
               <View style={styles.statBox}>
                 <Text style={styles.statNum}>{nearby.length >= 100 ? "100+" : nearby.length}</Text>
                 <Text style={styles.statLabel}>Nearby</Text>
@@ -366,6 +403,8 @@ export default function RadarScreen() {
                 <Text style={[styles.statNum, { color: colors.orange }]}>{(user?.radius || 250) >= 1000 ? "1km" : `${user?.radius || 250}m`}</Text>
                 <Text style={styles.statLabel}>Radius</Text>
               </View>
+                </>
+              )}
             </View>
 
             {nearby.length >= 100 && (
@@ -537,9 +576,17 @@ export default function RadarScreen() {
                   <Text style={styles.evMeta}>Approx. {evPreview.distance >= 1000 ? `${(evPreview.distance / 1000).toFixed(1)}km` : `${evPreview.distance}m`} away · {new Date(evPreview.start_datetime).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · {new Date(evPreview.start_datetime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</Text>
                 </View>
               </View>
-              <Text style={styles.evMeta2}>{evPreview.going} going{evPreview.spots_left != null ? ` · ${evPreview.spots_left} spot${evPreview.spots_left === 1 ? "" : "s"} left` : ""} · {evPreview.category} · {evPreview.join_type === "approval" ? "Approval required" : "Everyone"}</Text>
+              <Text style={styles.evMeta2}>{evPreview.going} going{evPreview.spots_left != null ? ` · ${evPreview.spots_left} spot${evPreview.spots_left === 1 ? "" : "s"} left` : ""} · {evPreview.category}</Text>
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                {evPreview.join_type === "approval" && (
+                  <View style={styles.evBadge}><Text style={styles.evBadgeTxt}>Approval Required</Text></View>
+                )}
+                {evPreview.status === "full" && (
+                  <View style={[styles.evBadge, { backgroundColor: colors.orangeSoft }]}><Text style={[styles.evBadgeTxt, { color: colors.orange }]}>FULL</Text></View>
+                )}
+              </View>
               {!!evPreview.description && <Text style={styles.evDesc} numberOfLines={2}>“{evPreview.description}”</Text>}
-              <Text style={styles.evHost}>Hosted by {evPreview.host?.name}</Text>
+              <Text style={styles.evHost}>Hosted by {evPreview.host?.name}{evPreview.host?.verified ? " ✓" : ""}</Text>
               <Pressable testID="ev-preview-open" style={styles.evJoinBtn} onPress={() => { const eid = evPreview.id; setEvPreview(null); router.push(`/event/${eid}`); }}>
                 <Text style={styles.evJoinTxt}>{evPreview.my_status === "accepted" ? "✓ JOINED · VIEW EVENT" : "VIEW & JOIN EVENT"}</Text>
               </Pressable>
@@ -606,6 +653,8 @@ const styles = StyleSheet.create({
   evEmpty: { alignItems: "center", paddingVertical: spacing.lg, gap: 4 },
   evEmptyTitle: { color: colors.text, fontWeight: "800", fontSize: font.sm, letterSpacing: 0.6 },
   evEmptyTxt: { color: colors.textSecondary, fontSize: font.sm },
+  evBadge: { backgroundColor: colors.tealSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  evBadgeTxt: { color: colors.teal, fontSize: font.micro, fontWeight: "800" },
   container: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: "row",
@@ -615,6 +664,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   headerRight: { flexDirection: "row", gap: spacing.sm },
+  bellBadge: { position: "absolute", top: -2, right: -2, backgroundColor: colors.orange, borderRadius: 9, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  bellBadgeTxt: { color: "#FFF", fontSize: 9, fontWeight: "800" },
   logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
   iconBtn: {

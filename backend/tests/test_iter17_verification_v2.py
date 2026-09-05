@@ -232,7 +232,7 @@ class TestSubmitSuccess:
         assert len(files) == 1 and files[0]["file_b64"].startswith("cGRmL")  # b64 of 'pdf-bytes'
 
         # notification created
-        notes = requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json()
+        notes = (lambda _r: _r.get("items", _r) if isinstance(_r, dict) else _r)(requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json())
         assert any("Verification submitted" in n["title"] for n in notes)
 
         # supersede: submit again → first is deleted
@@ -292,7 +292,7 @@ class TestExpiryAutomation:
         assert 90 in sub["reminders_sent"]
         assert 60 in sub["reminders_sent"]
 
-        notes = requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json()
+        notes = (lambda _r: _r.get("items", _r) if isinstance(_r, dict) else _r)(requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json())
         titles = [n["title"] for n in notes]
         assert any("Credentials expiring soon" in t for t in titles)
         assert any("Reminder: Credentials expiring soon" in t for t in titles)
@@ -300,7 +300,7 @@ class TestExpiryAutomation:
 
         # second read should NOT duplicate
         requests.get(f"{API}/verification/status", headers=H(tok), timeout=15)
-        notes2 = requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json()
+        notes2 = (lambda _r: _r.get("items", _r) if isinstance(_r, dict) else _r)(requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json())
         count_after = sum(1 for n in notes2 if "Credentials expiring soon" in n["title"])
         assert count_after == count_before, f"reminders duplicated: {count_before}→{count_after}"
 
@@ -320,7 +320,7 @@ class TestExpiryAutomation:
         assert s["status"] == "Expired"
 
         # notification 'Verification expired' created
-        notes = requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json()
+        notes = (lambda _r: _r.get("items", _r) if isinstance(_r, dict) else _r)(requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json())
         assert any("Verification expired" in n["title"] for n in notes)
 
         # not listed in /api/professionals
@@ -407,7 +407,7 @@ class TestAdmin:
         # renew clears reminders_sent
         assert sub["reminders_sent"] == []
         # each admin decision fired a notification
-        notes = requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json()
+        notes = (lambda _r: _r.get("items", _r) if isinstance(_r, dict) else _r)(requests.get(f"{API}/notifications", headers=H(tok), timeout=15).json())
         titles = " ".join(n["title"] for n in notes)
         for keyword in ("approved", "suspended", "renewed"):
             assert keyword in titles.lower(), f"no notification for {keyword}: {titles}"

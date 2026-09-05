@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, font, shadow } from "@/src/theme";
 import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
@@ -39,6 +40,21 @@ export default function EventDetail() {
 
   const doJoin = async () => {
     if (busy) return;
+    // one-time safety reminder before first event attendance
+    try {
+      const seen = await AsyncStorage.getItem("event_safety_seen");
+      if (!seen) {
+        await AsyncStorage.setItem("event_safety_seen", "1");
+        showAlert("A quick safety note", "Meeting someone new? Choose public locations where possible and let someone you trust know where you're going.", [
+          { text: "Got it", onPress: () => { doJoinNow(); } },
+        ]);
+        return;
+      }
+    } catch {}
+    doJoinNow();
+  };
+
+  const doJoinNow = async () => {
     setBusy(true);
     try {
       const r = await joinEvent(String(id));

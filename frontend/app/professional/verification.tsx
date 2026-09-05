@@ -63,7 +63,7 @@ export default function VerificationScreen() {
   const load = () => {
     api<any>("/verification/status").then(setStatus).catch(() => {});
     api<any>("/config").then((c) => setProfessions(c.professions || {})).catch(() => {});
-    api<any[]>("/notifications").then((n) => setNotifications(n.filter((x) => x.type.startsWith("verification")).slice(0, 5))).catch(() => {});
+    api<any>("/notifications").then((n) => { const rows = Array.isArray(n) ? n : n.items || []; setNotifications(rows.filter((x: any) => x.type.startsWith("verification")).slice(0, 5)); }).catch(() => {});
   };
   useEffect(() => { load(); }, []);
 

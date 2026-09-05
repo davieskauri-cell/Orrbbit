@@ -24,15 +24,21 @@ export type OrbEvent = {
 };
 
 export const EVENT_CATEGORY_ICONS: Record<string, string> = {
-  "Social": "people",
   "Coffee / Drinks": "cafe",
   "Fitness": "fitness",
+  "Walking / Running": "walk",
   "Sport": "basketball",
+  "Social": "people",
   "Networking": "briefcase",
   "Study": "book",
+  "Food": "restaurant",
+  "Games": "dice",
+  "Outdoor": "leaf",
+  "Community": "hand-left",
+  "Music": "musical-notes",
+  "Wellness": "flower",
   "Gaming": "game-controller",
   "Entertainment": "ticket",
-  "Community": "hand-left",
   "Other": "sparkles",
 };
 

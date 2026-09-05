@@ -666,7 +666,14 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, rad
                       <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
                     </View>
                     <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
-                    <Text style={styles.eventMeta}>{ev.going} going · {ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}</Text>
+                    <Text style={[styles.eventMeta, (ev as any).status === "full" && { color: colors.orange, fontWeight: "800" }]}>
+                      {(ev as any).status === "full"
+                        ? "FULL"
+                        : (ev as any).start_datetime && new Date((ev as any).start_datetime) <= new Date() && new Date() <= new Date((ev as any).end_datetime)
+                        ? "● Live now"
+                        : `${ev.going} going`}
+                      {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
+                    </Text>
                   </Pressable>
                 </MapAnchor>
               );

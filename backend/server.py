@@ -3146,7 +3146,14 @@ async def verification_status(user: dict = Depends(get_current_user)):
 @api_router.get("/notifications")
 async def my_notifications(user: dict = Depends(get_current_user)):
     rows = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    return rows
+    unread = sum(1 for r in rows if not r.get("read"))
+    return {"items": rows, "unread": unread}
+
+
+@api_router.post("/notifications/read")
+async def mark_notifications_read(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "read": {"$ne": True}}, {"$set": {"read": True}})
+    return {"ok": True}
 
 
 def _require_admin(user: dict):
