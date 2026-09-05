@@ -30,10 +30,35 @@ export default function Notifications() {
     try {
       const r = await api<{ items: Notif[] }>("/notifications");
       setItems(r.items);
-      await api("/notifications/read", { method: "POST" }); // opening the centre marks read
     } catch { setItems([]); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // mark ONE notification read (persisted) — highlights stay until each is opened
+  const markRead = (n: Notif) => {
+    if (n.read) return;
+    setItems((prev) => (prev || []).map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    api("/notifications/read", { method: "POST", body: { ids: [n.id] } }).catch(() => {});
+  };
+
+  const markAllRead = () => {
+    setItems((prev) => (prev || []).map((x) => ({ ...x, read: true })));
+    api("/notifications/read", { method: "POST" }).catch(() => {});
+  };
+
+  // route by stored references (event_id) — never by parsing text
+  const open = (n: Notif) => {
+    markRead(n);
+    if (n.event_id) {
+      const focus = n.type === "event_join_request" ? "requests"
+        : n.type === "event_joined" || n.type === "event_left" ? "attendees" : "";
+      router.push(`/event/${n.event_id}${focus ? `?focus=${focus}` : ""}`);
+    } else if (n.type.startsWith("verification") || n.type.startsWith("professional")) {
+      router.push("/professional/verification");
+    }
+  };
+
+  const unread = (items || []).filter((n) => !n.read).length;
 
   const shown = (items || []).filter((n) => {
     if (filter === "All") return true;
@@ -47,7 +72,13 @@ export default function Notifications() {
       <View style={[s.header, { paddingTop: insets.top + spacing.sm }]}>
         <Pressable onPress={() => router.back()} hitSlop={10}><Ionicons name="chevron-back" size={24} color={colors.text} /></Pressable>
         <Text style={s.headerTitle}>Notifications</Text>
-        <View style={{ width: 24 }} />
+        {unread > 0 ? (
+          <Pressable testID="mark-all-read" onPress={markAllRead} hitSlop={8}>
+            <Text style={s.markAll}>Read all</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 24 }} />
+        )}
       </View>
       <View style={s.filters}>
         {FILTERS.map((f) => (
@@ -69,15 +100,11 @@ export default function Notifications() {
         {shown.map((n) => (
           <Pressable
             key={n.id}
-            style={s.row}
+            style={[s.row, !n.read && s.rowUnread]}
             testID={`notif-${n.id}`}
-            onPress={() => {
-              // navigate by stored references — never by parsing text
-              if (n.event_id) router.push(`/event/${n.event_id}`);
-              else if (n.type.startsWith("verification") || n.type.startsWith("professional")) router.push("/professional/verification");
-            }}
+            onPress={() => open(n)}
           >
-            <View style={[s.dot, { backgroundColor: n.read ? colors.border : (EVENT_TYPES.includes(n.type) ? colors.teal : colors.orange) }]} />
+            <View style={[s.dot, { backgroundColor: n.read ? "transparent" : (EVENT_TYPES.includes(n.type) ? colors.teal : colors.orange) }]} />
             <View style={{ flex: 1 }}>
               <Text style={[s.title, !n.read && { fontWeight: "800" }]}>{n.title}</Text>
               <Text style={s.body}>{n.body}</Text>
@@ -98,7 +125,9 @@ const s = StyleSheet.create({
   fChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   fChipOn: { backgroundColor: colors.teal, borderColor: colors.teal },
   fTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
-  row: { flexDirection: "row", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  row: { flexDirection: "row", gap: 10, paddingVertical: 12, paddingHorizontal: 10, marginHorizontal: -10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowUnread: { backgroundColor: colors.tealSoft, borderRadius: 12, borderBottomColor: "transparent", marginBottom: 4 },
+  markAll: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 6 },
   title: { color: colors.text, fontSize: font.base, fontWeight: "600" },
   body: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 19 },

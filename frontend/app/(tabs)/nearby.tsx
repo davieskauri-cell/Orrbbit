@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "@/src/lib/alert";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +10,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import UserRow from "@/src/components/UserRow";
 import EmptyState from "@/src/components/EmptyState";
 import { colors, spacing, font } from "@/src/theme";
+import { nearbyEvents, EVENT_CATEGORY_ICONS, type OrbEvent } from "@/src/services/eventService";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -111,6 +113,10 @@ export default function NearbyScreen() {
         </ScrollView>
       </View>
 
+      {filter === "events" ? (
+        <NearbyEventsList coords={coords} />
+      ) : (
+      <>
       <View style={{ height: 44 }}>
         <ScrollView
           horizontal
@@ -198,7 +204,72 @@ export default function NearbyScreen() {
           )
         }
       />
+      </>
+      )}
     </View>
+  );
+}
+
+/** Nearby → Events: same backend event data as the Radar hotspots (GET /events/nearby). */
+function NearbyEventsList({ coords }: { coords: any }) {
+  const router = useRouter();
+  const [events, setEvents] = useState<OrbEvent[] | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = React.useCallback(async () => {
+    const lat = coords?.lat ?? -37.8136;
+    const lng = coords?.lng ?? 144.9631;
+    try { const r = await nearbyEvents(lat, lng); setEvents(r.events); }
+    catch { setEvents([]); }
+  }, [coords]);
+  useEffect(() => { load(); }, [load]);
+
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  };
+
+  return (
+    <FlatList
+      data={events || []}
+      keyExtractor={(e) => e.id}
+      contentContainerStyle={styles.list}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.teal} />}
+      ListEmptyComponent={
+        events === null ? null : (
+          <EmptyState
+            testID="nearby-events-empty"
+            icon="flame-outline"
+            title="No events nearby right now"
+            text="Events appear here when someone hosts within your area. Host one yourself from the Radar → Events."
+          />
+        )
+      }
+      renderItem={({ item: ev }) => (
+        <Pressable testID={`nearby-event-${ev.id}`} style={styles.evCard} onPress={() => router.push(`/event/${ev.id}`)}>
+          {ev.cover_image ? (
+            <Image source={{ uri: ev.cover_image }} style={styles.evCover} resizeMode="cover" />
+          ) : (
+            <View style={styles.evCoverPlaceholder}>
+              <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={34} color={colors.orange} />
+            </View>
+          )}
+          <View style={styles.evBody}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={styles.evTitle} numberOfLines={1}>{ev.title}</Text>
+              {ev.status === "full" && <Text style={styles.evFull}>FULL</Text>}
+            </View>
+            <Text style={styles.evMeta}>{ev.category} · Approx. {ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`} away</Text>
+            <Text style={styles.evMeta}>{when(ev.start_datetime)}</Text>
+            <Text style={styles.evGoing}>
+              {ev.going} going{ev.spots_left != null ? ` · ${ev.spots_left} spot${ev.spots_left === 1 ? "" : "s"} left` : ""}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} style={{ alignSelf: "center" }} />
+        </Pressable>
+      )}
+    />
   );
 }
 
@@ -267,6 +338,14 @@ function ProfessionalNearby({ role, coords, insetsTop }: { role?: string | null;
 }
 
 const styles = StyleSheet.create({
+  evCard: { flexDirection: "row", gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: spacing.md, marginBottom: spacing.md },
+  evCover: { width: 96, height: 72, borderRadius: 12, backgroundColor: colors.border },
+  evCoverPlaceholder: { width: 96, height: 72, borderRadius: 12, backgroundColor: colors.orangeSoft, alignItems: "center", justifyContent: "center" },
+  evBody: { flex: 1, gap: 2, justifyContent: "center" },
+  evTitle: { color: colors.text, fontSize: font.base, fontWeight: "800", flexShrink: 1 },
+  evFull: { color: colors.orange, fontSize: font.micro, fontWeight: "800" },
+  evMeta: { color: colors.textSecondary, fontSize: font.sm },
+  evGoing: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   proCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: spacing.lg, marginBottom: spacing.md, gap: 4 },
   proBadge: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   proTitle: { color: colors.text, fontSize: font.lg, fontWeight: "700" },

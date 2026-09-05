@@ -20,7 +20,7 @@ function when(iso: string) {
 }
 
 export default function EventDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, focus } = useLocalSearchParams<{ id: string; focus?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [ev, setEv] = useState<OrbEvent | null>(null);
@@ -37,6 +37,12 @@ export default function EventDetail() {
 
   const loadAtts = () =>
     eventAttendees(String(id)).then((r) => { setAtts(r.attendees); setIsHostView(r.is_host); }).catch(() => setAtts([]));
+
+  // opened from a notification (join request / attendee change) — auto-expand attendees
+  useEffect(() => {
+    if (focus === "requests" || focus === "attendees") loadAtts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus, id]);
 
   const doJoin = async () => {
     if (busy) return;
@@ -116,7 +122,7 @@ export default function EventDetail() {
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 120 }}>
         {ev.cover_image ? (
-          <Image source={{ uri: ev.cover_image }} style={[s.cover, { backgroundColor: colors.border }]} resizeMode="cover" />
+          <Image source={{ uri: ev.cover_image }} style={s.coverImg} resizeMode="cover" />
         ) : (
           <View style={[s.cover, shadow.card]}>
             <Ionicons name={icon as any} size={44} color={colors.orange} />
@@ -240,6 +246,7 @@ const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, backgroundColor: colors.surface },
   headerTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   cover: { height: 110, borderRadius: 18, backgroundColor: colors.orangeSoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.lg },
+  coverImg: { width: "100%", aspectRatio: 16 / 9, borderRadius: 18, backgroundColor: colors.border, marginBottom: spacing.lg },
   cancelBanner: { backgroundColor: "#FEE2E2", borderRadius: 10, paddingVertical: 8, alignItems: "center", marginBottom: spacing.md },
   cancelTxt: { color: "#DC2626", fontWeight: "800", fontSize: font.sm },
   title: { color: colors.text, fontSize: 22, fontWeight: "800" },

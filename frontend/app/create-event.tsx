@@ -8,6 +8,7 @@ import { showAlert } from "@/src/lib/alert";
 import { useApp } from "@/src/context/AppContext";
 import { createEvent, editEvent, getEvent, EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Image, Linking } from "react-native";
 
 const CATEGORIES = Object.keys(EVENT_CATEGORY_ICONS);
@@ -75,12 +76,24 @@ export default function CreateEvent() {
           }
         }
       }
-      const opts = { mediaTypes: ["images"] as any, allowsEditing: true, aspect: [16, 9] as [number, number], quality: 0.7, base64: true };
+      const opts = { mediaTypes: ["images"] as any, allowsEditing: true, aspect: [16, 9] as [number, number], quality: 0.9, base64: true };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (res.canceled || !res.assets?.[0]?.base64) return;
-      const b64 = res.assets[0].base64;
-      if (b64.length > 5_000_000) { showAlert("Photo too large", "Please choose a smaller photo."); return; }
-      setPhoto(`data:image/jpeg;base64,${b64}`);
+      if (res.canceled || !res.assets?.[0]) return;
+      const asset = res.assets[0];
+      // normalise like profile photos: HEIC→JPEG, EXIF stripped, resized ≤1600px, upload-safe size
+      try {
+        const wide = Math.max(asset.width || 0, asset.height || 0);
+        const actions = wide > 1600
+          ? [(asset.width || 0) >= (asset.height || 0) ? { resize: { width: 1600 } } : { resize: { height: 1600 } }]
+          : [];
+        const out = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+          compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true,
+        });
+        if (out.base64) { setPhoto(`data:image/jpeg;base64,${out.base64}`); return; }
+      } catch {}
+      // fallback: picker-provided base64
+      if (asset.base64 && asset.base64.length <= 5_000_000) setPhoto(`data:image/jpeg;base64,${asset.base64}`);
+      else showAlert("Photo too large", "Please choose a smaller photo.");
     } catch { showAlert("Error", "Couldn't load that photo. Please try again."); }
   };
 

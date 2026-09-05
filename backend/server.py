@@ -3151,9 +3151,16 @@ async def my_notifications(user: dict = Depends(get_current_user)):
     return {"items": rows, "unread": unread}
 
 
+class NotifReadIn(BaseModel):
+    ids: Optional[List[str]] = None
+
+
 @api_router.post("/notifications/read")
-async def mark_notifications_read(user: dict = Depends(get_current_user)):
-    await db.notifications.update_many({"user_id": user["id"], "read": {"$ne": True}}, {"$set": {"read": True}})
+async def mark_notifications_read(body: Optional[NotifReadIn] = None, user: dict = Depends(get_current_user)):
+    q = {"user_id": user["id"], "read": {"$ne": True}}
+    if body and body.ids:
+        q["id"] = {"$in": body.ids[:100]}
+    await db.notifications.update_many(q, {"$set": {"read": True}})
     return {"ok": True}
 
 
