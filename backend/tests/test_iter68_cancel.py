@@ -118,12 +118,13 @@ def test_05_email_sent_once_to_real_attendee_and_skipped_for_demo():
         demo = await db.email_events.find({"template": "event_cancelled", "to_email": "james@intro.demo"}).to_list(5)
         return evs, demo, uid
     evs, demo, _ = _db_run(check)
-    assert len(evs) == 1, f"exactly ONE cancellation email record expected, got {len(evs)}"
-    assert evs[0]["to_email"] == "delivered@resend.dev"
-    assert evs[0]["status"] in ("sent", "failed"), evs[0]["status"]
-    assert "Event Cancelled" in evs[0]["subject"]
-    assert len(demo) == 0, "demo attendee must not be emailed"
-    print("email status:", evs[0]["status"], "| subject:", evs[0]["subject"])
+    sent = [e for e in evs if e["status"] == "sent"]
+    assert len(sent) == 1, f"exactly ONE SENT cancellation email expected, got {len(sent)} of {len(evs)} records"
+    assert sent[0]["to_email"] == "delivered@resend.dev"
+    assert "Event Cancelled" in sent[0]["subject"]
+    # demo attendee: skip is LOGGED (Iter74) but never actually sent
+    assert all(d["status"] != "sent" for d in demo), "demo attendee must not be emailed"
+    print("email status:", sent[0]["status"], "| subject:", sent[0]["subject"])
 
 
 def test_06_email_failure_never_reactivates_event():

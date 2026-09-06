@@ -796,6 +796,53 @@ async def control_user_action(user_id: str, body: UserActionIn, request: Request
                  "Your account has been suspended for breaching our Community Guidelines, effective immediately. If you believe this decision is wrong, you can appeal by contacting support.",
                  "account_suspended")
     elif body.action == "delete":
+        # cascade: cancel this host's active/upcoming events BEFORE the account disappears
+        cascade = {"events_cancelled": 0, "event_ids": [], "attendees_notified": 0,
+                   "emails": {"sent": 0, "failed": 0, "skipped": 0}}
+        import control_email as _ce
+        import events as _ev_mod
+        evs = await db.events.find({"creator_user_id": user_id, "status": {"$in": ["active", "full"]}},
+                                   {"_id": 0}).to_list(200)
+        for ev in evs:
+            r_ev = await db.events.update_one(
+                {"id": ev["id"], "status": {"$in": ["active", "full"]}},
+                {"$set": {"status": "cancelled", "cancelled_at": now_iso(), "cancelled_by": user_id,
+                          "cancellation_reason": "Host account deleted", "updated_at": now_iso()}})
+            if r_ev.modified_count == 0:
+                continue  # already cancelled — duplicate-trigger safety
+            cascade["events_cancelled"] += 1
+            cascade["event_ids"].append(ev["id"])
+            try:
+                st = datetime.fromisoformat(ev["start_datetime"].replace("Z", "+00:00")).astimezone(_ev_mod.EVENT_TZ)
+                en = datetime.fromisoformat(ev["end_datetime"].replace("Z", "+00:00")).astimezone(_ev_mod.EVENT_TZ)
+                ev_date, ev_time = st.strftime("%A, %d %B %Y"), f"{st.strftime('%-I:%M %p')} → {en.strftime('%-I:%M %p')}"
+            except (ValueError, KeyError):
+                ev_date, ev_time = ev.get("start_datetime", ""), ""
+            loc = (ev.get("location_display") or "").strip()
+            atts = await db.event_attendees.find(
+                {"event_id": ev["id"], "join_status": "accepted", "user_id": {"$ne": user_id}}).to_list(500)
+            for a in atts:
+                dk = f"event_host_deleted:{ev['id']}:{a['user_id']}"
+                if not await db.notifications.find_one({"user_id": a["user_id"], "dedupe_key": dk}):
+                    await db.notifications.insert_one({
+                        "id": str(uuid.uuid4()), "user_id": a["user_id"], "type": "event_cancelled",
+                        "title": "Event cancelled",
+                        "body": f"\"{ev['title']}\" is no longer available because the host's account has been removed.",
+                        "event_id": ev["id"], "read": False, "dedupe_key": dk, "created_at": now_iso()})
+                    cascade["attendees_notified"] += 1
+                if _ce._svc:
+                    u2 = await db.users.find_one({"id": a["user_id"]})
+                    if u2:
+                        try:
+                            res = await _ce._svc.send(
+                                "event_cancelled", user=u2, entity_id=ev["id"],
+                                ctx={"event_title": ev["title"], "event_date": ev_date, "event_time": ev_time,
+                                     "location_part": f"<br><b>Location:</b> {loc}" if loc else ""})
+                            k = res.get("status")
+                            cascade["emails"]["sent" if k == "sent" else "failed" if k == "failed" else "skipped"] += 1
+                        except Exception:
+                            cascade["emails"]["failed"] += 1  # logged; event stays cancelled
+        result["event_cleanup"] = cascade
         await db.users.delete_one({"id": user_id})
         for coll in ("pings", "matches", "saved", "blocks", "hides", "help_requests", "professional_profiles", "verification_submissions", "notifications"):
             await db[coll].delete_many({"$or": [{"user_id": user_id}, {"from_user_id": user_id}, {"to_user_id": user_id}]})
@@ -821,7 +868,10 @@ async def control_user_action(user_id: str, body: UserActionIn, request: Request
             extra_new={"action": body.action, "reason": body.reason})
     else:
         await audit(fresh, f"user_{body.action}", "user", user_id,
-                    old_value={"admin_status": old_status}, new_value={"action": body.action, "reason": body.reason}, ip=ip, mode=mode)
+                    old_value={"admin_status": old_status},
+                    new_value={"action": body.action, "reason": body.reason,
+                               **(result.get("event_cleanup") and {"event_cleanup": result["event_cleanup"]} or {})},
+                    ip=ip, mode=mode)
     return result
 
 
