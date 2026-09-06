@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Linking } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,34 +9,39 @@ import { useApp } from "@/src/context/AppContext";
 import { createEvent, editEvent, getEvent, EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { Image, Linking } from "react-native";
+import EventPoster from "@/src/components/EventPoster";
 
 const CATEGORIES = Object.keys(EVENT_CATEGORY_ICONS);
 const RADII = [250, 500, 750, 1000];
 const CAPS: (number | null)[] = [null, 5, 10, 20, 50];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function dayOpts() {
-  return [0, 1, 2, 3, 4, 5, 6].map((i) => {
-    const d = new Date(Date.now() + i * DAY_MS);
-    return { label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }), date: d };
-  });
-}
-const TIMES = ["07:00", "08:00", "09:00", "10:00", "12:00", "14:00", "16:00", "17:30", "18:00", "19:00", "20:00", "21:00"];
+/** minutes-from-midnight → "9:30 PM" */
+const fmtTime = (mins: number) => {
+  const h24 = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  const ap = h24 >= 12 ? "PM" : "AM";
+  const h = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ap}`;
+};
 
-function futureDefaults() {
-  // default to the next future slot so a new event is never created in the past
+const fmtDate = (d: Date) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dd = new Date(d); dd.setHours(0, 0, 0, 0);
+  const diff = Math.round((dd.getTime() - today.getTime()) / DAY_MS);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+};
+
+function defaultTimes() {
+  // default: next half-hour slot at least 1 hour away, 2-hour duration
   const now = new Date();
-  const cutoff = new Date(now.getTime() + 45 * 60000); // ≥45 min from now
-  for (const t of TIMES) {
-    const [h, m] = t.split(":").map(Number);
-    const d = new Date(); d.setHours(h, m, 0, 0);
-    if (d > cutoff) {
-      const idx = TIMES.indexOf(t);
-      return { dayIdx: 0, startT: t, endT: TIMES[Math.min(idx + 2, TIMES.length - 1)] };
-    }
-  }
-  return { dayIdx: 1, startT: "09:00", endT: "10:00" }; // late night → tomorrow morning
+  let start = Math.ceil((now.getHours() * 60 + now.getMinutes() + 60) / 30) * 30;
+  let dayOffset = 0;
+  if (start >= 1440) { start -= 1440; dayOffset = 1; }
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + dayOffset);
+  return { date: d, startMin: start, endMin: (start + 120) % 1440 };
 }
 
 export default function CreateEvent() {
@@ -45,13 +50,15 @@ export default function CreateEvent() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { coords } = useApp();
   const editing = !!id;
-  const defs = futureDefaults();
+  const defs = defaultTimes();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Social");
-  const [dayIdx, setDayIdx] = useState(defs.dayIdx);
-  const [startT, setStartT] = useState(defs.startT);
-  const [endT, setEndT] = useState(defs.endT);
+  const [date, setDate] = useState<Date>(defs.date);
+  const [startMin, setStartMin] = useState(defs.startMin);
+  const [endMin, setEndMin] = useState(defs.endMin);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [timeOpen, setTimeOpen] = useState<"start" | "end" | null>(null);
   const [locationDisplay, setLocationDisplay] = useState("");
   const [radius, setRadius] = useState(500);
   const [desc, setDesc] = useState("");
@@ -59,7 +66,11 @@ export default function CreateEvent() {
   const [joinType, setJoinType] = useState<"everyone" | "approval">("everyone");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const days = dayOpts();
+
+  const crossesMidnight = endMin <= startMin;
+  const durMin = (endMin - startMin + 1440) % 1440;
+  const durTxt = durMin === 0 ? null
+    : `${Math.floor(durMin / 60) > 0 ? `${Math.floor(durMin / 60)} hour${Math.floor(durMin / 60) === 1 ? "" : "s"}` : ""}${durMin % 60 ? `${Math.floor(durMin / 60) > 0 ? " " : ""}${durMin % 60} min` : ""}`;
 
   const pick = async (camera: boolean) => {
     try {
@@ -76,7 +87,8 @@ export default function CreateEvent() {
           }
         }
       }
-      const opts = { mediaTypes: ["images"] as any, allowsEditing: true, aspect: [16, 9] as [number, number], quality: 0.9, base64: true };
+      // full photo/poster is kept — no forced crop
+      const opts = { mediaTypes: ["images"] as any, quality: 0.9, base64: true };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (res.canceled || !res.assets?.[0]) return;
       const asset = res.assets[0];
@@ -104,35 +116,30 @@ export default function CreateEvent() {
       setRadius(ev.visibility_radius); setDesc(ev.description); setCap(ev.capacity); setJoinType(ev.join_type as any);
       setPhoto(ev.cover_image || null);
       const st = new Date(ev.start_datetime); const en = new Date(ev.end_datetime);
-      const di = Math.max(0, Math.min(6, Math.round((st.getTime() - Date.now()) / DAY_MS)));
-      setDayIdx(di);
-      setStartT(`${String(st.getHours()).padStart(2, "0")}:${String(st.getMinutes()).padStart(2, "0")}`);
-      setEndT(`${String(en.getHours()).padStart(2, "0")}:${String(en.getMinutes()).padStart(2, "0")}`);
+      const d0 = new Date(st); d0.setHours(0, 0, 0, 0);
+      setDate(d0);
+      setStartMin(st.getHours() * 60 + st.getMinutes());
+      setEndMin(en.getHours() * 60 + en.getMinutes());
     }).catch(() => showAlert("Error", "Couldn't load this event."));
   }, [editing, id]);
 
   const submit = async () => {
     if (!title.trim()) { showAlert("Missing name", "Give your event a name."); return; }
-    const base = days[dayIdx].date;
-    const mk = (t: string) => {
-      const [h, m] = t.split(":").map(Number);
-      const d = new Date(base); d.setHours(h, m, 0, 0);
-      return d.toISOString();
-    };
-    let start = mk(startT); let end = mk(endT);
-    if (!editing && new Date(start) < new Date()) {
+    if (endMin === startMin) { showAlert("Check times", "End time must be after the start time."); return; }
+    const start = new Date(date); start.setHours(0, 0, 0, 0); start.setMinutes(startMin);
+    const end = new Date(date); end.setHours(0, 0, 0, 0); end.setMinutes(crossesMidnight ? endMin + 1440 : endMin);
+    if (!editing && start < new Date()) {
       showAlert("Time has passed", "That start time is already in the past — pick a later time or another day.");
       return;
     }
-    if (end <= start) end = new Date(new Date(start).getTime() + 2 * 3600000).toISOString();
     const lat = coords?.lat ?? -37.8136;
     const lng = coords?.lng ?? 144.9631;
     setBusy(true);
     try {
       const body = { title: title.trim(), description: desc.trim(), category, lat, lng,
         location_display: locationDisplay.trim(), location_privacy_type: locationDisplay.trim() ? "venue" : "area",
-        visibility_radius: radius, start_datetime: start, end_datetime: end, capacity: cap, join_type: joinType,
-        cover_image: photo };
+        visibility_radius: radius, start_datetime: start.toISOString(), end_datetime: end.toISOString(),
+        capacity: cap, join_type: joinType, cover_image: photo };
       const ev = editing ? await editEvent(String(id), body) : await createEvent(body);
       if (editing) { router.back(); return; }
       showAlert("🎉 Your event is live", `${ev.title}\n\nPeople nearby can now discover your event on their Orrbbit Radar.`, [
@@ -151,25 +158,37 @@ export default function CreateEvent() {
         <View style={{ width: 24 }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
-        <Text style={s.label}>EVENT PHOTO (optional)</Text>
+        <Text style={s.label}>PHOTO OR EVENTS POSTER (optional)</Text>
         {photo ? (
           <View>
-            <Image source={{ uri: photo }} style={s.heroPreview} resizeMode="cover" />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-              <Pressable testID="change-photo" style={s.photoBtn} onPress={() => pick(false)}><Text style={s.photoBtnTxt}>Change Photo</Text></Pressable>
-              <Pressable testID="remove-photo" style={s.photoBtn} onPress={() => setPhoto(null)}><Text style={[s.photoBtnTxt, { color: "#DC2626" }]}>Remove</Text></Pressable>
+            <EventPoster uri={photo} radius={16} />
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+              <Pressable testID="change-photo" style={s.photoBtn} onPress={() => pick(false)}>
+                <Ionicons name="camera-outline" size={15} color={colors.text} />
+                <Text style={s.photoBtnTxt}>Change Photo</Text>
+              </Pressable>
+              <Pressable testID="remove-photo" style={[s.photoBtn, { borderColor: "#FCA5A5" }]} onPress={() => setPhoto(null)}>
+                <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                <Text style={[s.photoBtnTxt, { color: "#DC2626" }]}>Remove Photo</Text>
+              </Pressable>
             </View>
           </View>
         ) : (
-          <View style={s.photoRow}>
-            <Pressable testID="photo-library" style={s.photoAdd} onPress={() => pick(false)}>
-              <Ionicons name="images-outline" size={20} color={colors.orange} />
-              <Text style={s.photoAddTxt}>Photo Library</Text>
-            </Pressable>
-            <Pressable testID="photo-camera" style={s.photoAdd} onPress={() => pick(true)}>
-              <Ionicons name="camera-outline" size={20} color={colors.orange} />
-              <Text style={s.photoAddTxt}>Take Photo</Text>
-            </Pressable>
+          <View>
+            <View style={s.photoRow}>
+              <Pressable testID="photo-library" style={s.photoAdd} onPress={() => pick(false)}>
+                <Ionicons name="images-outline" size={20} color={colors.orange} />
+                <Text style={s.photoAddTxt}>Photo Library</Text>
+              </Pressable>
+              <Pressable testID="photo-camera" style={s.photoAdd} onPress={() => pick(true)}>
+                <Ionicons name="camera-outline" size={20} color={colors.orange} />
+                <Text style={s.photoAddTxt}>Take Photo</Text>
+              </Pressable>
+            </View>
+            <View style={s.infoNote}>
+              <Ionicons name="information-circle-outline" size={15} color={colors.teal} />
+              <Text style={s.infoNoteTxt}>Add a photo or events poster to make your event stand out. The full image is shown on your event — nothing gets cropped.</Text>
+            </View>
           </View>
         )}
 
@@ -186,31 +205,36 @@ export default function CreateEvent() {
           ))}
         </View>
 
-        <Text style={s.label}>DATE</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {days.map((d, i) => (
-            <Pressable key={d.label} style={[s.chip, dayIdx === i && s.chipOn]} onPress={() => setDayIdx(i)}>
-              <Text style={[s.chipTxt, dayIdx === i && { color: "#FFF" }]}>{d.label}</Text>
+        <Text style={s.label}>DATE & TIME</Text>
+        <Pressable testID="date-field" style={s.field} onPress={() => setDateOpen(true)}>
+          <Ionicons name="calendar-outline" size={17} color={colors.teal} />
+          <Text style={s.fieldTxt}>{fmtDate(date)}</Text>
+          <Ionicons name="chevron-down" size={15} color={colors.textTertiary} />
+        </Pressable>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.fieldLabel}>Start time</Text>
+            <Pressable testID="start-time-field" style={s.field} onPress={() => setTimeOpen("start")}>
+              <Ionicons name="time-outline" size={17} color={colors.teal} />
+              <Text style={s.fieldTxt}>{fmtTime(startMin)}</Text>
+              <Ionicons name="chevron-down" size={15} color={colors.textTertiary} />
             </Pressable>
-          ))}
-        </ScrollView>
-
-        <Text style={s.label}>START TIME</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {TIMES.map((t) => (
-            <Pressable key={`s${t}`} style={[s.chip, startT === t && s.chipOn]} onPress={() => setStartT(t)}>
-              <Text style={[s.chipTxt, startT === t && { color: "#FFF" }]}>{t}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.fieldLabel}>End time</Text>
+            <Pressable testID="end-time-field" style={s.field} onPress={() => setTimeOpen("end")}>
+              <Ionicons name="time-outline" size={17} color={colors.teal} />
+              <Text style={s.fieldTxt}>{fmtTime(endMin)}</Text>
+              <Ionicons name="chevron-down" size={15} color={colors.textTertiary} />
             </Pressable>
-          ))}
-        </ScrollView>
-        <Text style={s.label}>END TIME</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {TIMES.map((t) => (
-            <Pressable key={`e${t}`} style={[s.chip, endT === t && s.chipOn]} onPress={() => setEndT(t)}>
-              <Text style={[s.chipTxt, endT === t && { color: "#FFF" }]}>{t}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        </View>
+        {!!durTxt && (
+          <View style={s.durRow} testID="event-duration">
+            <Ionicons name="hourglass-outline" size={14} color={colors.teal} />
+            <Text style={s.durTxt}>Event duration: {durTxt}{crossesMidnight ? " · ends next day" : ""}</Text>
+          </View>
+        )}
 
         <Text style={s.label}>EVENT LOCATION (shown to attendees)</Text>
         <TextInput testID="event-location" style={s.input} value={locationDisplay} onChangeText={setLocationDisplay} placeholder="e.g. Fed Square steps — leave blank for approximate area" placeholderTextColor={colors.textTertiary} maxLength={60} />
@@ -251,7 +275,101 @@ export default function CreateEvent() {
           {busy ? <ActivityIndicator color="#FFF" /> : <Text style={s.ctaTxt}>{editing ? "SAVE CHANGES" : "CREATE EVENT"}</Text>}
         </Pressable>
       </ScrollView>
+
+      {/* date picker */}
+      <Modal visible={dateOpen} transparent animationType="slide" onRequestClose={() => setDateOpen(false)}>
+        <Pressable style={s.sheetBg} onPress={() => setDateOpen(false)}>
+          <Pressable style={[s.sheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={s.sheetTitle}>Event date</Text>
+            <ScrollView style={{ maxHeight: 380 }}>
+              {Array.from({ length: 30 }, (_, i) => {
+                const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
+                const sel = d.getTime() === new Date(date).setHours(0, 0, 0, 0);
+                return (
+                  <Pressable key={i} testID={`date-opt-${i}`} style={[s.dateRow, sel && s.dateRowOn]} onPress={() => { setDate(d); setDateOpen(false); }}>
+                    <Text style={[s.dateRowTxt, sel && { color: colors.teal, fontWeight: "800" }]}>
+                      {i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                    </Text>
+                    {sel && <Ionicons name="checkmark" size={18} color={colors.teal} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* time picker */}
+      <TimeSheet
+        visible={timeOpen !== null}
+        title={timeOpen === "start" ? "Start time" : "End time"}
+        initial={timeOpen === "end" ? endMin : startMin}
+        bottomInset={insets.bottom}
+        onClose={() => setTimeOpen(null)}
+        onDone={(mins) => {
+          if (timeOpen === "start") {
+            setStartMin(mins);
+            // keep the same duration when the start moves
+            setEndMin((mins + durMin) % 1440);
+          } else setEndMin(mins);
+          setTimeOpen(null);
+        }}
+      />
     </KeyboardAvoidingView>
+  );
+}
+
+/** Native-style 12-hour time picker (hour / minutes / AM-PM columns) — any time, 5-min steps. */
+function TimeSheet({ visible, title, initial, bottomInset, onClose, onDone }:
+  { visible: boolean; title: string; initial: number; bottomInset: number; onClose: () => void; onDone: (mins: number) => void }) {
+  const [h, setH] = useState(9);
+  const [m, setM] = useState(30);
+  const [ap, setAp] = useState<"AM" | "PM">("PM");
+
+  useEffect(() => {
+    if (!visible) return;
+    const h24 = Math.floor(initial / 60) % 24;
+    setH(h24 % 12 === 0 ? 12 : h24 % 12);
+    setM(initial % 60);
+    setAp(h24 >= 12 ? "PM" : "AM");
+  }, [visible, initial]);
+
+  const commit = () => onDone((((ap === "PM" ? 12 : 0) + (h % 12)) * 60 + m) % 1440);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={s.sheetBg} onPress={onClose}>
+        <Pressable style={[s.sheet, { paddingBottom: bottomInset + spacing.lg }]} onPress={(e) => e.stopPropagation()}>
+          <Text style={s.sheetTitle}>{title}</Text>
+          <View style={s.wheelRow}>
+            <ScrollView style={s.wheelCol} showsVerticalScrollIndicator={false}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((hh) => (
+                <Pressable key={hh} testID={`time-hour-${hh}`} style={[s.wheelOpt, h === hh && s.wheelOptOn]} onPress={() => setH(hh)}>
+                  <Text style={[s.wheelTxt, h === hh && s.wheelTxtOn]}>{hh}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <ScrollView style={s.wheelCol} showsVerticalScrollIndicator={false}>
+              {Array.from({ length: 12 }, (_, i) => i * 5).map((mm) => (
+                <Pressable key={mm} testID={`time-min-${mm}`} style={[s.wheelOpt, m === mm && s.wheelOptOn]} onPress={() => setM(mm)}>
+                  <Text style={[s.wheelTxt, m === mm && s.wheelTxtOn]}>{String(mm).padStart(2, "0")}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={[s.wheelCol, { justifyContent: "center", gap: 10 }]}>
+              {(["AM", "PM"] as const).map((a) => (
+                <Pressable key={a} testID={`time-${a}`} style={[s.apBtn, ap === a && s.apBtnOn]} onPress={() => setAp(a)}>
+                  <Text style={[s.apTxt, ap === a && { color: "#FFF" }]}>{a}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Pressable testID="time-done" style={s.sheetDone} onPress={commit}>
+            <Text style={s.sheetDoneTxt}>Set {`${h}:${String(m).padStart(2, "0")} ${ap}`}</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -265,7 +383,30 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   chipTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   privNote: { color: colors.textTertiary, fontSize: font.micro, marginTop: 6, lineHeight: 16 },
-  heroPreview: { width: "100%", height: 160, borderRadius: 16, backgroundColor: colors.orangeSoft },
+  field: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, backgroundColor: "#FFF" },
+  fieldTxt: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "700" },
+  fieldLabel: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600", marginBottom: 6 },
+  durRow: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.tealSoft, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginTop: 10 },
+  durTxt: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
+  infoNote: { flexDirection: "row", gap: 8, backgroundColor: colors.tealSoft, borderRadius: 12, padding: 12, marginTop: 10, alignItems: "flex-start" },
+  infoNoteTxt: { flex: 1, color: colors.textSecondary, fontSize: font.micro, lineHeight: 16 },
+  sheetBg: { flex: 1, backgroundColor: "rgba(17,24,39,0.45)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#FFF", borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: spacing.xl },
+  sheetTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginBottom: spacing.md },
+  dateRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 13, paddingHorizontal: 10, borderRadius: 10 },
+  dateRowOn: { backgroundColor: colors.tealSoft },
+  dateRowTxt: { color: colors.text, fontSize: font.base, fontWeight: "600" },
+  wheelRow: { flexDirection: "row", gap: 10, height: 230 },
+  wheelCol: { flex: 1 },
+  wheelOpt: { paddingVertical: 11, alignItems: "center", borderRadius: 10 },
+  wheelOptOn: { backgroundColor: colors.tealSoft },
+  wheelTxt: { color: colors.textSecondary, fontSize: font.lg, fontWeight: "600" },
+  wheelTxtOn: { color: colors.teal, fontWeight: "800" },
+  apBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
+  apBtnOn: { backgroundColor: colors.teal, borderColor: colors.teal },
+  apTxt: { color: colors.text, fontWeight: "800", fontSize: font.base },
+  sheetDone: { backgroundColor: colors.orange, borderRadius: 999, minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: spacing.lg },
+  sheetDoneTxt: { color: "#FFF", fontWeight: "800", fontSize: font.base },
   photoRow: { flexDirection: "row", gap: 10 },
   photoAdd: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1.5, borderColor: colors.orange + "66", borderStyle: "dashed", borderRadius: 14, paddingVertical: 18, backgroundColor: colors.orangeSoft },
   photoAddTxt: { color: colors.orange, fontWeight: "700", fontSize: font.sm },

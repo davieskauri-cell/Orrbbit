@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, font, shadow } from "@/src/theme";
 import { showAlert } from "@/src/lib/alert";
 import Avatar from "@/src/components/Avatar";
+import EventPoster from "@/src/components/EventPoster";
 import {
   getEvent, joinEvent, leaveEvent, cancelEvent, eventAttendees, manageAttendee,
   reportEvent, EVENT_CATEGORY_ICONS, OrbEvent,
@@ -29,6 +30,7 @@ export default function EventDetail() {
   const [atts, setAtts] = useState<any[] | null>(null);
   const [isHostView, setIsHostView] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const load = useCallback(() => {
     getEvent(String(id)).then(setEv).catch((e) => setError(e?.message || "Couldn't load this event"));
@@ -122,7 +124,9 @@ export default function EventDetail() {
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 120 }}>
         {ev.cover_image ? (
-          <Image source={{ uri: ev.cover_image }} style={s.coverImg} resizeMode="cover" />
+          <Pressable testID="event-cover" onPress={() => setViewerOpen(true)}>
+            <EventPoster uri={ev.cover_image} radius={18} style={{ marginBottom: spacing.lg }} />
+          </Pressable>
         ) : (
           <View style={[s.cover, shadow.card]}>
             <Ionicons name={icon as any} size={44} color={colors.orange} />
@@ -222,6 +226,20 @@ export default function EventDetail() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* full-screen photo/poster viewer — whole image, no cropping */}
+      <Modal visible={viewerOpen} transparent animationType="fade" onRequestClose={() => setViewerOpen(false)}>
+        <View style={s.viewerBg}>
+          {!!ev.cover_image && (
+            <Pressable style={{ flex: 1 }} onPress={() => setViewerOpen(false)}>
+              <Image source={{ uri: ev.cover_image }} style={{ flex: 1 }} resizeMode="contain" />
+            </Pressable>
+          )}
+          <Pressable testID="viewer-close" style={[s.viewerClose, { top: insets.top + 12 }]} onPress={() => setViewerOpen(false)} hitSlop={10}>
+            <Ionicons name="close" size={24} color="#FFF" />
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -246,7 +264,8 @@ const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, backgroundColor: colors.surface },
   headerTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   cover: { height: 110, borderRadius: 18, backgroundColor: colors.orangeSoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.lg },
-  coverImg: { width: "100%", aspectRatio: 16 / 9, borderRadius: 18, backgroundColor: colors.border, marginBottom: spacing.lg },
+  viewerBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.96)" },
+  viewerClose: { position: "absolute", right: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   cancelBanner: { backgroundColor: "#FEE2E2", borderRadius: 10, paddingVertical: 8, alignItems: "center", marginBottom: spacing.md },
   cancelTxt: { color: "#DC2626", fontWeight: "800", fontSize: font.sm },
   title: { color: colors.text, fontSize: 22, fontWeight: "800" },
