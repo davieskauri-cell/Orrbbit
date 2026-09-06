@@ -70,7 +70,7 @@ export default function EmailsAdmin() {
     setTestResult('Sending…');
     try {
       const r = await req(`/email/templates/${previewFor}/test`, { method: 'POST', body: JSON.stringify({ to_email: testTo }) });
-      setTestResult(r.status === 'sent' ? `✅ Sent (Resend id: ${r.resend_id})` : `⚠️ ${r.status}: ${r.reason || ''}`);
+      setTestResult(r.status === 'sent' ? `✅ Email Sent (id: ${r.resend_id || r.provider_id || '—'})` : `⚠️ Email ${r.status}: ${r.reason || ''}`);
     } catch (e: any) { setTestResult(`❌ ${e.message}`); }
   };
 

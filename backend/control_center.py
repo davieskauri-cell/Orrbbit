@@ -49,7 +49,7 @@ async def notify_user_action(*, admin: dict, action: str, user_id: str, title: s
     """ONE central pipeline for admin actions that materially affect a user.
 
     backend action (already committed by the caller) → audit log → in-app
-    notification → Resend email → delivery status recorded on the audit row.
+    notification → email → delivery status recorded on the audit row.
     A notification/email failure NEVER rolls back the admin action.
     Duplicate protection: one in-app notification per action+entity (dedupe_key)
     and EmailService idempotency (template:email:entity).

@@ -1,4 +1,4 @@
-"""Orrbbit password reset — email a 6-digit code via Resend, then set a new password.
+"""Orrbbit password reset — email a 6-digit code via the Orrbbit email service, then set a new password.
 
 Security: no user enumeration (always returns ok), 15-min code expiry, hashed codes,
 max 5 verify attempts, rate limiting per email. Mounted from server.py.

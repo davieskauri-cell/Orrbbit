@@ -1,17 +1,22 @@
 """Orrbbit central EmailService — all transactional email goes through here.
 
-Handles: Resend delivery (retries, reply-to), idempotency + duplicate prevention,
+Handles: delivery via the Emergent managed email service (retries, reply-to),
+idempotency + duplicate prevention,
 per-template cooldowns, rate limiting, user preferences, suppression (bounces/
 complaints), signed unsubscribe/verify tokens, and full event logging.
 Never logs codes/tokens/passwords/API keys.
 """
 import asyncio
 import hashlib
+import ipaddress
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
+from html.parser import HTMLParser
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 import jwt as pyjwt
@@ -26,7 +31,8 @@ from email_templates import (
 
 logger = logging.getLogger(__name__)
 
-RESEND_URL = "https://api.resend.com/emails"
+# Emergent managed email proxy — a CONSTANT by design (survives deployment).
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 JWT_SECRET = os.environ["JWT_SECRET"]
 RATE_LIMIT_PER_HOUR = 10          # optional emails per recipient per hour
 SUPPRESSION_BOUNCE_THRESHOLD = 2  # hard bounces before suppression
@@ -49,12 +55,86 @@ def is_demo_email(email: str) -> bool:
     return e.endswith(".demo") or e.endswith("@example.com") or e.endswith("@example.org")
 
 
+# --- email safety gate (G2/G3): structural checks on every outgoing send ---
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
+
+
 class EmailService:
     def __init__(self, db):
         self.db = db
-        self.from_addr = f'{env_cfg("FROM_NAME", "ORRBBIT")} <{env_cfg("FROM_EMAIL")}>'
+        self.from_name = env_cfg("FROM_NAME", "ORRBBIT")
         self.reply_to = SUPPORT_EMAIL
-        self._api_key = env_cfg("RESEND_API_KEY")
+        self._api_key = env_cfg("EMERGENT_EMAIL_KEY")
         self._settings_cache: dict = {}
         self._settings_cache_at = 0.0
 
@@ -177,20 +257,25 @@ class EmailService:
         return {"status": "failed", "event_id": event["id"], "reason": failure}
 
     async def _deliver(self, email: str, rendered: dict):
-        """POST to Resend with retries on transient failures. Returns (ok, resend_id, failure)."""
+        """POST to the Emergent managed email service with retries on transient
+        failures. Returns (ok, provider_id, failure)."""
+        try:
+            _assert_safe_email(rendered["subject"], rendered["html"])  # G2/G3 gate — never skip
+        except ValueError as gate:
+            return False, None, f"blocked by safety gate: {gate}"
         payload = {
-            "from": self.from_addr, "to": [email], "reply_to": [self.reply_to],
-            "subject": rendered["subject"], "html": rendered["html"], "text": rendered["text"],
+            "to": [email], "subject": rendered["subject"], "html": rendered["html"],
+            "from_name": self.from_name, "contact_email": self.reply_to,
         }
         failure = None
         for attempt in range(3):
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.post(RESEND_URL, json=payload,
-                                             headers={"Authorization": f"Bearer {self._api_key}"})
+                    resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send", json=payload,
+                                             headers={"X-Email-Key": self._api_key})
                 if resp.status_code < 300:
                     return True, resp.json().get("id"), None
-                # 4xx are permanent (bad domain, invalid recipient) — don't retry
+                # 4xx are permanent (bad recipient etc.) — don't retry
                 body = resp.text[:300].replace(self._api_key, "***")
                 failure = f"HTTP {resp.status_code}: {body}"
                 if resp.status_code < 500 and resp.status_code != 429:
