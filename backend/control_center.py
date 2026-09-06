@@ -771,12 +771,20 @@ async def control_professionals(q: Optional[str] = None, status: Optional[str] =
     linked = await uid_filter(mode)
     f = {**linked, "is_draft": {"$ne": True}}
     profs = await db.professional_profiles.find(f, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    user_ids = [p["user_id"] for p in profs]
-    users = {u["id"]: u async for u in db.users.find({"id": {"$in": user_ids}}, {"id": 1, "name": 1, "email": 1, "photo_url": 1, "city": 1, "admin_status": 1})}
-    subs = await db.verification_submissions.find({"user_id": {"$in": user_ids}}, {"_id": 0, "documents.file_base64": 0}).to_list(2000)
+    prof_uids = {p["user_id"] for p in profs}
+    # include everyone with a verification submission so verified professionals
+    # always appear here even if their profile is still draft/missing
+    subs = await db.verification_submissions.find(linked, {"_id": 0, "documents.file_base64": 0}).to_list(2000)
     latest_sub = {}
     for s in sorted(subs, key=lambda x: x.get("submitted_at", "")):
         latest_sub[s["user_id"]] = s
+    extra_uids = [uid for uid in latest_sub if uid not in prof_uids]
+    user_ids = list(prof_uids) + extra_uids
+    users = {u["id"]: u async for u in db.users.find({"id": {"$in": user_ids}}, {"id": 1, "name": 1, "email": 1, "photo_url": 1, "city": 1, "admin_status": 1})}
+    for uid in extra_uids:
+        s0 = latest_sub[uid]
+        profs.append({"user_id": uid, "profession": s0.get("profession"),
+                      "primary_category": (s0.get("categories") or [None])[0]})
     items = []
     for p in profs:
         u = users.get(p["user_id"], {})

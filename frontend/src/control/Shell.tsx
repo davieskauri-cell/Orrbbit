@@ -11,7 +11,6 @@ const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Command Centre', path: '/control/command-centre', icon: 'pulse-outline' },
   { label: 'Users', path: '/control/users', icon: 'people-outline' },
   { label: 'Professionals', path: '/control/professionals', icon: 'briefcase-outline' },
-  { label: 'Professional Verification', path: '/control/verifications', icon: 'shield-checkmark-outline' },
   { label: 'Help Requests', path: '/control/help-requests', icon: 'hand-left-outline' },
   { label: 'People Radar', path: '/control/people-radar', icon: 'locate-outline' },
   { label: 'Events', path: '/control/events', icon: 'flame-outline' },

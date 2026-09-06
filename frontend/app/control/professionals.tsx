@@ -1,15 +1,37 @@
 import { resolvePhotoUri } from "@/src/lib/photo";
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Shell from '../../src/control/Shell';
 import { useCC } from '../../src/control/ControlContext';
 import { CC } from '../../src/control/theme';
 import { Card, Input, Chip, Table, Tr, Td, Badge, Loading, EmptyText, ErrorState, Pager } from '../../src/control/ui';
+import VerificationQueue from '../../src/control/VerificationQueue';
 
 const VSTATUSES = ['', 'Approved', 'Pending', 'Rejected', 'Expired', 'Not submitted'];
 
+/** Single merged Professionals screen: Directory + Verification review queue. */
 export default function Professionals() {
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'directory' | 'verification'>(tabParam === 'verification' ? 'verification' : 'directory');
+  useEffect(() => { if (tabParam === 'verification') setTab('verification'); }, [tabParam]);
+
+  return (
+    <Shell title="Professionals">
+      <View style={st.segments}>
+        <Pressable testID="pro-tab-directory" style={[st.seg, tab === 'directory' && st.segOn]} onPress={() => setTab('directory')}>
+          <Text style={[st.segTxt, tab === 'directory' && st.segTxtOn]}>Directory</Text>
+        </Pressable>
+        <Pressable testID="pro-tab-verification" style={[st.seg, tab === 'verification' && st.segOn]} onPress={() => setTab('verification')}>
+          <Text style={[st.segTxt, tab === 'verification' && st.segTxtOn]}>Verification</Text>
+        </Pressable>
+      </View>
+      {tab === 'directory' ? <Directory /> : <VerificationQueue />}
+    </Shell>
+  );
+}
+
+function Directory() {
   const { req, mode } = useCC();
   const router = useRouter();
   const [q, setQ] = useState('');
@@ -29,11 +51,11 @@ export default function Professionals() {
   useEffect(() => { setPage(1); }, [q, status, mode]);
 
   return (
-    <Shell title="Professionals">
+    <View>
       <Card>
         <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <Input placeholder="Search name, profession or category…" value={q} onChangeText={setQ} style={{ flex: 1, minWidth: 220 }} />
-          {VSTATUSES.map((st) => <Chip key={st || 'all'} label={st || 'All'} active={status === st} onPress={() => setStatus(st)} />)}
+          {VSTATUSES.map((s) => <Chip key={s || 'all'} label={s || 'All'} active={status === s} onPress={() => setStatus(s)} />)}
         </View>
       </Card>
       {error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !data ? <Loading /> : (
@@ -58,6 +80,14 @@ export default function Professionals() {
           <Pager page={page} total={data.total} limit={25} onPage={setPage} />
         </Card>
       )}
-    </Shell>
+    </View>
   );
 }
+
+const st = StyleSheet.create({
+  segments: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  seg: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: CC.border, backgroundColor: '#FFF' },
+  segOn: { backgroundColor: CC.navy, borderColor: CC.navy },
+  segTxt: { fontSize: 13, fontWeight: '700', color: CC.navy },
+  segTxtOn: { color: '#FFF' },
+});

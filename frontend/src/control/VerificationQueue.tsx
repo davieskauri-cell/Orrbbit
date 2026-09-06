@@ -1,0 +1,129 @@
+import { resolvePhotoUri } from "@/src/lib/photo";
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useCC } from './ControlContext';
+import { CC } from './theme';
+import { Card, Chip, Badge, Btn, Loading, EmptyText, ErrorState, ModalCard, Input } from './ui';
+import { fmtDT } from './datetime';
+
+const QUEUES = [
+  { key: 'Pending', label: 'Pending' }, { key: 'Approved', label: 'Verified' },
+  { key: 'review_due', label: 'Annual Review Due' },
+  { key: 'expiring_soon', label: 'Expiring Soon' }, { key: 'Expired', label: 'Expired' },
+  { key: 'More Information Required', label: 'More Info Required' },
+  { key: 'Rejected', label: 'Rejected' }, { key: '', label: 'All' },
+];
+
+/** Verification review queue — rendered inside the merged Professionals screen. */
+export default function VerificationQueue() {
+  const { req, mode, download } = useCC();
+  const [queue, setQueue] = useState('Pending');
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState('');
+  const [decision, setDecision] = useState<any>(null); // {sub, action}
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setError('');
+    try { setData(await req(`/verifications${queue ? `?status=${queue}` : ''}`)); }
+    catch (e: any) { setError(e.message || 'Unable to load production data.'); }
+  }, [req, queue]);
+
+  useEffect(() => { setData(null); load(); }, [load, mode]);
+
+  const submitDecision = async () => {
+    if (!decision) return;
+    setBusy(true);
+    try {
+      await req(`/verifications/${decision.sub.id}/decision`, { method: 'POST', body: JSON.stringify({ action: decision.action, note }) });
+      setDecision(null);
+      setNote('');
+      load();
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const counts = data?.counts || {};
+  return (
+    <View>
+      {error ? <Text style={{ color: CC.red, marginBottom: 8 }}>{error}</Text> : null}
+      <Card>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {QUEUES.map((qd) => (
+            <Chip key={qd.key || 'all'} active={queue === qd.key} onPress={() => setQueue(qd.key)}
+              label={`${qd.label}${counts[qd.key.toLowerCase()] !== undefined ? ` (${counts[qd.key.toLowerCase()]})` : ''}`} />
+          ))}
+        </View>
+      </Card>
+      {!data ? (error ? <Card><ErrorState message={error} onRetry={load} /></Card> : <Loading />) : !data.items.length ? <Card><EmptyText>No submissions in this queue.</EmptyText></Card> : data.items.map((sub: any) => (
+        <Card key={sub.id}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {sub.user?.photo_url ? <Image source={{ uri: resolvePhotoUri(sub.user.photo_url) }} style={s.avatar} /> : <View style={[s.avatar, { backgroundColor: CC.tealSoft }]} />}
+            <View style={{ flex: 1, minWidth: 200 }}>
+              <Text style={s.name}>{sub.user?.name} — {sub.profession}</Text>
+              <Text style={s.sub}>{sub.user?.email} · {(sub.categories || []).join(', ')}</Text>
+              <Text style={s.sub}>Submitted {fmtDT(String(sub.submitted_at), true)}{sub.valid_until ? ` · valid until ${sub.valid_until}` : ''}</Text>
+              {sub.credential_last_reviewed_at ? (
+                <Text style={s.sub}>
+                  Reviewed {fmtDT(String(sub.credential_last_reviewed_at), true)} · Next review {fmtDT(String(sub.credential_next_review_at || ''), true)}
+                  {sub.review_due ? '  ' : ''}
+                </Text>
+              ) : null}
+              {sub.review_due ? <Badge status="pending" label="ANNUAL REVIEW DUE" /> : null}
+            </View>
+            <Badge status={sub.status} />
+          </View>
+          <View style={s.docs}>
+            {(sub.documents || []).map((d: any) => (
+              <View key={d.id} style={s.docChip}>
+                <Text style={{ fontSize: 12, color: CC.navy, fontWeight: '600' }}>📄 {d.doc_name}</Text>
+                <Text style={{ fontSize: 11, color: CC.sub }}>{d.issuer}{d.expiry_date ? ` · exp ${d.expiry_date}` : ''}</Text>
+                {d.has_file ? (
+                  <Btn small variant="ghost" title="View Document"
+                    onPress={() => download(`/verifications/${sub.id}/documents/${d.id}/file`, d.file_name || `${d.doc_name}.pdf`).catch((e: any) => setError(e.message))} />
+                ) : null}
+              </View>
+            ))}
+            {(sub.identity?.documents || []).map((d: any) => (
+              <View key={d.id} style={[s.docChip, { borderColor: CC.orange }]}>
+                <Text style={{ fontSize: 12, color: CC.navy, fontWeight: '600' }}>🪪 {d.doc_name} (identity — private)</Text>
+                <Btn small variant="ghost" title="View Document"
+                  onPress={() => download(`/verifications/${sub.id}/documents/${d.id}/file`, d.file_name || `${d.doc_name}.pdf`).catch((e: any) => setError(e.message))} />
+              </View>
+            ))}
+          </View>
+          {sub.public_note ? <Text style={[s.sub, { marginTop: 6 }]}>Reviewer note: {sub.public_note}</Text> : null}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {sub.status !== 'Approved' ? <Btn small variant="teal" title="Approve" onPress={() => setDecision({ sub, action: 'approve' })} /> : null}
+            {sub.status !== 'Rejected' ? <Btn small variant="danger" title="Reject" onPress={() => setDecision({ sub, action: 'reject' })} /> : null}
+            <Btn small variant="outline" title="Request More Info" onPress={() => setDecision({ sub, action: 'more_info' })} />
+            {sub.status === 'Approved' ? <Btn small variant="teal" title="Complete Annual Review" onPress={() => setDecision({ sub, action: 'annual_review' })} /> : null}
+            {sub.status === 'Approved' ? <Btn small variant="outline" title="Renew" onPress={() => setDecision({ sub, action: 'renew' })} /> : null}
+            {sub.status === 'Approved' ? <Btn small variant="outline" title="Suspend" onPress={() => setDecision({ sub, action: 'suspend' })} /> : null}
+            {sub.status === 'Expired' ? <Btn small variant="outline" title="Revoke" onPress={() => setDecision({ sub, action: 'revoke' })} /> : null}
+          </View>
+        </Card>
+      ))}
+
+      <ModalCard visible={!!decision} title={`Confirm: ${decision?.action?.replace('_', ' ') || ''}`} onClose={() => setDecision(null)}>
+        <Text style={{ color: CC.text, marginBottom: 10 }}>
+          {decision?.sub?.user?.name} — {decision?.sub?.profession}. The professional will be notified. This action is audited.
+        </Text>
+        <Input placeholder="Reviewer note (visible to the professional for reject / more info / suspend)" value={note} onChangeText={setNote} multiline style={{ minHeight: 70 }} />
+        <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+          <Btn variant="outline" title="Cancel" onPress={() => setDecision(null)} />
+          <Btn title={busy ? 'Saving…' : 'Confirm decision'} disabled={busy} onPress={submitDecision} />
+        </View>
+      </ModalCard>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  avatar: { width: 44, height: 44, borderRadius: 22 },
+  name: { fontSize: 14, fontWeight: '800', color: CC.navy },
+  sub: { fontSize: 12, color: CC.sub, marginTop: 2 },
+  docs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  docChip: { borderWidth: 1, borderColor: CC.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+});
