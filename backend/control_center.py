@@ -40,6 +40,52 @@ async def _email_user(template: str, user_id: str, ctx: dict | None = None, enti
     if u:
         _es_fire(_ce._svc.send(template, user=u, ctx=ctx or {}, entity_id=entity_id))
 
+
+async def notify_user_action(*, admin: dict, action: str, user_id: str, title: str, body_text: str,
+                             email_template: str | None = None, email_ctx: dict | None = None,
+                             ntype: str | None = None, entity_type: str = "user", entity_id: str | None = None,
+                             mode: str = "live", ip: str | None = None,
+                             old_value: dict | None = None, extra_new: dict | None = None) -> dict:
+    """ONE central pipeline for admin actions that materially affect a user.
+
+    backend action (already committed by the caller) → audit log → in-app
+    notification → Resend email → delivery status recorded on the audit row.
+    A notification/email failure NEVER rolls back the admin action.
+    Duplicate protection: one in-app notification per action+entity (dedupe_key)
+    and EmailService idempotency (template:email:entity).
+    Internal-only admin activity (views, notes, assignments) must NOT call this.
+    """
+    dedupe_key = f"{action}:{entity_id or user_id}"
+    notif_status = "duplicate_skipped"
+    if not await db.notifications.find_one({"user_id": user_id, "dedupe_key": dedupe_key}):
+        try:
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()), "user_id": user_id, "type": ntype or f"admin_{action}",
+                "title": title, "body": body_text, "read": False,
+                "dedupe_key": dedupe_key, "created_at": now_iso()})
+            notif_status = "sent"
+        except Exception:
+            notif_status = "failed"
+    email_status = "not_applicable"
+    if email_template:
+        try:
+            import control_email as _ce
+            u = await db.users.find_one({"id": user_id})
+            if _ce._svc is None or not u:
+                email_status = "skipped"
+            else:
+                r = await _ce._svc.send(email_template, user=u, ctx=email_ctx or {},
+                                        entity_id=entity_id or dedupe_key)
+                email_status = r.get("status", "failed")
+        except Exception:
+            email_status = "failed"  # logged; the admin action stands
+    await audit(admin, action, entity_type, entity_id or user_id,
+                old_value=old_value,
+                new_value={**(extra_new or {}), "affected_user": user_id,
+                           "notification_status": notif_status, "email_status": email_status},
+                ip=ip, mode=mode)
+    return {"notification": notif_status, "email": email_status}
+
 control_router = APIRouter(prefix="/api/control")
 
 ROLES = ["super_admin", "operations", "verification", "support", "moderation", "marketing", "finance", "analytics"]
@@ -733,15 +779,22 @@ async def control_user_action(user_id: str, body: UserActionIn, request: Request
     if body.action in HIGH_RISK_ACTIONS:
         _check_recent_reauth(fresh)
 
+    comms = None  # (title, body, email_template) → routed through the central service
     if body.action == "suspend":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": "hidden_pending_review"}})
-        await _email_user("account_restricted", user_id)
+        comms = ("Account restricted",
+                 "Your account has been temporarily restricted while our team completes a review. Your profile is hidden from discovery during this time. Reply to our email or contact support if you believe this is a mistake.",
+                 "account_restricted")
     elif body.action == "unsuspend" or body.action == "unban":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": None}})
-        await _email_user("account_restored", user_id)
+        comms = ("Account reinstated",
+                 "Good news — your Orrbbit account has been fully restored and everything works as normal again. Thanks for your patience.",
+                 "account_restored")
     elif body.action == "ban":
         await db.users.update_one({"id": user_id}, {"$set": {"admin_status": "banned", "visible": False}})
-        await _email_user("account_suspended", user_id)
+        comms = ("Account suspended",
+                 "Your account has been suspended for breaching our Community Guidelines, effective immediately. If you believe this decision is wrong, you can appeal by contacting support.",
+                 "account_suspended")
     elif body.action == "delete":
         await db.users.delete_one({"id": user_id})
         for coll in ("pings", "matches", "saved", "blocks", "hides", "help_requests", "professional_profiles", "verification_submissions", "notifications"):
@@ -758,8 +811,17 @@ async def control_user_action(user_id: str, body: UserActionIn, request: Request
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
 
-    await audit(fresh, f"user_{body.action}", "user", user_id,
-                old_value={"admin_status": old_status}, new_value={"action": body.action, "reason": body.reason}, ip=ip, mode=mode)
+    if comms:
+        # backend change committed above — comms + audit (with delivery status) via the central service
+        result["delivery"] = await notify_user_action(
+            admin=fresh, action=f"user_{body.action}", user_id=user_id,
+            title=comms[0], body_text=comms[1], email_template=comms[2],
+            entity_id=f"{user_id}:{body.action}:{now_iso()[:16]}",  # 1-minute duplicate window
+            mode=mode, ip=ip, old_value={"admin_status": old_status},
+            extra_new={"action": body.action, "reason": body.reason})
+    else:
+        await audit(fresh, f"user_{body.action}", "user", user_id,
+                    old_value={"admin_status": old_status}, new_value={"action": body.action, "reason": body.reason}, ip=ip, mode=mode)
     return result
 
 
@@ -907,14 +969,20 @@ async def control_verification_decision(sub_id: str, body: DecisionIn, request: 
     await db.verification_submissions.update_one(
         {"id": sub_id},
         {"$set": upd, "$push": {"history": {"action": body.action, "by": f"control:{admin['email']}", "note": body.note or "", "at": now_iso()}}})
-    await db.notifications.insert_one({
-        "id": str(uuid.uuid4()), "user_id": sub["user_id"], "type": f"verification_{body.action}",
-        "title": n_title, "body": (body.note or n_body), "read": False, "created_at": now_iso()})
-    await send_verification_decision_email(sub, body.action, body.note or "")
+    template = DECISION_EMAIL.get(body.action)
+    if body.action == "renew" and sub.get("status") == "Suspended":
+        template = "pro_restored"
     ip, _ = _client_info(request)
-    await audit(admin, f"verification_{body.action}", "verification", sub_id,
-                old_value={"status": sub.get("status")}, new_value={"status": new_status, "note": body.note}, ip=ip, mode=mode)
-    return {"ok": True, "status": new_status}
+    delivery = await notify_user_action(
+        admin=admin, action=f"verification_{body.action}", user_id=sub["user_id"],
+        title=n_title, body_text=(body.note or n_body), ntype=f"verification_{body.action}",
+        email_template=template,
+        email_ctx={"profession": sub.get("profession") or "professional",
+                   "note": (body.note or "No additional details provided.")[:400]},
+        entity_type="verification", entity_id=f"{sub_id}:{body.action}:{now_iso()[:16]}",
+        mode=mode, ip=ip, old_value={"status": sub.get("status")},
+        extra_new={"status": new_status, "note": body.note})
+    return {"ok": True, "status": new_status, "delivery": delivery}
 
 
 # ----------------------------- Help requests -----------------------------
@@ -951,6 +1019,15 @@ async def control_help_request_action(req_id: str, body: HelpRequestActionIn, re
         fresh = await db.admin_users.find_one({"id": admin["id"]})
         _check_recent_reauth(fresh)
         await db.help_requests.delete_one({"id": req_id})
+        # content removed by admin — materially affects the owner → central comms + audit
+        delivery = await notify_user_action(
+            admin=fresh, action="help_request_delete", user_id=r["user_id"],
+            title="Content removed",
+            body_text="Your help request was removed by our moderation team because it didn't meet our Community Guidelines. You're welcome to post again within the guidelines.",
+            email_template="content_removed", email_ctx={"content_type": "help request"},
+            entity_type="help_request", entity_id=f"{req_id}:{now_iso()[:16]}", mode=mode, ip=ip,
+            old_value={"status": r.get("status")}, extra_new={"action": "delete", "reason": body.reason})
+        return {"ok": True, "delivery": delivery}
     elif body.action == "feature":
         await db.help_requests.update_one({"id": req_id}, {"$set": {"featured": True, "updated_at": now_iso()}})
     elif body.action == "unfeature":
@@ -990,35 +1067,58 @@ async def control_report_action(report_id: str, body: ReportActionIn, request: R
     ip, _ = _client_info(request)
     target_id = rep.get("user_id")
     fresh = await db.admin_users.find_one({"id": admin["id"]})
+    tick = now_iso()[:16]  # 1-minute duplicate window
+    delivery = None
     if body.action in ("warn",):
-        await db.notifications.insert_one({
-            "id": str(uuid.uuid4()), "user_id": target_id, "type": "admin_warning",
-            "title": "Community guidelines warning", "body": body.reason or "Your recent activity was flagged. Please review the community guidelines.",
-            "read": False, "created_at": now_iso()})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "warn"}})
-        await _email_user("guidelines_warning", target_id, entity_id=f"{report_id}:warn",
-                          ctx={"note": (body.reason or "Your recent activity was flagged by our moderation team.")[:400]})
+        delivery = await notify_user_action(
+            admin=fresh, action="report_warn", user_id=target_id, ntype="admin_warning",
+            title="Community guidelines warning",
+            body_text=body.reason or "Your recent activity was flagged. Please review the community guidelines.",
+            email_template="guidelines_warning",
+            email_ctx={"note": (body.reason or "Your recent activity was flagged by our moderation team.")[:400]},
+            entity_type="report", entity_id=f"{report_id}:warn:{tick}", mode=mode, ip=ip,
+            old_value={"status": rep.get("status")}, extra_new={"action": "warn", "target_user": target_id})
     elif body.action == "suspend":
         _check_recent_reauth(fresh)
         await db.users.update_one({"id": target_id}, {"$set": {"admin_status": "hidden_pending_review"}})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "suspend"}})
-        await _email_user("account_restricted", target_id, entity_id=f"{report_id}:suspend")
+        delivery = await notify_user_action(
+            admin=fresh, action="report_suspend", user_id=target_id,
+            title="Account restricted",
+            body_text="Your account has been temporarily restricted following a review under our Community Guidelines. Your profile is hidden from discovery during this time. Contact support if you believe this is a mistake.",
+            email_template="account_restricted",
+            entity_type="report", entity_id=f"{report_id}:suspend:{tick}", mode=mode, ip=ip,
+            old_value={"status": rep.get("status")}, extra_new={"action": "suspend", "target_user": target_id})
     elif body.action == "ban":
         _check_recent_reauth(fresh)
         await db.users.update_one({"id": target_id}, {"$set": {"admin_status": "banned", "visible": False}})
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "actioned", "action_taken": "ban"}})
-        await _email_user("account_suspended", target_id, entity_id=f"{report_id}:ban")
+        delivery = await notify_user_action(
+            admin=fresh, action="report_ban", user_id=target_id,
+            title="Account suspended",
+            body_text="Your account has been suspended for breaching our Community Guidelines, effective immediately. If you believe this decision is wrong, you can appeal by contacting support.",
+            email_template="account_suspended",
+            entity_type="report", entity_id=f"{report_id}:ban:{tick}", mode=mode, ip=ip,
+            old_value={"status": rep.get("status")}, extra_new={"action": "ban", "target_user": target_id})
     elif body.action == "dismiss":
         await db.reports.update_one({"id": report_id}, {"$set": {"status": "dismissed", "action_taken": "dismiss"}})
+        await audit(fresh, "report_dismiss", "report", report_id,
+                    old_value={"status": rep.get("status")}, new_value={"action": "dismiss", "reason": body.reason, "target_user": target_id}, ip=ip, mode=mode)
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
-    # outcome email to the reporter (no confidential details shared)
+    # privacy-safe outcome to the reporter — never shares the other user's account status or details
     reporter_id = rep.get("reporter_id")
     if reporter_id and body.action in ("warn", "suspend", "ban", "dismiss"):
-        await _email_user("report_outcome", reporter_id, entity_id=f"{report_id}:outcome")
-    await audit(admin, f"report_{body.action}", "report", report_id,
-                old_value={"status": rep.get("status")}, new_value={"action": body.action, "reason": body.reason, "target_user": target_id}, ip=ip, mode=mode)
-    return {"ok": True}
+        outcome_body = ("We've reviewed your report and taken appropriate action under our Community Guidelines. Thank you for helping keep Orrbbit safe."
+                        if body.action != "dismiss" else
+                        "We've reviewed your report. We didn't find a breach of our Community Guidelines this time, but we appreciate you looking out for the community.")
+        await notify_user_action(
+            admin=fresh, action="report_outcome_notice", user_id=reporter_id, ntype="report_outcome",
+            title="Update on your report", body_text=outcome_body, email_template="report_outcome",
+            entity_type="report", entity_id=f"{report_id}:outcome:{tick}", mode=mode, ip=ip,
+            extra_new={"outcome_for": "reporter"})
+    return {"ok": True, "delivery": delivery}
 
 
 # ----------------------------- Audit logs -----------------------------

@@ -314,6 +314,11 @@ _t("missed_session", "Missed session", "Missed session or no-show",
 _t("report_received", "We received your report", "Report received",
    "Hi {name}, thanks for helping keep Orrbbit safe. We've received your report and our moderation team will review it. You won't see this person again. We can't share details of the investigation, but we take every report seriously.",
    trigger="POST /api/reports (to reporter)")
+_t("content_removed", "Your content was removed from Orrbbit", "Content removed",
+   "Hi {name}, your {content_type} was removed by our moderation team because it didn't meet our Community Guidelines. "
+   "You're welcome to post again within the guidelines. If you believe this was a mistake, reply to this email or contact support.",
+   cta=("Review Community Guidelines", "/legal/guidelines"), trigger="Admin removes user content")
+
 _t("report_outcome", "Update on your report", "Report update",
    "Hi {name}, we've completed the review of your recent report and taken the appropriate action in line with our Community Guidelines. To protect everyone's privacy we can't share specific details. Thank you for helping keep Orrbbit safe.",
    trigger="Admin actions a report (to reporter)")
