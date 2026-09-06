@@ -86,10 +86,10 @@ class TestTemplates:
         assert r.status_code == 200
         data = r.json()
         items = data["items"]
-        assert len(items) == 58, f"expected 58 templates, got {len(items)}"
+        assert len(items) == 62, f"expected 62 templates, got {len(items)}"
         mandatory = [t for t in items if t["mandatory"]]
         disabled_default = [t for t in items if not t["default_enabled"]]
-        assert len(mandatory) == 33, f"expected 33 mandatory, got {len(mandatory)}"
+        assert len(mandatory) == 37, f"expected 37 mandatory, got {len(mandatory)}"
         assert len(disabled_default) == 7, f"expected 7 disabled-default, got {len(disabled_default)}"
 
     def test_preview_template(self, s, admin_headers):
@@ -263,15 +263,17 @@ class TestReportFeedbackTriggers:
         r_after = s.get(f"{API}/control/email/events",
                         params={"email": real_user["email"], "template": "feedback_received"},
                         headers=admin_headers)
-        after = r_after.json()["total"]
-        # Cooldown only applies when first email was 'sent'. On this env (domain
-        # unverified) sends fail → cooldown does NOT engage by design (failed
-        # sends intentionally don't block re-sends). Verify expected behavior.
+        after_items = r_after.json()["items"]
+        after_sent = len([e for e in after_items if e["status"] == "sent"])
+        before_sent = len([e for e in events_before if e["status"] == "sent"])
+        # Cooldown only applies when first email was 'sent'. Since Iter74 every
+        # skipped attempt is also LOGGED (status=skipped) so totals grow, but no
+        # additional email may actually be SENT within the cooldown window.
         if first_status == "sent":
-            assert after == before, f"cooldown expected: before={before} after={after}"
+            assert after_sent == before_sent, f"cooldown expected: sent before={before_sent} after={after_sent}"
         else:
             # failed-first: 2nd send allowed to try again — logged as new event
-            assert after >= before
+            assert len(after_items) >= before
 
 
 # ------------------------------------------------------- 7. Control Centre — events, stats, retry

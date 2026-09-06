@@ -182,39 +182,52 @@ class EmailService:
                    ctx: Optional[dict] = None, entity_id: Optional[str] = None,
                    idempotency_key: Optional[str] = None, force: bool = False,
                    is_test: bool = False) -> dict:
-        """Send one transactional email. Returns {status, event_id?, reason?}."""
+        """Send one transactional email. Returns {status, event_id?, reason?}.
+        EVERY outcome — including pre-flight skips — writes an email_events record
+        so admin actions always have a visible delivery trail."""
         tpl = TEMPLATES.get(key)
         if not tpl:
             return {"status": "error", "reason": f"unknown template {key}"}
         email = (to_email or (user or {}).get("email") or "").lower().strip()
+
+        async def _skip(reason: str) -> dict:
+            ev_id = str(uuid.uuid4())
+            await self.db.email_events.insert_one({
+                "id": ev_id, "template": key, "user_id": (user or {}).get("id"), "to_email": email or None,
+                "entity_id": entity_id, "idempotency_key": None, "status": "skipped",
+                "mandatory": tpl["mandatory"], "is_test": is_test, "subject": tpl["subject"],
+                "ctx": {}, "resend_id": None, "failure_reason": reason,
+                "created_at": _iso(), "sent_at": None})
+            return {"status": "skipped", "reason": reason, "event_id": ev_id}
+
         if not email:
-            return {"status": "skipped", "reason": "no recipient"}
+            return await _skip("no recipient")
         if (user or {}).get("is_demo") or is_demo_email(email):
-            return {"status": "skipped", "reason": "demo account"}
+            return await _skip("demo account")
 
         ctx = dict(ctx or {})
         ctx.setdefault("name", (user or {}).get("name") or "there")
 
         if not force:
             if not await self.template_enabled(key):
-                return {"status": "skipped", "reason": "template disabled"}
+                return await _skip("template disabled")
             cat = tpl["category"]
             if cat and user and not self.user_prefs(user).get(cat, PREF_DEFAULTS.get(cat, True)):
-                return {"status": "skipped", "reason": f"user opted out of {cat}"}
+                return await _skip(f"user opted out of {cat}")
             if await self.db.email_suppressions.find_one({"email": email}):
-                return {"status": "skipped", "reason": "suppressed recipient"}
+                return await _skip("suppressed recipient")
             # idempotency / duplicate prevention
             idem = idempotency_key or (f"{key}:{email}:{entity_id}" if entity_id else None)
             if idem and await self.db.email_events.find_one(
                     {"idempotency_key": idem, "status": {"$in": ["sent", "queued"]}}):
-                return {"status": "skipped", "reason": "duplicate (idempotency)"}
+                return await _skip("duplicate (idempotency)")
             # cooldown (counts failed attempts too, so transient failures can't spam)
             if tpl["cooldown_min"]:
                 since = _iso(_now() - timedelta(minutes=tpl["cooldown_min"]))
                 if await self.db.email_events.find_one(
                         {"template": key, "to_email": email, "status": {"$in": ["sent", "failed"]},
                          "created_at": {"$gte": since}}):
-                    return {"status": "skipped", "reason": "cooldown active"}
+                    return await _skip("cooldown active")
             # rate limit (optional emails only)
             if tpl["category"]:
                 hour_ago = _iso(_now() - timedelta(hours=1))
@@ -222,7 +235,7 @@ class EmailService:
                     {"to_email": email, "status": "sent", "created_at": {"$gte": hour_ago},
                      "mandatory": {"$ne": True}})
                 if n >= RATE_LIMIT_PER_HOUR:
-                    return {"status": "skipped", "reason": "rate limited"}
+                    return await _skip("rate limited")
         else:
             idem = idempotency_key
 
