@@ -14,6 +14,7 @@ const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Professional Verification', path: '/control/verifications', icon: 'shield-checkmark-outline' },
   { label: 'Help Requests', path: '/control/help-requests', icon: 'hand-left-outline' },
   { label: 'People Radar', path: '/control/people-radar', icon: 'locate-outline' },
+  { label: 'Events', path: '/control/events', icon: 'flame-outline' },
   { label: 'Professional Radar', path: '/control/professional-radar', icon: 'navigate-outline' },
   { label: 'Connections', path: '/control/connections', icon: 'git-network-outline' },
   { label: 'Chats', path: '/control/chats', icon: 'chatbubbles-outline' },

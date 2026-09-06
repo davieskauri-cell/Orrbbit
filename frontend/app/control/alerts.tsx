@@ -39,6 +39,7 @@ export default function ControlAlerts() {
     const m = n.link?.module;
     if (m === 'verifications') router.push('/control/verifications' as any);
     else if (m === 'reports') router.push('/control/reports' as any);
+    else if (m === 'events') router.push((n.link?.id ? `/control/events?id=${n.link.id}` : '/control/events') as any);
     else if (m === 'emails') router.push('/control/emails' as any);
   };
 

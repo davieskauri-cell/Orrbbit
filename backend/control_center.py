@@ -591,6 +591,17 @@ async def _notifications_items(mode: str) -> list:
                       "at": r.get("created_at"), "status": r.get("status"),
                       "action": "Open report", "link": {"module": "reports", "id": r["id"]}})
     day_ago = (now() - timedelta(hours=24)).isoformat()
+    week_ago = (now() - timedelta(days=7)).isoformat()
+    cev_f = await uid_filter(mode, "creator_user_id")
+    cancelled_events = await db.events.find(
+        {**cev_f, "status": "cancelled", "cancelled_at": {"$gte": week_ago}},
+        {"_id": 0, "id": 1, "title": 1, "cancelled_at": 1}).sort("cancelled_at", -1).to_list(50)
+    for e in cancelled_events:
+        items.append({"id": f"evc:{e['id']}", "type": "event_cancelled",
+                      "title": f"Event Cancelled — {e.get('title', 'Untitled')}",
+                      "desc": "Host cancelled this event. Confirmed attendees were notified.",
+                      "at": e.get("cancelled_at"), "status": "Cancelled",
+                      "action": "Open event", "link": {"module": "events", "id": e["id"]}})
     failed = await db.email_events.count_documents({"status": "failed", "created_at": {"$gte": day_ago}})
     sent = await db.email_events.count_documents({"status": {"$in": ["sent", "delivered"]}, "created_at": {"$gte": day_ago}})
     if failed > 0 and sent == 0:
@@ -1020,6 +1031,50 @@ async def control_audit_logs(action: Optional[str] = None, admin_email: Optional
 
 
 # ----------------------------- Global search -----------------------------
+# ----------------------------- Events (audit view) -----------------------------
+# Cancelled events stay visible to admins for audit/history; customer discovery
+# excludes them at the events API layer (status in [active, full]).
+@control_router.get("/events")
+async def control_events(status: Optional[str] = None,
+                         admin: dict = Depends(require_perm("dashboard")), mode: str = Depends(get_mode)):
+    f = dict(await uid_filter(mode, "creator_user_id"))
+    if status in ("active", "cancelled", "completed"):
+        f["status"] = {"$in": ["active", "full"]} if status == "active" else status
+    evs = await db.events.find(f, {"_id": 0}).sort("created_at", -1).to_list(200)
+    hosts = {u["id"]: u async for u in db.users.find(
+        {"id": {"$in": list({e["creator_user_id"] for e in evs})}}, {"id": 1, "name": 1})}
+    out = []
+    for e in evs:
+        going = await db.event_attendees.count_documents({"event_id": e["id"], "join_status": "accepted"})
+        out.append({"id": e["id"], "title": e.get("title"), "category": e.get("category"),
+                    "status": e.get("status"), "start_datetime": e.get("start_datetime"),
+                    "end_datetime": e.get("end_datetime"), "cancelled_at": e.get("cancelled_at"),
+                    "host": {"id": e["creator_user_id"], "name": (hosts.get(e["creator_user_id"]) or {}).get("name") or "Unknown"},
+                    "going": going, "created_at": e.get("created_at")})
+    return {"items": out}
+
+
+@control_router.get("/events/{event_id}")
+async def control_event_detail(event_id: str, admin: dict = Depends(require_perm("dashboard"))):
+    e = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not e:
+        raise HTTPException(status_code=404, detail="Event not found")
+    host = await db.users.find_one({"id": e["creator_user_id"]}, {"id": 1, "name": 1})
+    going = await db.event_attendees.count_documents({"event_id": event_id, "join_status": "accepted"})
+    notified = await db.notifications.count_documents({"type": "event_cancelled", "event_id": event_id})
+    emails = {"sent": 0, "failed": 0, "skipped_or_queued": 0}
+    async for ee in db.email_events.find({"template": "event_cancelled", "entity_id": event_id}, {"status": 1}):
+        k = "sent" if ee.get("status") == "sent" else "failed" if ee.get("status") == "failed" else "skipped_or_queued"
+        emails[k] += 1
+    return {"id": e["id"], "title": e.get("title"), "category": e.get("category"),
+            "status": e.get("status"), "start_datetime": e.get("start_datetime"),
+            "end_datetime": e.get("end_datetime"), "location_display": e.get("location_display"),
+            "cancelled_at": e.get("cancelled_at"), "cancelled_by": e.get("cancelled_by"),
+            "host": {"id": e["creator_user_id"], "name": (host or {}).get("name") or "Unknown"},
+            "confirmed_attendees": going, "notifications_sent": notified, "emails": emails,
+            "created_at": e.get("created_at")}
+
+
 @control_router.get("/search")
 async def control_search(q: str, admin: dict = Depends(require_perm("search")), mode: str = Depends(get_mode)):
     if not q or len(q) < 2:

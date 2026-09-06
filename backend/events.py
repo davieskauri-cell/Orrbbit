@@ -243,6 +243,16 @@ def bind(server):
                                          ctx={"event_title": ev["title"], "event_date": ev_date,
                                               "event_time": ev_time,
                                               "location_part": f"<br><b>Location:</b> {loc}" if loc else ""}))
+        # record in the existing admin audit system (host-initiated action)
+        await db.admin_audit_logs.insert_one({
+            "id": str(uuid.uuid4()), "admin_id": None, "admin_email": f"host:{user['id']}",
+            "action": "event_cancelled", "target_type": "event", "target_id": event_id,
+            "old_value": {"status": ev["status"]},
+            "new_value": {"cancelled_by": user["id"], "cancelled_at": now_iso(),
+                          "attendees_affected": len(atts), "notifications_sent": len(atts),
+                          "emails_queued": len(atts) if svc else 0},
+            "ip": None, "mode": "demo" if user.get("is_demo") else "live", "at": now_iso(),
+        })
         return {"ok": True, "status": "cancelled"}
 
     @events_router.post("/{event_id}/join")
