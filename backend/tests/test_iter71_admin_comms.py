@@ -162,6 +162,43 @@ def test_08_internal_actions_no_comms():
     assert len(notifs_for(JAMES)) == before, "internal admin views must not notify users"
 
 
+def test_09_legacy_admin_report_action_uses_central_pipeline():
+    # trial-era in-app admin endpoint must not silently change account status anymore
+    kt = requests.post(f"{BASE}/auth/demo-login", json={"email": "kauri@intro.demo"}, timeout=15).json()["access_token"]
+    kh = {"Authorization": f"Bearer {kt}"}
+    rid = str(uuid.uuid4())
+    _db(lambda db: db.reports.insert_one({"id": rid, "reporter_id": SARAH, "reported_id": JAMES, "reporter_name": "S",
+                                          "reported_name": "J", "reason": "qa71-legacy", "risk": "low",
+                                          "status": "New", "created_at": datetime.now(timezone.utc).isoformat()}))
+    rr = requests.post(f"{BASE}/admin/reports/{rid}/action", json={"action": "ban"}, headers=kh, timeout=20)
+    assert rr.status_code == 200, rr.text
+    assert _db(lambda db: db.users.find_one({"id": JAMES}, {"admin_status": 1}))["admin_status"] == "banned"
+    assert notifs_for(JAMES, "admin_report_ban"), "legacy ban must create in-app notification"
+    a = audits("report_ban", rid)
+    assert a and "email_status" in a[-1]["new_value"], "legacy ban must be audited with delivery status"
+    # dismiss restores + reinstatement comms
+    rr = requests.post(f"{BASE}/admin/reports/{rid}/action", json={"action": "dismiss"}, headers=kh, timeout=20)
+    assert rr.status_code == 200
+    assert _db(lambda db: db.users.find_one({"id": JAMES}, {"admin_status": 1}))["admin_status"] is None
+    assert notifs_for(JAMES, "admin_user_unsuspend"), "restoring access must notify"
+    _db(lambda db: db.reports.delete_one({"id": rid}))
+
+
+def test_10_legacy_verification_decision_uses_central_pipeline():
+    kt = requests.post(f"{BASE}/auth/demo-login", json={"email": "kauri@intro.demo"}, timeout=15).json()["access_token"]
+    kh = {"Authorization": f"Bearer {kt}"}
+    sid = f"qa71-legacy-sub-{uuid.uuid4().hex[:6]}"
+    _db(lambda db: db.verification_submissions.insert_one({
+        "id": sid, "user_id": JAMES, "profession": "QA Plumber", "categories": ["Plumbing"],
+        "status": "Approved", "documents": [], "submitted_at": datetime.now(timezone.utc).isoformat()}))
+    rr = requests.post(f"{BASE}/admin/verifications/{sid}/decision", json={"action": "revoke", "note": ""}, headers=kh, timeout=20)
+    assert rr.status_code == 200, rr.text
+    assert rr.json()["delivery"]["notification"] == "sent"
+    assert notifs_for(JAMES, "verification_revoke"), "legacy revoke must notify"
+    a = audits("verification_revoke", sid)
+    assert a and "email_status" in a[-1]["new_value"]
+
+
 def test_99_cleanup():
     async def clean(db):
         await db.notifications.delete_many({"created_at": {"$gte": START}, "dedupe_key": {"$exists": True}})

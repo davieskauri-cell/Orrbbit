@@ -2136,23 +2136,62 @@ async def admin_dashboard(user: dict = Depends(get_current_user)):
 
 @api_router.post("/admin/reports/{report_id}/action")
 async def admin_report_action(report_id: str, body: AdminActionIn, user: dict = Depends(get_current_user)):
+    _require_admin(user)
     report = await db.reports.find_one({"id": report_id})
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    from control_center import notify_user_action  # central comms pipeline (avoids circular import)
+    pseudo_admin = {"id": user["id"], "email": user.get("email") or "legacy-admin"}
+    mode = "demo" if user.get("is_demo") else "live"
+    target_id = report["reported_id"]
+    target = await db.users.find_one({"id": target_id}, {"admin_status": 1}) or {}
+    old_status = target.get("admin_status")
+    tick = now_iso()[:16]
     action = body.action
     updates: Dict[str, Any] = {}
     if action == "hide":
-        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"visible": False, "admin_status": "hidden_pending_review"}})
+        await db.users.update_one({"id": target_id}, {"$set": {"visible": False, "admin_status": "hidden_pending_review"}})
         updates["status"] = "User Hidden"
+        await notify_user_action(
+            admin=pseudo_admin, action="report_suspend", user_id=target_id,
+            title="Account restricted",
+            body_text="Your account has been temporarily restricted following a review under our Community Guidelines. Your profile is hidden from discovery during this time. Contact support if you believe this is a mistake.",
+            email_template="account_restricted",
+            entity_type="report", entity_id=f"{report_id}:hide:{tick}", mode=mode,
+            old_value={"admin_status": old_status}, extra_new={"action": "hide", "source": "legacy_admin"})
     elif action == "warn":
-        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"admin_status": "warned"}})
+        await db.users.update_one({"id": target_id}, {"$set": {"admin_status": "warned"}})
         updates["status"] = "Under Review"
+        await notify_user_action(
+            admin=pseudo_admin, action="report_warn", user_id=target_id, ntype="admin_warning",
+            title="Community guidelines warning",
+            body_text="Your recent activity was flagged. Please review the community guidelines.",
+            email_template="guidelines_warning",
+            email_ctx={"note": "Your recent activity was flagged by our moderation team."},
+            entity_type="report", entity_id=f"{report_id}:warn:{tick}", mode=mode,
+            old_value={"admin_status": old_status}, extra_new={"action": "warn", "source": "legacy_admin"})
     elif action == "ban":
-        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"visible": False, "admin_status": "banned"}})
+        await db.users.update_one({"id": target_id}, {"$set": {"visible": False, "admin_status": "banned"}})
         updates["status"] = "Resolved"
+        await notify_user_action(
+            admin=pseudo_admin, action="report_ban", user_id=target_id,
+            title="Account suspended",
+            body_text="Your account has been suspended for breaching our Community Guidelines, effective immediately. If you believe this decision is wrong, you can appeal by contacting support.",
+            email_template="account_suspended",
+            entity_type="report", entity_id=f"{report_id}:ban:{tick}", mode=mode,
+            old_value={"admin_status": old_status}, extra_new={"action": "ban", "source": "legacy_admin"})
     elif action == "dismiss":
-        await db.users.update_one({"id": report["reported_id"]}, {"$set": {"admin_status": None}})
+        await db.users.update_one({"id": target_id}, {"$set": {"admin_status": None}})
         updates["status"] = "Dismissed"
+        if old_status in ("hidden_pending_review", "banned"):
+            # dismissing restores previously-limited access → reinstatement comms
+            await notify_user_action(
+                admin=pseudo_admin, action="user_unsuspend", user_id=target_id,
+                title="Account reinstated",
+                body_text="Good news — your Orrbbit account has been fully restored and everything works as normal again. Thanks for your patience.",
+                email_template="account_restored",
+                entity_type="report", entity_id=f"{report_id}:dismiss:{tick}", mode=mode,
+                old_value={"admin_status": old_status}, extra_new={"action": "dismiss", "source": "legacy_admin"})
     elif action == "review":
         updates["status"] = "Under Review"
     else:
@@ -3250,10 +3289,22 @@ async def admin_verification_decision(sub_id: str, body: VerificationDecisionIn,
         {"id": sub_id},
         {"$set": upd, "$push": {"history": {"action": body.action, "by": user["id"], "note": body.note or "", "at": now_iso()}}},
     )
-    await notify(sub["user_id"], f"verification_{body.action}", n_title, (body.note or n_body))
-    from control_center import send_verification_decision_email as _sv_email
-    await _sv_email(sub, body.action, body.note or "")
-    return {"ok": True, "status": new_status}
+    # same central comms pipeline as the Control Centre entry point
+    from control_center import notify_user_action, DECISION_EMAIL
+    template = DECISION_EMAIL.get(body.action)
+    if body.action == "renew" and sub.get("status") == "Suspended":
+        template = "pro_restored"
+    delivery = await notify_user_action(
+        admin={"id": user["id"], "email": user.get("email") or "legacy-admin"},
+        action=f"verification_{body.action}", user_id=sub["user_id"],
+        title=n_title, body_text=(body.note or n_body), ntype=f"verification_{body.action}",
+        email_template=template,
+        email_ctx={"profession": sub.get("profession") or "professional",
+                   "note": (body.note or "No additional details provided.")[:400]},
+        entity_type="verification", entity_id=f"{sub_id}:{body.action}:{now_iso()[:16]}",
+        mode="demo" if user.get("is_demo") else "live",
+        old_value={"status": sub.get("status")}, extra_new={"status": new_status, "source": "legacy_admin"})
+    return {"ok": True, "status": new_status, "delivery": delivery}
 
 
 # --------------------- Migration + Professional demo seed ---------------------
