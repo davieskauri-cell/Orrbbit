@@ -6,13 +6,20 @@ host-chosen display label. Discovery is geographically bounded to the viewer's
 area (events are radius-scoped, hard-capped at 1 km, matching radar rules).
 """
 import uuid
+import os
 from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
+from email_service import fire as _email_fire
+
 events_router = APIRouter(prefix="/api/events")
+
+# timezone used for event dates/times in emails (app audience default; override via env)
+EVENT_TZ = ZoneInfo(os.environ.get("EVENT_EMAIL_TZ", "Australia/Melbourne"))
 
 EVENT_CATEGORIES = ["Coffee / Drinks", "Fitness", "Walking / Running", "Sport", "Social",
                     "Networking", "Study", "Food", "Games", "Outdoor", "Community",
@@ -207,12 +214,35 @@ def bind(server):
         ev = await db.events.find_one({"id": event_id})
         if not ev or ev["creator_user_id"] != user["id"]:
             raise HTTPException(status_code=403, detail="Only the host can cancel this event")
-        await db.events.update_one({"id": event_id}, {"$set": {"status": "cancelled", "updated_at": now_iso()}})
-        # never silently delete — notify everyone who joined
+        # idempotent: atomic status flip — a second trigger never re-notifies or re-emails
+        r = await db.events.update_one(
+            {"id": event_id, "status": {"$ne": "cancelled"}},
+            {"$set": {"status": "cancelled", "cancelled_at": now_iso(),
+                      "cancelled_by": user["id"], "updated_at": now_iso()}})
+        if r.modified_count == 0:
+            return {"ok": True, "status": "cancelled"}
+        # never silently delete — notify + email every confirmed attendee
         atts = await db.event_attendees.find({"event_id": event_id, "join_status": "accepted"}).to_list(500)
+        svc = getattr(server, "email_service", None)
+        try:
+            st = datetime.fromisoformat(ev["start_datetime"].replace("Z", "+00:00")).astimezone(EVENT_TZ)
+            en = datetime.fromisoformat(ev["end_datetime"].replace("Z", "+00:00")).astimezone(EVENT_TZ)
+            ev_date = st.strftime("%A, %d %B %Y")
+            ev_time = f"{st.strftime('%-I:%M %p')} → {en.strftime('%-I:%M %p')}"
+        except (ValueError, KeyError):
+            ev_date, ev_time = ev.get("start_datetime", ""), ""
+        loc = (ev.get("location_display") or "").strip()
         for a in atts:
             await notify(a["user_id"], "event_cancelled", "Event cancelled",
                          f"\"{ev['title']}\" has been cancelled by the host.", meta={"event_id": event_id})
+            if svc:
+                u = await db.users.find_one({"id": a["user_id"]})
+                if u:
+                    # fire-and-forget: email failures are logged in email_events and never re-activate the event
+                    _email_fire(svc.send("event_cancelled", user=u, entity_id=event_id,
+                                         ctx={"event_title": ev["title"], "event_date": ev_date,
+                                              "event_time": ev_time,
+                                              "location_part": f"<br><b>Location:</b> {loc}" if loc else ""}))
         return {"ok": True, "status": "cancelled"}
 
     @events_router.post("/{event_id}/join")

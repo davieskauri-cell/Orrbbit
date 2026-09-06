@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Modal, I
 import { showAlert } from "@/src/lib/alert";
 import { api } from "@/src/lib/api";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp, type NearbyUser } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -49,6 +49,8 @@ export default function RadarScreen() {
       .catch(() => {});
   }, [coords, eventsOn, eventCat]);
   useEffect(() => { loadEvents(); }, [loadEvents]);
+  // refetch when Radar regains focus so cancelled events disappear immediately
+  useFocusEffect(React.useCallback(() => { loadEvents(); }, [loadEvents]));
 
   // notification bell unread count
   const [unreadCount, setUnreadCount] = useState(0);

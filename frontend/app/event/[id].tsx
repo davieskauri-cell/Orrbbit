@@ -82,9 +82,9 @@ export default function EventDetail() {
   };
 
   const doCancel = () => {
-    showAlert("Cancel this event?", "Everyone who joined will be notified.", [
-      { text: "Keep event", style: "cancel" },
-      { text: "Cancel event", style: "destructive", onPress: async () => { await cancelEvent(String(id)).catch(() => {}); load(); } },
+    showAlert("Cancel this event?", "This will cancel the event and notify everyone attending. This action cannot be undone.", [
+      { text: "Keep Event", style: "cancel" },
+      { text: "Cancel Event", style: "destructive", onPress: async () => { await cancelEvent(String(id)).catch(() => {}); load(); } },
     ]);
   };
 

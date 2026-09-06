@@ -340,6 +340,13 @@ _t("privacy_security_notice", "Important security notice", "Important privacy & 
    trigger="Admin sends security notice")
 
 # ---------------------------------------------------------------- 6. SUPPORT (mandatory)
+_t("event_cancelled", "Event Cancelled — {event_title}", "Event cancelled",
+   "Hi {name}, we're sorry to let you know that <b>{event_title}</b> has been cancelled by the host.<br><br>"
+   "<b>Event:</b> {event_title}<br><b>Original date:</b> {event_date}<br><b>Time:</b> {event_time}{location_part}<br><br>"
+   "This event has been cancelled by the host. No action is needed — there are always more events happening nearby on your Radar.",
+   cta=("Explore Nearby Events", "/nearby"), trigger="Host cancels an event (POST /api/events/{id}/cancel)")
+
+# ---------------------------------------------------------------- 6b. SUPPORT (mandatory)
 _t("support_received", "We got your message", "Support request received",
    "Hi {name}, thanks for reaching out. Your support request has been received and our team will get back to you as soon as possible — usually within 1 business day.",
    trigger="Support request submitted")

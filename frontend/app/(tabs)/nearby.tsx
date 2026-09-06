@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, RefreshControl, ScrollView, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "@/src/lib/alert";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/src/context/AppContext";
 import { api } from "@/src/lib/api";
@@ -223,6 +223,8 @@ function NearbyEventsList({ coords }: { coords: any }) {
     catch { setEvents([]); }
   }, [coords]);
   useEffect(() => { load(); }, [load]);
+  // refetch on focus so cancelled events disappear without a manual refresh
+  useFocusEffect(React.useCallback(() => { load(); }, [load]));
 
   const when = (iso: string) => {
     const d = new Date(iso);
