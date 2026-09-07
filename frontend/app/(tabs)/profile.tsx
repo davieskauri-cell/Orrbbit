@@ -107,11 +107,11 @@ export default function ProfileScreen() {
 
       <View style={[styles.card, shadow.card]}>
         <View style={styles.profileRow}>
-          <Avatar uri={user?.photo_url} name={user?.name} size={76} ringColor={vibe?.color || colors.teal} />
+          <Avatar uri={user?.photo_url} name={user?.display_name || user?.name} size={76} ringColor={vibe?.color || colors.teal} />
           <View style={{ flex: 1, gap: 6 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Text style={styles.name}>
-                {user?.name}
+                {user?.display_name || user?.name}
                 {user?.age ? `, ${user.age}` : ""}
               </Text>
               {user?.verified && (

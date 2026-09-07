@@ -212,7 +212,7 @@ def bind(server):
             other = await db.users.find_one({"id": b["blocked_id"]})
             out.append({
                 "user_id": b["blocked_id"],
-                "name": (other or {}).get("name", "Deleted user"),
+                "name": (other or {}).get("display_name") or (other or {}).get("name") or "Deleted user",
                 "photo_url": (other or {}).get("photo_url"),
                 "blocked_at": b.get("created_at"),
             })

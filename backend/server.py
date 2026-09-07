@@ -50,6 +50,7 @@ class RegisterIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)
     name: str
+    display_name: Optional[str] = None  # public-facing name shown to others; Full Name stays private
     date_of_birth: str  # YYYY-MM-DD — authoritative 18+ gate is server-side
     accept_policies: bool = False
     marketing_opt_in: bool = False
@@ -368,6 +369,7 @@ def own_user(u: dict) -> dict:
         "id": u["id"],
         "email": u["email"],
         "name": u.get("name"),
+        "display_name": u.get("display_name"),
         "age": u.get("age"),
         "bio": u.get("bio", ""),
         "photo_url": u.get("photo_url"),
@@ -423,6 +425,13 @@ def own_user(u: dict) -> dict:
         "joined": (u.get("created_at") or "")[:7],
         "people_discoverable": is_discoverable(u),
     }
+
+
+def public_name(u: Optional[dict]) -> Optional[str]:
+    """Public-facing identity: Display Name when set, legacy fallback to name.
+    Full Name stays private — use this in every other-user payload."""
+    u = u or {}
+    return u.get("display_name") or u.get("name")
 
 
 async def get_current_user(cred: Optional[HTTPAuthorizationCredentials] = Depends(bearer)) -> dict:
@@ -889,6 +898,7 @@ async def register(body: RegisterIn):
         "email": body.email.lower(),
         "hashed_password": pwd_context.hash(body.password),
         "name": body.name,
+        "display_name": _clean_text(body.display_name, 80) if body.display_name else None,
         "date_of_birth": dob.isoformat(),
         "marketing_opt_in": bool(body.marketing_opt_in),
         "age": _legal_age(dob),
@@ -1155,7 +1165,7 @@ async def list_saved(user: dict = Depends(get_current_user)):
         vd = u.get("vibe_details") or {}
         available = bool(u.get("visible", True)) and u.get("admin_status") not in ("hidden_pending_review", "banned")
         out.append({
-            "id": u["id"], "name": u.get("name"), "age": u.get("age"),
+            "id": u["id"], "name": public_name(u), "age": u.get("age"),
             "photo_url": u.get("photo_url"), "vibe": u.get("vibe"),
             "intent": vd.get("intent"), "verified": u.get("verified", False),
             "available": available,
@@ -1266,7 +1276,7 @@ def detail_score(me: dict, o: dict) -> int:
 def mutual_reason(me: dict, o: dict) -> Optional[str]:
     """Short human explanation of why this person is shown."""
     mv, ov = _vd(me), _vd(o)
-    name = o.get("name") or "They"
+    name = public_name(o) or "They"
     if me.get("event_code") and me.get("event_code") == o.get("event_code"):
         return f"You are both at {o.get('event_name') or 'the same event'}"
     if ov.get("recruiter_mode") or ov.get("professional_identity") == "Recruiter":
@@ -1439,7 +1449,7 @@ async def compute_nearby(user: dict, lat: float, lng: float) -> list:
             brg = (round(brg / 10) * 10) % 360
         payload = {
             "id": o["id"],
-            "name": o.get("name"),
+            "name": public_name(o),
             "age": (user_age(o) if o.get("date_of_birth") else o.get("age")),
             "bio": o.get("bio", ""),
             "photo_url": o.get("photo_url"),
@@ -1606,7 +1616,7 @@ async def list_pings(user: dict = Depends(get_current_user)):
         if user.get("lat") is not None and u.get("lat") is not None:
             in_range = haversine(user["lat"], user["lng"], u["lat"], u["lng"]) <= my_radius
         info = {
-            "id": u["id"], "name": u.get("name"), "age": u.get("age"),
+            "id": u["id"], "name": public_name(u), "age": u.get("age"),
             "photo_url": u.get("photo_url"), "vibe": u.get("vibe"), "bio": u.get("bio", ""),
             "intent": _vd(u).get("intent"), "context": _vd(u).get("context"),
             "mutual_reason": mutual_reason(user, u),
@@ -1655,7 +1665,7 @@ async def accept_ping(ping_id: str, user: dict = Depends(get_current_user)):
     # Iter54 — gently encourage real-world connection (never compulsory)
     if ping.get("kind") == "request" and ping.get("about") == "help_offer":
         await notify(ping["from_user_id"], "connection_accepted",
-                     f"{user.get('name') or 'Your connection'} accepted your offer 🤝",
+                     f"{public_name(user) or 'Your connection'} accepted your offer 🤝",
                      "Great start! When it feels right for both of you, consider suggesting a meet-up "
                      "somewhere public and convenient. Keep chatting in Orrbbit — safety tools like "
                      "blocking and reporting are always available.")
@@ -1775,7 +1785,7 @@ async def list_connection_requests(user: dict = Depends(get_current_user)):
 
     def info(uid: str) -> dict:
         u = users_by_id.get(uid) or {}
-        return {"id": uid, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"), "vibe": u.get("vibe")}
+        return {"id": uid, "name": public_name(u), "age": u.get("age"), "photo_url": u.get("photo_url"), "vibe": u.get("vibe")}
 
     def row(p: dict, uid: str) -> dict:
         return {"id": p["id"], "status": p["status"], "about": p.get("about", "connect"), "created_at": p["created_at"], "user": info(uid)}
@@ -1808,7 +1818,7 @@ async def get_opportunity(user_id: str, user: dict = Depends(get_current_user)):
                 request_status = "declined"
     return {
         "user": {
-            "id": other["id"], "name": other.get("name"), "age": other.get("age"),
+            "id": other["id"], "name": public_name(other), "age": other.get("age"),
             "photo_url": other.get("photo_url"), "verified": other.get("verified", False),
             "active_now": other.get("active_now", True), "bio": other.get("bio", ""),
             "city": other.get("city", "Melbourne"),
@@ -1865,7 +1875,7 @@ async def active_meetup(
             brg = round(bearing_between(lat, lng, o["lat"], o["lng"]))
     return {"meetup": {
         "id": m["id"], "started_at": m["started_at"], "expires_at": m["expires_at"],
-        "user": {"id": o["id"], "name": o.get("name"), "age": o.get("age"), "photo_url": o.get("photo_url"), "vibe": o.get("vibe")} if o else None,
+        "user": {"id": o["id"], "name": public_name(o), "age": o.get("age"), "photo_url": o.get("photo_url"), "vibe": o.get("vibe")} if o else None,
         "distance": dist, "bearing": brg,
     }}
 
@@ -1918,7 +1928,7 @@ async def encounters(user: dict = Depends(get_current_user)):
             continue
         mins = o.get("demo_minutes_ago", 30)
         out.append({
-            "id": o["id"], "name": o.get("name"), "age": o.get("age"),
+            "id": o["id"], "name": public_name(o), "age": o.get("age"),
             "photo_url": o.get("photo_url"), "vibe": o.get("vibe"),
             "distance": d, "minutes_ago": mins,
             "seen_at": (now - timedelta(minutes=mins)).isoformat(),
@@ -2749,7 +2759,7 @@ async def get_help_request(req_id: str, user: dict = Depends(get_current_user)):
         "connected": connected,
         "request_status": request_status,
         "private_details": r.get("private_details") if (is_owner or connected) else None,
-        "user": {"id": owner["id"], "name": owner.get("name"), "photo_url": owner.get("photo_url"), "verified": owner.get("verified", False), "active_now": owner.get("active_now", True)} if owner else None,
+        "user": {"id": owner["id"], "name": public_name(owner), "photo_url": owner.get("photo_url"), "verified": owner.get("verified", False), "active_now": owner.get("active_now", True)} if owner else None,
     })
     return out
 
@@ -2854,7 +2864,7 @@ async def _pro_public(user_id: str, viewer: dict) -> dict | None:
     from professional_flow import pro_rating
     rating_info = await pro_rating(db, user_id)
     return {
-        "user_id": user_id, "name": u.get("name"), "age": u.get("age"), "photo_url": u.get("photo_url"),
+        "user_id": user_id, "name": public_name(u), "age": u.get("age"), "photo_url": u.get("photo_url"),
         "active_now": u.get("active_now", True),
         "bearing": u.get("demo_bearing"),
         "profession": prof.get("profession"), "primary_category": prof.get("primary_category"),

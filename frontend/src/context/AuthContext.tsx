@@ -9,6 +9,7 @@ export type User = {
   id: string;
   email: string;
   name: string | null;
+  display_name?: string | null;
   age: number | null;
   bio: string;
   photo_url: string | null;
@@ -66,6 +67,7 @@ export type RegisterPayload = {
   email: string;
   password: string;
   name: string;
+  display_name: string;
   date_of_birth: string; // YYYY-MM-DD
   accept_policies: boolean;
   marketing_opt_in: boolean;

@@ -32,7 +32,7 @@ export default function EditProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, setUser } = useAuth();
-  const [name, setName] = useState(user?.name || "");
+  const [displayName, setDisplayName] = useState(user?.display_name || user?.name || "");
   const [bio, setBio] = useState(user?.bio || "");
   const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [selected, setSelected] = useState<string[]>(user?.interests || []);
@@ -52,7 +52,7 @@ export default function EditProfile() {
   useEffect(() => {
     if (user && !hydrated.current) {
       hydrated.current = true;
-      setName(user.name || "");
+      setDisplayName(user.display_name || user.name || "");
       setBio(user.bio || "");
       setSelected(user.interests || []);
       setPhotos(user.photos || []);
@@ -133,7 +133,7 @@ export default function EditProfile() {
     setBusy(true);
     try {
       const updated = await updateProfile({
-        name: name.trim() || undefined,
+        display_name: displayName.trim() || undefined,
         bio,
         interests: selected,
         city: city.trim(),
@@ -173,8 +173,9 @@ export default function EditProfile() {
         <Text style={styles.subLabel}>Add at least 2 photos to complete your profile.</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} onReorder={reorder} uploading={uploading} />
 
-        <Text style={styles.label}>First name</Text>
-        <TextInput testID="edit-name" value={name} onChangeText={setName} style={styles.input} placeholder="Name" placeholderTextColor={colors.textTertiary} />
+        <Text style={styles.label}>Display name</Text>
+        <TextInput testID="edit-name" value={displayName} onChangeText={setDisplayName} style={styles.input} placeholder="Display name" placeholderTextColor={colors.textTertiary} />
+        <Text style={styles.subLabel}>This is the name other people see on Orrbbit. Your full name stays private.</Text>
         {!!user?.age && (
           <Text style={styles.ageNote} testID="edit-age-note">
             Age {user.age} — calculated from your date of birth, never shown as a full birthday.

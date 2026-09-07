@@ -56,7 +56,7 @@ async def pro_rating(db, professional_id: str) -> dict:
 async def _user_brief(db, user_id: str) -> dict:
     u = await db.users.find_one({"id": user_id}, {"hashed_password": 0, "_id": 0}) or {}
     return {
-        "id": user_id, "name": u.get("name"), "age": u.get("age"),
+        "id": user_id, "name": u.get("display_name") or u.get("name"), "age": u.get("age"),
         "photo_url": u.get("photo_url"), "distance": u.get("demo_dist"),
     }
 
@@ -135,7 +135,7 @@ def bind(server):
         if pro_user:
             _es_fire(server.email_service.send(
                 "help_request_received", user=pro_user, entity_id=req["id"],
-                ctx={"other_name": user.get("name"), "category": body.category,
+                ctx={"other_name": user.get("display_name") or user.get("name"), "category": body.category,
                      "category_part": f" about {body.category}" if body.category else "",
                      "message": (body.message or "").strip()[:200]}))
         return {"status": "pending", "request_id": req["id"]}
@@ -207,7 +207,7 @@ def bind(server):
         if requester:
             _es_fire(server.email_service.send(
                 "help_request_accepted", user=requester, entity_id=session["id"],
-                ctx={"other_name": user.get("name"), "category": r.get("category") or "your",
+                ctx={"other_name": user.get("display_name") or user.get("name"), "category": r.get("category") or "your",
                      "session_id": session["id"]}))
         session.pop("_id", None)
         return {"ok": True, "session": session}
@@ -305,19 +305,19 @@ def bind(server):
                     _es_fire(server.email_service.send(
                         "session_completed", user=other, entity_id=session_id,
                         idempotency_key=f"session_completed:{other_id}:{session_id}",
-                        ctx={"other_name": user.get("name"), "session_id": session_id}))
+                        ctx={"other_name": user.get("display_name") or user.get("name"), "session_id": session_id}))
                 requester = user if s["requester_id"] == user["id"] else other
                 pro_user = other if s["requester_id"] == user["id"] else user
                 if requester and pro_user:
                     _es_fire(server.email_service.send(
                         "leave_review", user=requester, entity_id=session_id,
                         idempotency_key=f"leave_review:{session_id}",
-                        ctx={"other_name": pro_user.get("name"), "session_id": session_id}))
+                        ctx={"other_name": pro_user.get("display_name") or pro_user.get("name"), "session_id": session_id}))
             elif other:
                 _es_fire(server.email_service.send(
                     "request_cancelled", user=other, entity_id=session_id,
                     idempotency_key=f"request_cancelled:{other_id}:{session_id}",
-                    ctx={"other_name": user.get("name"), "category": s.get("category") or "connection"}))
+                    ctx={"other_name": user.get("display_name") or user.get("name"), "category": s.get("category") or "connection"}))
         return {"ok": True, "status": body.status}
 
     # --------------------------- messaging (unlocks after acceptance only) ---------------------------
@@ -393,7 +393,7 @@ def bind(server):
             review_txt = (body.review or "").strip()
             _es_fire(server.email_service.send(
                 "review_received", user=pro_user, entity_id=doc["id"],
-                ctx={"other_name": user.get("name"), "rating": body.rating,
+                ctx={"other_name": user.get("display_name") or user.get("name"), "rating": body.rating,
                      "review_part": f': "{review_txt[:140]}"' if review_txt else "."}))
         doc.pop("_id", None)
         return doc

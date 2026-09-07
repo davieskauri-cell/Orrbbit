@@ -75,7 +75,7 @@ def bind(server):
     async def _payload(ev: dict, viewer: dict, going: Optional[int] = None) -> dict:
         """Client-safe event payload — NEVER includes lat/lng."""
         going = going if going is not None else await _going(ev["id"])
-        host = await db.users.find_one({"id": ev["creator_user_id"]}, {"_id": 0, "name": 1, "photo_url": 1, "verified": 1, "id": 1})
+        host = await db.users.find_one({"id": ev["creator_user_id"]}, {"_id": 0, "name": 1, "display_name": 1, "photo_url": 1, "verified": 1, "id": 1})
         vlat = viewer.get("lat") if viewer.get("lat") is not None else -37.8136
         vlng = viewer.get("lng") if viewer.get("lng") is not None else 144.9631
         dist = max(round(haversine(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10, 10)
@@ -95,7 +95,7 @@ def bind(server):
             "going": going,
             "spots_left": (max(cap - going, 0) if cap else None),
             "distance": round(dist), "bearing": round(brg),
-            "host": {"id": (host or {}).get("id"), "name": (host or {}).get("name") or "Orrbbit member",
+            "host": {"id": (host or {}).get("id"), "name": (host or {}).get("display_name") or (host or {}).get("name") or "Orrbbit member",
                      "photo_url": (host or {}).get("photo_url"), "verified": bool((host or {}).get("verified"))},
             "is_host": ev["creator_user_id"] == viewer["id"],
             "my_status": (me or {}).get("join_status"),
@@ -370,10 +370,10 @@ def bind(server):
         rows = await db.event_attendees.find({"event_id": event_id, "join_status": {"$in": statuses}}).to_list(500)
         out = []
         for a in rows:
-            u = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "id": 1, "name": 1, "photo_url": 1, "vibe": 1, "date_of_birth": 1})
+            u = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "id": 1, "name": 1, "display_name": 1, "photo_url": 1, "vibe": 1, "date_of_birth": 1})
             if not u:
                 continue  # deleted user — skip safely
-            out.append({"id": u["id"], "name": u.get("name"), "photo_url": u.get("photo_url"),
+            out.append({"id": u["id"], "name": u.get("display_name") or u.get("name"), "photo_url": u.get("photo_url"),
                         "vibe": u.get("vibe"), "age": server.user_age(u),
                         "join_status": a["join_status"]})
         return {"attendees": out, "is_host": is_host}

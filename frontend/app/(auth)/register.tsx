@@ -35,6 +35,7 @@ export default function Register() {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [day, setDay] = useState("");
@@ -55,6 +56,7 @@ export default function Register() {
   const submitAccount = () => {
     setError(null);
     if (!name.trim()) return setError("Please enter your name.");
+    if (!displayName.trim()) return setError("Please choose a display name.");
     if (!email.trim()) return setError("Please enter your email.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Please enter a valid email address.");
     if (password.length < 8) return setError("Password must be at least 8 characters.");
@@ -91,6 +93,7 @@ export default function Register() {
         email: email.trim(),
         password,
         name: name.trim(),
+        display_name: displayName.trim(),
         date_of_birth: dob,
         accept_policies: true,
         marketing_opt_in: marketingOptIn,
@@ -193,6 +196,17 @@ export default function Register() {
               placeholderTextColor={colors.textTertiary}
               style={styles.input}
             />
+            <Text style={styles.helperText}>Kept private — only used for your account.</Text>
+            <Text style={styles.label}>Display name</Text>
+            <TextInput
+              testID="register-display-name"
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Kauri"
+              placeholderTextColor={colors.textTertiary}
+              style={styles.input}
+            />
+            <Text style={styles.helperText}>This is the name other people will see on Orrbbit.</Text>
             <Text style={styles.label}>Email</Text>
             <TextInput
               testID="register-email"
@@ -383,6 +397,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: font.display, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs, marginBottom: spacing.lg, lineHeight: 23 },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600", marginBottom: spacing.sm, marginTop: spacing.md },
+  helperText: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.xs, lineHeight: 18 },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1.5,
