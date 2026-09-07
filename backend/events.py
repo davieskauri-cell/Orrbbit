@@ -101,6 +101,46 @@ def bind(server):
             "my_status": (me or {}).get("join_status"),
         }
 
+    async def _cancel_orphan(ev: dict):
+        """Host account no longer exists → cancel the event + notify confirmed
+        attendees exactly once (same dedupe keys as the account-deletion cascade)."""
+        r = await db.events.update_one(
+            {"id": ev["id"], "status": {"$in": ["active", "full"]}},
+            {"$set": {"status": "cancelled", "cancelled_at": now_iso(),
+                      "cancelled_by": ev["creator_user_id"],
+                      "cancellation_reason": "Host account deleted", "updated_at": now_iso()}})
+        if r.modified_count == 0:
+            return  # already handled — duplicate-trigger safety
+        try:
+            st = datetime.fromisoformat(ev["start_datetime"].replace("Z", "+00:00")).astimezone(EVENT_TZ)
+            en = datetime.fromisoformat(ev["end_datetime"].replace("Z", "+00:00")).astimezone(EVENT_TZ)
+            ev_date, ev_time = st.strftime("%A, %d %B %Y"), f"{st.strftime('%-I:%M %p')} → {en.strftime('%-I:%M %p')}"
+        except (ValueError, KeyError):
+            ev_date, ev_time = ev.get("start_datetime", ""), ""
+        loc = (ev.get("location_display") or "").strip()
+        import control_email as _ce
+        atts = await db.event_attendees.find(
+            {"event_id": ev["id"], "join_status": "accepted",
+             "user_id": {"$ne": ev["creator_user_id"]}}).to_list(500)
+        for a in atts:
+            dk = f"event_host_deleted:{ev['id']}:{a['user_id']}"
+            if not await db.notifications.find_one({"user_id": a["user_id"], "dedupe_key": dk}):
+                await db.notifications.insert_one({
+                    "id": str(uuid.uuid4()), "user_id": a["user_id"], "type": "event_cancelled",
+                    "title": "Event cancelled",
+                    "body": f"\"{ev['title']}\" is no longer available because the host's account has been removed.",
+                    "event_id": ev["id"], "read": False, "dedupe_key": dk, "created_at": now_iso()})
+            if _ce._svc:
+                u2 = await db.users.find_one({"id": a["user_id"]})
+                if u2:
+                    try:
+                        await _ce._svc.send("event_cancelled", user=u2, entity_id=ev["id"],
+                                            ctx={"event_title": ev["title"], "event_date": ev_date,
+                                                 "event_time": ev_time,
+                                                 "location_part": f"<br><b>Location:</b> {loc}" if loc else ""})
+                    except Exception:
+                        pass  # recorded/logged by the email service; event stays cancelled
+
     @events_router.get("/nearby")
     async def nearby_events(lat: float = Query(...), lng: float = Query(...),
                             category: Optional[str] = None,
@@ -111,8 +151,15 @@ def bind(server):
         if category and category != "All Events":
             q["category"] = category
         rows = await db.events.find(q, {"_id": 0}).to_list(300)
+        # defensive rule: an event must NEVER stay active if its host account is gone —
+        # orphans are auto-cancelled here (self-heals any pre-existing production orphans)
+        host_ids = list({r["creator_user_id"] for r in rows})
+        alive = {u["id"] async for u in db.users.find({"id": {"$in": host_ids}}, {"id": 1})}
         out = []
         for ev in rows:
+            if ev["creator_user_id"] not in alive:
+                await _cancel_orphan(ev)
+                continue
             ev = await _lazy_complete(ev)
             if ev["status"] not in ("active", "full"):
                 continue
@@ -183,6 +230,10 @@ def bind(server):
         ev = await db.events.find_one({"id": event_id}, {"_id": 0})
         if not ev:
             raise HTTPException(status_code=404, detail="Event not found")
+        # deleted-host events must resolve to CANCELLED, never a joinable "Orrbbit member" orphan
+        if ev["status"] in ("active", "full") and not await db.users.find_one({"id": ev["creator_user_id"]}, {"id": 1}):
+            await _cancel_orphan(ev)
+            ev["status"] = "cancelled"
         return await _payload(await _lazy_complete(ev), user)
 
     @events_router.put("/{event_id}")
