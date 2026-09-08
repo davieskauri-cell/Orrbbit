@@ -6,7 +6,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/lib/api";
@@ -16,6 +16,8 @@ import {
   requestLocationPermission,
   getCurrentLocation,
   getPermissionGranted,
+  watchUserLocation,
+  calculateDistanceBetweenUsers,
 } from "@/src/services/locationService";
 import { showAlert } from "@/src/lib/alert";
 import { createPing, dismissPing as dismissPingApi } from "@/src/services/pingService";
@@ -205,6 +207,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const visibleAndActive =
     !!user?.visible && !user?.ghost_mode && !user?.paused;
+
+  // LIVE foreground location: while permission is granted, follow the user as they
+  // move (≥15m + 20s thresholds in the watcher, ≥15m guard here against GPS jitter).
+  // Setting coords feeds the existing push-to-backend + nearby refresh effects, so
+  // the Radar position updates automatically — no reload needed. The subscription
+  // is stopped when the app backgrounds and resumed on foreground (no leaks).
+  const locWatch = useRef<{ remove: () => void } | null>(null);
+  useEffect(() => {
+    if (!token || permission !== "granted") return;
+    let disposed = false;
+    const start = async () => {
+      if (disposed || locWatch.current) return;
+      try {
+        const sub = await watchUserLocation((pos) => {
+          setCoords((prev) =>
+            prev && calculateDistanceBetweenUsers(prev, pos) < 15 ? prev : pos
+          );
+        });
+        if (disposed) sub.remove();
+        else locWatch.current = sub;
+      } catch {}
+    };
+    const stop = () => {
+      locWatch.current?.remove();
+      locWatch.current = null;
+    };
+    start();
+    const appState = AppState.addEventListener("change", (s) => {
+      if (s === "active") start();
+      else stop();
+    });
+    return () => {
+      disposed = true;
+      appState.remove();
+      stop();
+    };
+  }, [token, permission]);
 
   const refresh = useCallback(async () => {
     if (!token || !coords || !visibleAndActive) {

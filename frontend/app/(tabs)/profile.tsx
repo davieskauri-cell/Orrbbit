@@ -100,7 +100,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: spacing.xxxl }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxxl }}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>Profile</Text>
@@ -108,9 +108,9 @@ export default function ProfileScreen() {
       <View style={[styles.card, shadow.card]}>
         <View style={styles.profileRow}>
           <Avatar uri={user?.photo_url} name={user?.display_name || user?.name} size={76} ringColor={vibe?.color || colors.teal} />
-          <View style={{ flex: 1, gap: 6 }}>
+          <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Text style={styles.name}>
+              <Text style={styles.name} numberOfLines={1}>
                 {user?.display_name || user?.name}
                 {user?.age ? `, ${user.age}` : ""}
               </Text>
@@ -157,7 +157,7 @@ export default function ProfileScreen() {
       </View>
 
       {completion && (
-        <View style={[styles.card, shadow.card, { marginTop: spacing.md }]} testID="completion-card">
+        <View style={[styles.card, shadow.card, { marginTop: spacing.lg }]} testID="completion-card">
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={styles.completionTitle}>
               {completion.discoverable === false ? "Complete your profile" : `Your profile is ${completion.score}% complete`}
@@ -328,7 +328,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.surface },
-  title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl, marginBottom: spacing.md },
+  title: { color: colors.text, fontSize: font.display, fontWeight: "800", paddingHorizontal: spacing.xl, marginBottom: spacing.lg },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -338,13 +338,16 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
   },
   profileRow: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  name: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
+  name: { color: colors.text, fontSize: font.xl, fontWeight: "800", flexShrink: 1 },
   demoTag: { color: colors.textTertiary, fontSize: 11 },
   bio: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.lg, lineHeight: 21 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
   statusRow: {
     flexDirection: "row",
-    gap: spacing.xl,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: spacing.sm,
+    columnGap: spacing.lg,
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
     borderTopWidth: 1,

@@ -1,12 +1,14 @@
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import React, { useEffect, useState } from "react";
+import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { api } from "@/src/lib/api";
 import { colors, spacing } from "@/src/theme";
 
 export default function TabsLayout() {
+  const { token, user, loading } = useAuth();
   const { appMode } = useApp();
   const pro = appMode === "professional";
   const [badges, setBadges] = useState({ requests: 0, sessions: 0 });
@@ -31,6 +33,17 @@ export default function TabsLayout() {
       clearInterval(t);
     };
   }, [pro]);
+
+  // HARD onboarding gate — main app is unreachable until email is verified,
+  // required profile fields are complete and a vibe is set (backend is source of truth).
+  if (!loading) {
+    if (!token) return <Redirect href="/(auth)/onboarding" />;
+    if (user && !user.is_demo) {
+      if (!user.email_verified) return <Redirect href="/(auth)/verify-email" />;
+      if (user.profile_required_complete === false) return <Redirect href="/(auth)/profile-setup" />;
+      if (!user.vibe) return <Redirect href="/(auth)/choose-vibe" />;
+    }
+  }
 
   return (
     <Tabs

@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
@@ -46,6 +46,10 @@ export default function ProfileSetup() {
   useEffect(() => {
     if (user && !hydrated.current) {
       hydrated.current = true;
+      setDisplayName(user.display_name || user.name || "");
+      setCity(user.city || "");
+      setHomeCity(user.home_city || "");
+      setCountry(user.country || "");
       setBio(user.bio || "");
       setSelected(user.interests || []);
       setPhotos(user.photos || []);
@@ -54,6 +58,11 @@ export default function ProfileSetup() {
 
   const toggle = (i: string) =>
     setSelected((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]));
+
+  // Email verification is enforced BEFORE profile setup — backend is the source of truth
+  if (user && !user.email_verified && !user.is_demo) {
+    return <Redirect href="/(auth)/verify-email" />;
+  }
 
   const addPhotos = async (uris: string[]) => {
     setUploading(true);

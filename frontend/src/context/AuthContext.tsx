@@ -10,6 +10,7 @@ export type User = {
   email: string;
   name: string | null;
   display_name?: string | null;
+  profile_required_complete?: boolean;
   age: number | null;
   bio: string;
   photo_url: string | null;

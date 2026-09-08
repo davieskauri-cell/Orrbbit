@@ -23,9 +23,9 @@ export default function VerifyEmailGate() {
     const u: any = await refreshUser().catch(() => null);
     if (u?.email_verified) {
       // Continue onboarding at the correct step: Profile Setup → Set Vibe → Radar
-      if (u?.vibe) router.replace("/(tabs)");
-      else if ((u?.photos || []).length < 2) router.replace("/(auth)/profile-setup");
-      else router.replace("/(auth)/choose-vibe");
+      if (u?.profile_required_complete === false) router.replace("/(auth)/profile-setup");
+      else if (!u?.vibe) router.replace("/(auth)/choose-vibe");
+      else router.replace("/(tabs)");
     }
     return !!u?.email_verified;
   };
@@ -105,6 +105,9 @@ export default function VerifyEmailGate() {
             {cooldown > 0 ? `Resend available in ${cooldown} seconds` : "Resend verification email"}
           </Text>
         </Pressable>
+        <Text style={styles.spamHint} testID="gate-spam-hint">
+          Can&rsquo;t find the email? Check your junk or spam folder.
+        </Text>
         <Pressable testID="gate-check" onPress={confirmVerified} disabled={busy} style={styles.secondaryBtn} accessibilityRole="button">
           <Text style={styles.secondaryText}>I&rsquo;ve verified my email</Text>
         </Pressable>
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card,
   },
   secondaryText: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  spamHint: { color: colors.textTertiary, fontSize: font.sm, textAlign: "center", marginTop: -2 },
   linkText: { color: colors.teal, fontSize: font.base, fontWeight: "700" },
   input: {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,

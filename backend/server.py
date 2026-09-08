@@ -424,6 +424,9 @@ def own_user(u: dict) -> dict:
         "photo_verified": bool(u.get("photo_verified", False)),  # future Photo Verified — never displayed yet
         "joined": (u.get("created_at") or "")[:7],
         "people_discoverable": is_discoverable(u),
+        # Onboarding gate: all REQUIRED profile fields done (email verification is gated separately)
+        "profile_required_complete": bool(u.get("is_demo")) or all(
+            c["done"] for c in completion_checklist(u)[1] if c["required"] and c["key"] != "email"),
     }
 
 

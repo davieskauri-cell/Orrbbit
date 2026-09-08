@@ -30,7 +30,7 @@ export async function watchUserLocation(
   onUpdate: (coords: { lat: number; lng: number }) => void
 ): Promise<Location.LocationSubscription> {
   return Location.watchPositionAsync(
-    { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 15000 },
+    { accuracy: Location.Accuracy.Balanced, distanceInterval: 15, timeInterval: 20000 },
     (pos) => onUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude })
   );
 }

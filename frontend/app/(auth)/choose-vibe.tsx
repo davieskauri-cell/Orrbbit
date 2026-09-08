@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Text, StyleSheet, ScrollView, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
@@ -19,6 +19,12 @@ export default function ChooseVibe() {
   const { vibes, requestLocation } = useApp();
   const [selected, setSelected] = useState<string | null>(user?.vibe || null);
   const [busy, setBusy] = useState(false);
+
+  // Onboarding order is enforced: verified email → complete profile → choose vibe
+  if (user && !user.is_demo) {
+    if (!user.email_verified) return <Redirect href="/(auth)/verify-email" />;
+    if (user.profile_required_complete === false) return <Redirect href="/(auth)/profile-setup" />;
+  }
 
   const save = async () => {
     if (!selected) return;

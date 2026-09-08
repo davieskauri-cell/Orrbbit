@@ -16,14 +16,13 @@ function tileXY(lat: number, lng: number, z: number) {
 type Props = { lat: number; lng: number; width: number; height: number; zoom?: number; showFallback?: boolean };
 
 /**
- * Bright bird's-eye basemap (CARTO Voyager / OpenStreetMap) centred on the
- * user's actual location. Colourful premium style — buildings, parks, water.
- * Renders retina (@2x) raster tiles as plain images — works on web + native.
+ * Bright bird's-eye basemap (OpenStreetMap) centred on the user's actual
+ * location. Keyless raster tiles — no API key required — work on web + native.
  * Only the CURRENT user's location is used; other users are never placed at
  * real coordinates on this map.
  */
 export default function MapTiles({ lat, lng, width, height, zoom = 17, showFallback = true }: Props) {
-  const z = Math.min(zoom, 20); // CARTO voyager max zoom
+  const z = Math.min(zoom, 19); // OpenStreetMap max zoom
   const { x, y } = tileXY(lat, lng, z);
   const cx = width / 2;
   const cy = height / 2;
@@ -38,7 +37,7 @@ export default function MapTiles({ lat, lng, width, height, zoom = 17, showFallb
       tiles.push(
         <Image
           key={`${tx}-${ty}`}
-          source={{ uri: `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${tx}/${ty}@2x.png` }}
+          source={{ uri: `https://tile.openstreetmap.org/${z}/${tx}/${ty}.png` }}
           style={{ position: "absolute", left: cx + (tx - x) * TILE, top: cy + (ty - y) * TILE, width: TILE, height: TILE }}
           contentFit="cover"
           transition={200}
@@ -56,7 +55,7 @@ export default function MapTiles({ lat, lng, width, height, zoom = 17, showFallb
         </View>
       )}
       {tiles}
-      {showFallback && <Text style={styles.attribution}>© OpenStreetMap · CARTO</Text>}
+      {showFallback && <Text style={styles.attribution}>© OpenStreetMap contributors</Text>}
     </View>
   );
 }
