@@ -78,8 +78,12 @@ def bind(server):
         host = await db.users.find_one({"id": ev["creator_user_id"]}, {"_id": 0, "name": 1, "display_name": 1, "photo_url": 1, "verified": 1, "id": 1})
         vlat = viewer.get("lat") if viewer.get("lat") is not None else -37.8136
         vlng = viewer.get("lng") if viewer.get("lng") is not None else 144.9631
-        dist = max(round(haversine(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10, 10)
-        brg = (round(bearing_between(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10) % 360
+        if ev.get("demo_env") and viewer.get("is_demo"):
+            # demo events follow the viewer like the demo crowd — always feels local
+            dist, brg = ev.get("demo_dist", 300), ev.get("demo_bearing", 0)
+        else:
+            dist = max(round(haversine(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10, 10)
+            brg = (round(bearing_between(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10) % 360
         me = await db.event_attendees.find_one({"event_id": ev["id"], "user_id": viewer["id"]})
         cap = ev.get("capacity")
         return {
@@ -165,7 +169,13 @@ def bind(server):
                 continue
             if ev["creator_user_id"] in blocked:
                 continue
-            dist = haversine(lat, lng, ev["lat"], ev["lng"])
+            # demo isolation: demo accounts see the seeded demo events; live users never do
+            if bool(ev.get("demo_env", False)) != bool(user.get("is_demo", False)):
+                continue
+            if ev.get("demo_env"):
+                dist = ev.get("demo_dist", 300)  # demo events follow the viewer
+            else:
+                dist = haversine(lat, lng, ev["lat"], ev["lng"])
             # event visible only inside ITS visibility radius, hard-capped at 1 km
             if dist > min(ev.get("visibility_radius", 500), 1000):
                 continue
@@ -334,10 +344,10 @@ def bind(server):
             await db.event_attendees.insert_one(dict(rec))
         if status == "pending":
             await notify(ev["creator_user_id"], "event_join_request", "Join request",
-                         f"{user.get('name') or 'Someone'} wants to join \"{ev['title']}\".", meta={"event_id": event_id})
+                         f"{user.get('display_name') or user.get('name') or 'Someone'} wants to join \"{ev['title']}\".", meta={"event_id": event_id})
         else:
             await notify(ev["creator_user_id"], "event_joined", "New attendee",
-                         f"{user.get('name') or 'Someone'} joined \"{ev['title']}\".", meta={"event_id": event_id})
+                         f"{user.get('display_name') or user.get('name') or 'Someone'} joined \"{ev['title']}\".", meta={"event_id": event_id})
             cap = ev.get("capacity")
             if cap and going + 1 >= cap:
                 await db.events.update_one({"id": event_id}, {"$set": {"status": "full"}})
@@ -355,7 +365,7 @@ def bind(server):
         ev = await db.events.find_one({"id": event_id})
         if ev and r.modified_count:
             await notify(ev["creator_user_id"], "event_left", "Attendance cancelled",
-                         f"{user.get('name') or 'Someone'} cancelled their attendance to \"{ev['title']}\".", meta={"event_id": event_id})
+                         f"{user.get('display_name') or user.get('name') or 'Someone'} cancelled their attendance to \"{ev['title']}\".", meta={"event_id": event_id})
         if ev and ev.get("status") == "full":
             await db.events.update_one({"id": event_id}, {"$set": {"status": "active"}})
         return {"ok": True}

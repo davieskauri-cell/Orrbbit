@@ -760,3 +760,11 @@ Owner actions: redeploy (then /api/version=iter52 tag still applies; new flows l
 - PROFILE TAB SPACING: bottom padding now insets.bottom aware, title/completion-card vertical rhythm normalized to spacing.lg, status row space-between + wrap (small iPhones), display name flexShrink+numberOfLines=1.
 - Profile-setup hydration bug (found by testing agent): late-arriving user now hydrates display name/city/home city/country too.
 - Tests: backend tests/test_onboarding_gate.py 4/4 + display-name suite 6/6 (10/10). Testing agent iteration: 7/7 frontend flows PASS (signup→verify gate blocked→mongo verify→prefilled profile-setup→completion gate→choose-vibe→app; unverified re-login lands on gate; map clean; profile layout clean). QA accounts cleaned.
+
+## Iter79 — Demo reset: live-feel Events + display names (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- All demo fixtures (10 primary, 57 radar crowd, 12 global, persona) now seed display_name (persona: account "Alex (Demo)", public "Alex").
+- NEW seed_demo_events(): 7 realistic Melbourne events reseeded EVERY backend startup so times always look current — Live Music (happening now), Coffee & Co-work (persona attending), Startup Founders Meetup (approval, 12 going), Sunset Yarra Walk, HIIT (capacity 8), Board Games, Sunday Market. Hosts = demo accounts; attendees seeded; covers via picsum.
+- Demo event isolation in events.py /nearby: demo viewers see ONLY demo events, live users NEVER see them. Demo events carry demo_dist/demo_bearing and follow the viewer (like the demo crowd) in _payload + nearby.
+- Public-name consistency: event join/leave notifications + professional_flow notification texts now use display_name||name.
+- DEMO_ENV_VERSION bumped 4→5 (forced env reseed). /demo/reset now also reseeds events (counts.events=7).
+- Tests: tests/test_demo_refresh.py 3/3 (demo sees 7 events w/ host display names + persona my_status accepted; live user isolated; reset endpoint reseeds). Radar screenshot: 7 event hotspots + "Live now" + stats 7 Events Nearby / 55 People Going.

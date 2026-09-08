@@ -3418,7 +3418,7 @@ async def seed_professional_demo():
 
 
 # ===================== Full Demo Environment (demo_env) =====================
-DEMO_ENV_VERSION = 4  # iter46: current_profile_v2 fixture refresh
+DEMO_ENV_VERSION = 5  # iter79: display names + live-feel demo events refresh
 DEMO_PERSONA_EMAIL = "demo@intro.demo"
 
 # (radar_email_name, profession_title, profession_key, categories, state, docs)
@@ -3513,7 +3513,7 @@ async def seed_demo_environment(force: bool = False):
 
     # ---- 1. demo persona ----
     persona_doc = {
-        "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "age": 29, "vibe": "networking",
+        "email": DEMO_PERSONA_EMAIL, "name": "Alex (Demo)", "display_name": "Alex", "age": 29, "vibe": "networking",
         "date_of_birth": _dob_for_age(29), "email_verified": True,
         "bio": "Demo explorer account — look around, everything here is seeded sample data.",
         "interests": ["Business", "Coffee", "Fitness", "Technology"],
@@ -3721,6 +3721,92 @@ async def seed_demo_environment(force: bool = False):
     return counts
 
 
+# ---- Live-feel demo Events: reseeded EVERY startup so dates/times always look current ----
+DEMO_EVENT_FIXTURES = [
+    # host_email, title, category, description, location_display, dist_m, bearing,
+    # start_offset_h, duration_h, capacity, join_type, going, persona_going
+    ("jake@intro.demo", "Live Music at the Laneway Bar", "Music",
+     "Local indie band on from early evening. Casual crowd, great vibe — come say hi, I'll be near the front.",
+     "Meyers Place laneway", 480, 45, -0.5, 3, None, "everyone",
+     ["sophie", "ruby", "poppy", "arlo", "daisy", "felix", "hazel", "luna", "milo", "nora"], False),
+    ("olivia@intro.demo", "Coffee & Co-work Catch-up", "Coffee / Drinks",
+     "Grab a long black and bring the laptop. Relaxed table for anyone who wants company while they work.",
+     "Degraves Street cafe strip", 260, 95, 2, 2.5, 10, "everyone",
+     ["emily", "sophie", "willow", "ezra", "iris"], True),
+    ("james@intro.demo", "Startup Founders Meetup", "Networking",
+     "Monthly founder drinks — early stage friendly. Two-minute intros then open networking. All welcome.",
+     "Higher Ground area", 620, 320, 6, 3, 30, "approval",
+     ["ryan", "tom", "oscar", "theo", "grace", "aria", "lucas", "maya", "priya", "dev", "harvey", "georgia"], False),
+    ("mia@intro.demo", "Sunset Walk along the Yarra", "Walking / Running",
+     "Easy 5km river loop at golden hour. All paces welcome — we regroup at the bridges.",
+     "Southbank promenade", 380, 150, 8, 1.5, None, "everyone",
+     ["liam", "sarah", "ava", "bella", "millie"], False),
+    ("liam@intro.demo", "Small-group HIIT in the Park", "Fitness",
+     "45-minute outdoor session, all levels. Bring water and a towel — I'll bring the equipment.",
+     "Flagstaff Gardens", 430, 200, 20, 1, 8, "everyone",
+     ["mia", "ned", "jade", "ruby", "finn", "callum", "bonnie"], False),
+    ("sophie@intro.demo", "Board Games & Pizza Night", "Games",
+     "Casual games night — Catan, Codenames and whatever people bring. Newcomers very welcome.",
+     "Hardware Lane venue", 310, 270, 30, 3, 16, "everyone",
+     ["jake", "emily", "toby", "sadie", "reuben", "clara", "louis", "evie", "barney"], False),
+    ("ryan@intro.demo", "Sunday Market & Brunch Crew", "Food",
+     "Wander the market stalls then a long brunch nearby. Zero agenda, good company.",
+     "Queen Victoria Market", 700, 0, 44, 2.5, None, "everyone",
+     ["olivia", "kauri", "hazel", "pearl", "angus", "freya"], False),
+]
+
+
+async def seed_demo_events():
+    """Refresh the demo Events every startup so the demo always feels live:
+    one happening now, the rest across today/tomorrow/the weekend."""
+    old_ids = [e["id"] async for e in db.events.find({"demo_env": True}, {"id": 1})]
+    if old_ids:
+        await db.event_attendees.delete_many({"event_id": {"$in": old_ids}})
+        await db.events.delete_many({"id": {"$in": old_ids}})
+    persona = await db.users.find_one({"email": DEMO_PERSONA_EMAIL})
+    now = datetime.now(timezone.utc)
+    base_lat, base_lng = -37.8136, 144.9631
+    count = 0
+    for (host_email, title, category, desc, loc, dist, brg,
+         start_h, dur_h, cap, join_type, going, persona_going) in DEMO_EVENT_FIXTURES:
+        host = await db.users.find_one({"email": host_email})
+        if not host:
+            continue
+        rad = math.radians(brg)
+        ev_id = str(uuid.uuid4())
+        start = now + timedelta(hours=start_h)
+        await db.events.insert_one({
+            "id": ev_id, "creator_user_id": host["id"],
+            "title": title, "description": desc, "category": category,
+            "cover_image": f"https://picsum.photos/seed/orrbbit-ev-{ev_id[:8]}/800/500",
+            "lat": base_lat + (dist * math.cos(rad)) / 111320,
+            "lng": base_lng + (dist * math.sin(rad)) / (111320 * math.cos(math.radians(base_lat))),
+            "location_display": loc, "location_privacy_type": "area",
+            "visibility_radius": 750, "timezone": "local",
+            "start_datetime": start.isoformat(),
+            "end_datetime": (start + timedelta(hours=dur_h)).isoformat(),
+            "capacity": cap, "join_type": join_type, "status": "active",
+            "demo": True, "demo_env": True, "demo_dist": dist, "demo_bearing": brg,
+            "created_at": now_iso(), "updated_at": now_iso(),
+        })
+        attendee_ids = []
+        for gname in going:
+            uid = await _demo_user_id(gname)
+            if uid:
+                attendee_ids.append(uid)
+        if persona_going and persona:
+            attendee_ids.append(persona["id"])
+        for i, uid in enumerate(dict.fromkeys(attendee_ids)):
+            await db.event_attendees.insert_one({
+                "id": str(uuid.uuid4()), "event_id": ev_id, "user_id": uid,
+                "join_status": "accepted",
+                "joined_at": (now - timedelta(hours=2 + i)).isoformat(), "demo_env": True,
+            })
+        count += 1
+    logger.info("Seeded %d live-feel demo events", count)
+    return count
+
+
 @api_router.post("/demo/reset")
 async def reset_demo(user: dict = Depends(get_current_user)):
     """Restore all demo accounts and data to the original seeded state. Demo accounts only."""
@@ -3730,6 +3816,7 @@ async def reset_demo(user: dict = Depends(get_current_user)):
     await db.help_requests.delete_many({"demo": True})
     await seed_demo_accounts()
     counts = await seed_demo_environment(force=True)
+    counts["events"] = await seed_demo_events()
     import professional_flow as _pf
     import sys as _s
     await _pf.seed_pro_flow_demo(_s.modules[__name__], force=True)
@@ -3899,7 +3986,8 @@ app.add_middleware(
 async def seed_demo_accounts():
     for acc in DEMO_ACCOUNTS:
         doc = {
-            "email": acc["email"], "name": acc["name"], "age": acc["age"], "vibe": acc["vibe"],
+            "email": acc["email"], "name": acc["name"], "display_name": acc["name"],
+            "age": acc["age"], "vibe": acc["vibe"],
             "date_of_birth": _dob_for_age(acc["age"]),
             "bio": acc["bio"], "interests": acc["interests"], "photo_url": acc["photo_url"],
             "photos": [
@@ -3937,7 +4025,7 @@ async def seed_demo_accounts():
         email = f"{name.lower()}@radar.intro.demo"
         enrich = _demo_enrich(name)
         doc = {
-            "email": email, "name": name, "age": age, "vibe": vibe,
+            "email": email, "name": name, "display_name": name, "age": age, "vibe": vibe,
             "date_of_birth": _dob_for_age(age),
             "bio": f"{bio} {enrich['bio_hook']}" if len(bio) < 60 else bio,
             "interests": enrich["interests"],
@@ -3975,7 +4063,7 @@ async def seed_demo_accounts():
     for i, (email, name, age, vibe, city, dist, brg) in enumerate(GLOBAL_DEMO_USERS):
         enrich = _demo_enrich(name + "g")
         doc = {
-            "email": email, "name": name, "age": age, "vibe": vibe, "city": city,
+            "email": email, "name": name, "display_name": name, "age": age, "vibe": vibe, "city": city,
             "date_of_birth": _dob_for_age(age),
             "bio": f"{city.split(',')[0]} local. {enrich['bio_hook']}",
             "interests": enrich["interests"],
@@ -4019,6 +4107,7 @@ async def seed_demo_accounts():
     await migrate_opportunity_records()
     await seed_professional_demo()
     await seed_demo_environment()
+    await seed_demo_events()
     await _pro_flow.seed_pro_flow_demo(_sys.modules[__name__])
 
 
