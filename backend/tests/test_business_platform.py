@@ -167,10 +167,12 @@ def test_04_business_event_create_and_filters(ctx):
     assert "QA Personal Fitness Run" in pers_only and "QA Friday Happy Hour" not in pers_only
     combo = nearby(host_type="business", category="Food Deals / Discounts")
     assert set(k for k in combo if k.startswith("QA ")) == {"QA Friday Happy Hour"}
-    today = nearby(date="today", host_type="business")
-    assert "QA Biz Networking Night" in today
-    tomorrow = nearby(date="tomorrow")
-    assert "QA Biz Networking Night" not in tomorrow
+    # date filters are only deterministic when the event hasn't slipped past UTC midnight
+    if (now + timedelta(hours=3)).date() == now.date():
+        today = nearby(date="today", host_type="business")
+        assert "QA Biz Networking Night" in today
+        tomorrow = nearby(date="tomorrow")
+        assert "QA Biz Networking Night" not in tomorrow
 
 
 def test_05_join_attendee_management(ctx):

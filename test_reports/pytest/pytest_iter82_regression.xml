@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="15" time="11.666" timestamp="2026-09-09T23:14:19.485617+00:00" hostname="agent-env-f3c73295-65e4-451e-9f78-1c4dff4aca67"><testcase classname="tests.test_business_platform" name="test_01_business_signup_and_profile" time="1.953" /><testcase classname="tests.test_business_platform" name="test_02_business_hidden_from_people_radar" time="0.187" /><testcase classname="tests.test_business_platform" name="test_03_verification_flow_and_control_approval" time="1.165" /><testcase classname="tests.test_business_platform" name="test_04_business_event_create_and_filters" time="1.249"><failure message="AssertionError: assert 'QA Biz Networking Night' in {}">ctx = {'biz': {'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MWM5MzlmNS1iMGQ1LTRjNzAtODY2NS1kZjI0ZDk1ZmM...ple.com', 'name': 'QA Person Two', 'display_name': 'Rui', ...}}, 'biz_id': '0666f08d-c117-4ac1-ad61-90f47e96d179', ...}
+
+    def test_04_business_event_create_and_filters(ctx):
+        biz = ctx["biz"]
+        now = datetime.now(timezone.utc)
+        def mk(title, cat, start_h, offer=None, tok=None):
+            r = requests.post(f"{API}/events", json={
+                "title": title, "category": cat, "lat": LAT, "lng": LNG,
+                "location_display": "QA venue", "offer": offer,
+                "start_datetime": (now + timedelta(hours=start_h)).isoformat(),
+                "end_datetime": (now + timedelta(hours=start_h + 2)).isoformat(),
+            }, headers=_hdr(tok or biz["access_token"]), timeout=30)
+            assert r.status_code == 200, r.text
+            return r.json()
+        b1 = mk("QA Biz Networking Night", "Business Networking", 3)
+        b2 = mk("QA Friday Happy Hour", "Food Deals / Discounts", 5, offer="20% off selected drinks 5-7pm")
+        p1ev = mk("QA Personal Fitness Run", "Fitness", 4, tok=ctx["p1"]["access_token"])
+        ctx["b1"], ctx["b2"], ctx["p1ev"] = b1, b2, p1ev
+        assert b1["host_type"] == "business" and b1["host"]["name"] == "The Park Hotel QA"
+        assert b1["host"]["verified"] is True and b1["business_id"] == ctx["biz_id"]
+        assert b2["offer"] == "20% off selected drinks 5-7pm"
+        assert p1ev["host_type"] == "personal" and p1ev["host"]["name"] == "Pia"
+        tok2 = ctx["p2"]["access_token"]
+        def nearby(**params):
+            r = requests.get(f"{API}/events/nearby", params={"lat": LAT, "lng": LNG, **params},
+                             headers=_hdr(tok2), timeout=30)
+            return {e["title"]: e for e in r.json()["events"]}
+        all_ev = nearby()
+        assert {"QA Biz Networking Night", "QA Friday Happy Hour", "QA Personal Fitness Run"} &lt;= set(all_ev)
+        biz_only = nearby(host_type="business")
+        assert "QA Biz Networking Night" in biz_only and "QA Personal Fitness Run" not in biz_only
+        pers_only = nearby(host_type="personal")
+        assert "QA Personal Fitness Run" in pers_only and "QA Friday Happy Hour" not in pers_only
+        combo = nearby(host_type="business", category="Food Deals / Discounts")
+        assert set(k for k in combo if k.startswith("QA ")) == {"QA Friday Happy Hour"}
+        today = nearby(date="today", host_type="business")
+&gt;       assert "QA Biz Networking Night" in today
+E       AssertionError: assert 'QA Biz Networking Night' in {}
+
+tests/test_business_platform.py:171: AssertionError</failure></testcase><testcase classname="tests.test_business_platform" name="test_05_join_attendee_management" time="0.744" /><testcase classname="tests.test_business_platform" name="test_06_review_eligibility_and_rating" time="1.327" /><testcase classname="tests.test_business_platform" name="test_07_review_moderation" time="0.787" /><testcase classname="tests.test_business_platform" name="test_08_ownership_security" time="0.278" /><testcase classname="tests.test_business_platform" name="test_09_subscription_gate" time="0.376" /><testcase classname="tests.test_business_platform" name="test_10_business_deletion_cascade" time="0.902" /><testcase classname="tests.test_iter81_business_secure_link" name="test_a_subscription_does_not_auto_verify" time="0.860" /><testcase classname="tests.test_iter81_business_secure_link" name="test_b_event_blocked_while_pending" time="0.320" /><testcase classname="tests.test_iter81_business_secure_link" name="test_c_computer_link_request_redeem_and_reuse_rejected" time="0.676" /><testcase classname="tests.test_iter81_business_secure_link" name="test_d_personal_registration_and_login_routes" time="0.540" /><testcase classname="tests.test_iter81_business_secure_link" name="test_e_demo_login_regression" time="0.161" /></testsuite></testsuites>

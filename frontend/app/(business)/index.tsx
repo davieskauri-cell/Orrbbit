@@ -1,17 +1,18 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Image } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, font, shadow } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
-import { getBusinessOverview, BizOverview } from "@/src/services/businessService";
+import { getBusinessOverview, getMyBusiness, BizOverview, Business } from "@/src/services/businessService";
 import { myEvents, OrbEvent } from "@/src/services/eventService";
 
 export function Stat({ label, value, icon }: { label: string; value: any; icon: string }) {
   return (
     <View style={st.stat}>
-      <Ionicons name={icon as any} size={16} color={colors.cobalt} />
+      <View style={st.statIcon}><Ionicons name={icon as any} size={16} color={colors.cobalt} /></View>
       <Text style={st.statVal}>{value ?? "—"}</Text>
       <Text style={st.statLbl}>{label}</Text>
     </View>
@@ -22,87 +23,127 @@ export function VerifBadge({ status }: { status: string }) {
   const verified = status === "Verified";
   const pending = status === "Pending Review";
   return (
-    <View style={[st.vBadge, { backgroundColor: verified ? colors.tealSoft : pending ? colors.cobaltSoft : "#FEF3C7" }]}>
-      <Ionicons name={verified ? "checkmark-circle" : "time-outline"} size={13} color={verified ? colors.teal : pending ? colors.cobalt : "#B45309"} />
-      <Text style={[st.vBadgeTxt, { color: verified ? colors.teal : pending ? colors.cobalt : "#B45309" }]}>
+    <View style={[st.vBadge, { backgroundColor: verified ? "#E7F8EE" : pending ? colors.cobaltSoft : "#FEF3C7" }]}>
+      <Ionicons name={verified ? "checkmark-circle" : "time-outline"} size={13} color={verified ? colors.success : pending ? colors.cobalt : "#B45309"} />
+      <Text style={[st.vBadgeTxt, { color: verified ? "#15803D" : pending ? colors.cobalt : "#B45309" }]}>
         {verified ? "Verified Business" : status}
       </Text>
     </View>
   );
 }
 
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning," : h < 18 ? "Good afternoon," : "Good evening,";
+}
+
 export default function BusinessHome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [ov, setOv] = useState<BizOverview | null>(null);
+  const [biz, setBiz] = useState<Business | null>(null);
   const [upcoming, setUpcoming] = useState<OrbEvent[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(() => {
-    getBusinessOverview().then(setOv).catch(() => {});
+    getBusinessOverview().then(async (o) => {
+      setOv(o);
+      if (o.verified) {
+        const seen = await AsyncStorage.getItem("biz_verified_seen");
+        if (!seen) {
+          await AsyncStorage.setItem("biz_verified_seen", "1");
+          router.push("/(auth)/business-verified");
+        }
+      }
+    }).catch(() => {});
+    getMyBusiness().then((r) => setBiz(r.business)).catch(() => {});
     myEvents().then((r) => setUpcoming(r.hosting.filter((e) => e.status === "active" || e.status === "full").slice(0, 4))).catch(() => {});
-  }, []);
+  }, [router]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const verified = ov?.verification_status === "Verified";
+  const pending = ov?.verification_status === "Pending Review";
 
   return (
     <ScrollView
       style={st.wrap}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxxl, paddingHorizontal: spacing.xl }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xxl, paddingHorizontal: spacing.xl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); setTimeout(() => setRefreshing(false), 600); }} />}
     >
       <View style={st.brandRow} testID="biz-home-brand">
-        <LogoMark size={30} />
-        <Wordmark height={20} />
-        <View style={st.brandPill}><Text style={st.brandPillTxt}>BUSINESS</Text></View>
+        <LogoMark size={26} />
+        <Wordmark height={17} />
+        <View style={{ flex: 1 }} />
+        <Pressable testID="biz-home-bell" onPress={() => router.push("/(business)/notifications")} hitSlop={8} style={st.bell}>
+          <Ionicons name="notifications-outline" size={22} color={colors.text} />
+        </Pressable>
       </View>
-      <Text style={st.hello}>Welcome back,</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+
+      <Text style={st.hello}>{greeting()}</Text>
+      <View style={st.nameRow}>
         <Text style={st.bizName} testID="biz-home-name">{ov?.business_name || "…"}</Text>
-        {ov?.verified && <Ionicons name="checkmark-circle" size={20} color={colors.teal} />}
+        {verified && <Ionicons name="checkmark-circle" size={22} color={colors.teal} />}
       </View>
-      {ov && <View style={{ marginTop: spacing.sm }}><VerifBadge status={ov.verification_status} /></View>}
+      {biz && (
+        <View style={st.metaRow}>
+          <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
+          <Text style={st.metaTxt} numberOfLines={1}>{biz.location_display}{biz.category ? ` · ${biz.category}` : ""}</Text>
+        </View>
+      )}
+
+      {ov && (
+        <View style={[st.vCard, { backgroundColor: verified ? "#E7F8EE" : pending ? colors.cobaltSoft : "#FEF3C7" }]}>
+          <View style={[st.vIcon, { backgroundColor: verified ? colors.success : pending ? colors.cobalt : colors.warning }]}>
+            <Ionicons name={verified ? "shield-checkmark" : "time"} size={16} color="#FFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={st.vLbl}>Verification Status</Text>
+            <Text style={[st.vVal, { color: verified ? "#15803D" : pending ? colors.cobalt : "#B45309" }]}>
+              {ov.verification_status}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <View style={st.grid}>
+        <Stat label="Active Events" value={ov?.active_events} icon="calendar" />
+        <Stat label="People Going" value={ov?.people_going} icon="people" />
+        <Stat label="Event Views" value={ov?.event_views} icon="eye" />
+        <Stat label="Average Rating" value={ov?.average_rating != null ? ov.average_rating : "—"} icon="star" />
+      </View>
 
       <Pressable testID="biz-create-event" onPress={() => router.push("/create-event")} style={st.cta}>
         <Ionicons name="add" size={20} color="#FFF" />
         <Text style={st.ctaTxt}>Create Event</Text>
       </Pressable>
 
-      <View style={st.grid}>
-        <Stat label="Active Events" value={ov?.active_events} icon="flame" />
-        <Stat label="Upcoming" value={ov?.upcoming_events} icon="calendar" />
-        <Stat label="People Going" value={ov?.people_going} icon="people" />
-        <Stat label="Event Views" value={ov?.event_views} icon="eye" />
-        <Stat label="Profile Views" value={ov?.profile_views} icon="storefront" />
-        <Stat label="Avg Rating" value={ov?.average_rating != null ? `${ov.average_rating} ★` : "No reviews"} icon="star" />
+      <View style={st.sectionRow}>
+        <Text style={st.section}>Upcoming Events</Text>
+        <Pressable onPress={() => router.push("/(business)/events")} hitSlop={8}>
+          <Text style={st.seeAll}>See All</Text>
+        </Pressable>
       </View>
-
-      <Text style={st.section}>Upcoming Events</Text>
       {upcoming.length === 0 ? (
-        <Text style={st.empty}>No active events yet — create one to reach people nearby.</Text>
+        <View style={st.emptyBox}>
+          <Text style={st.empty}>You haven&apos;t hosted an event yet.</Text>
+          <Pressable onPress={() => router.push("/create-event")} style={st.emptyBtn}>
+            <Text style={st.emptyBtnTxt}>Create Your First Event</Text>
+          </Pressable>
+        </View>
       ) : upcoming.map((e) => (
-        <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} style={[st.evRow, shadow.card]}>
-          <View style={st.evIcon}><Ionicons name="storefront" size={16} color="#FFF" /></View>
+        <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} style={[st.evRow, shadow.soft]}>
+          {e.cover_image
+            ? <Image source={{ uri: e.cover_image }} style={st.evThumb} />
+            : <View style={[st.evThumb, st.evThumbFallback]}><Ionicons name="storefront" size={18} color={colors.cobalt} /></View>}
           <View style={{ flex: 1 }}>
             <Text style={st.evTitle} numberOfLines={1}>{e.title}</Text>
-            <Text style={st.evMeta}>{new Date(e.start_datetime).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })} · {e.going} going</Text>
+            <Text style={st.evMeta}>
+              {new Date(e.start_datetime).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })} · {e.going} going
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
         </Pressable>
       ))}
-
-      <Text style={st.section}>Quick Actions</Text>
-      <View style={st.quickRow}>
-        {[
-          { label: "Manage Events", icon: "calendar", path: "/(business)/events" },
-          { label: "View Insights", icon: "bar-chart", path: "/(business)/insights" },
-          { label: "Business Profile", icon: "storefront", path: "/(business)/profile" },
-        ].map((q) => (
-          <Pressable key={q.label} onPress={() => router.push(q.path as any)} style={st.quick}>
-            <Ionicons name={q.icon as any} size={18} color={colors.cobalt} />
-            <Text style={st.quickTxt}>{q.label}</Text>
-          </Pressable>
-        ))}
-      </View>
     </ScrollView>
   );
 }
@@ -110,25 +151,35 @@ export default function BusinessHome() {
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.surface },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.lg },
-  brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  bell: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   hello: { color: colors.textSecondary, fontSize: font.base },
-  bizName: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  bizName: { color: colors.text, fontSize: font.xxl, fontWeight: "800", letterSpacing: -0.3 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
+  metaTxt: { color: colors.textSecondary, fontSize: font.sm, flex: 1 },
   vBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   vBadgeTxt: { fontSize: font.sm, fontWeight: "700" },
-  cta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.cobalt, borderRadius: 16, paddingVertical: 14, marginTop: spacing.xl },
-  ctaTxt: { color: "#FFF", fontSize: font.base, fontWeight: "800" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xl },
-  stat: { width: "31%", flexGrow: 1, backgroundColor: colors.card, borderRadius: 16, padding: spacing.md, gap: 3 },
-  statVal: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
-  statLbl: { color: colors.textSecondary, fontSize: 11, fontWeight: "600" },
-  section: { color: colors.text, fontSize: font.lg, fontWeight: "800", marginTop: spacing.xl, marginBottom: spacing.md },
-  empty: { color: colors.textTertiary, fontSize: font.sm },
-  evRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
-  evIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.cobalt, alignItems: "center", justifyContent: "center" },
+  vCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, borderRadius: 16, padding: spacing.lg, marginTop: spacing.lg },
+  vIcon: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  vLbl: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
+  vVal: { fontSize: font.base, fontWeight: "800", marginTop: 1 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginTop: spacing.lg },
+  stat: { width: "47%", flexGrow: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, gap: 4 },
+  statIcon: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.cobaltSoft, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  statVal: { color: colors.text, fontSize: 22, fontWeight: "800" },
+  statLbl: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
+  cta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.cobalt, borderRadius: 16, minHeight: 52, marginTop: spacing.lg },
+  ctaTxt: { color: "#FFF", fontSize: font.lg, fontWeight: "800" },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xl, marginBottom: spacing.md },
+  section: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  seeAll: { color: colors.cobalt, fontSize: font.sm, fontWeight: "700" },
+  emptyBox: { alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.xl, backgroundColor: colors.card },
+  empty: { color: colors.textSecondary, fontSize: font.base, textAlign: "center" },
+  emptyBtn: { backgroundColor: colors.cobalt, borderRadius: 12, paddingHorizontal: spacing.xl, paddingVertical: 11, minHeight: 44, justifyContent: "center" },
+  emptyBtnTxt: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
+  evRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.md, marginBottom: spacing.sm },
+  evThumb: { width: 52, height: 52, borderRadius: 12 },
+  evThumbFallback: { backgroundColor: colors.cobaltSoft, alignItems: "center", justifyContent: "center" },
   evTitle: { color: colors.text, fontSize: font.base, fontWeight: "700" },
-  evMeta: { color: colors.textSecondary, fontSize: font.sm, marginTop: 1 },
-  quickRow: { flexDirection: "row", gap: spacing.sm },
-  quick: { flex: 1, alignItems: "center", gap: 6, backgroundColor: colors.cobaltSoft, borderRadius: 16, paddingVertical: spacing.lg },
-  quickTxt: { color: colors.cobalt, fontSize: 11, fontWeight: "700", textAlign: "center" },
+  evMeta: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2 },
 });

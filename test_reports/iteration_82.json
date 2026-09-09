@@ -1,0 +1,46 @@
+{
+  "summary": "Iter82 Business UI rebuild — comprehensive functional QA PASS. Backend regression: 14/15 pytest pass (1 pre-existing time-sensitive failure in test_04_business_event_create_and_filters unrelated to iter82 changes — see below). Frontend full mobile business journey: Onboarding (single teal Get Started CTA, no old Business button) -> /account-type (exactly 2 cards: Personal + Business) -> Business card -> /register?type=business (Business badge active, 'Create your Business account' title) -> business-setup resumes at step 4 Verify (business profile seeded via POST /api/business/me) with 'X of 6' step counter and labeled dot progress -> 'Send me the link' works (biz-computer-link text changes to 'Link sent — check your email', verified backend generates single-use token via test_iter81_business_secure_link.py) -> submit verification -> step 5 Subscription card ($5.99 Business Full Access + all 10 features + Subscribe Now) -> subscribe -> step 6 Verification Pending (biz-pending + biz-finish present + 'Need to complete more details?' link back to step 4) -> Business Dashboard shows blue 'Pending Review' verification card, 2x2 stats grid (0/0/0/-), blue Create Event, empty state 'You haven't hosted an event yet.' + 'Create Your First Event' button. Approval flow: admin API POST /control/businesses/{id}/verification {action:'approve'} -> reload -> ONE-TIME success screen at /business-verified (biz-verified-title 'Your business is verified!', blue check circle, 'Go to Dashboard' CTA) -> click -> dashboard shows GREEN 'Verified' card -> subsequent reload does NOT show success screen again (biz_verified_seen AsyncStorage flag persisted). Mobile tab order confirmed Home/Events/Insights/Notifications/Profile via screenshot; Events tab (Active/Completed/Cancelled) and Insights tab both render without error. Desktop /business/dashboard @ 1366x800: dark navy sidebar (Overview active) + Orrbbit topbar with BUSINESS pill + avatar (BizQAce02), welcome header with business name+check+address, View Public Profile + Create Event buttons work (Create Event -> /business/events/create with 'BUSINESS HOSTED EVENT' banner and cobalt category chip active), 4 KPIs, two-column layout Upcoming Events + Recent Notifications. Personal path regression: /account-type Personal -> /how-location-works (confirmed). Control queue: GET /api/control/businesses?status=Pending%20Review correctly returns seeded biz before approval. All requested testIDs present and functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "test_business_platform.py::test_04_business_event_create_and_filters", "issue": "Timezone-sensitive test flake: 'today' host_type=business nearby filter uses UTC date. Test creates biz event at now+3h; when run within 3h of UTC-midnight it crosses into tomorrow UTC and the assertion 'QA Biz Networking Night' in today filter fails. Run was at 23:14 UTC (test event start 02:14 UTC next day). PRE-EXISTING and unrelated to Iter82 UI changes. Fix suggestion: skip test or clamp start_h so it stays inside UTC today, e.g. start_h = 1 or set explicit start_datetime for today filter check."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (all screens)", "issues": ["Non-blocking console warnings: 'shadow*' style props are deprecated on web — use boxShadow (repeats each screen). Also 'props.pointerEvents is deprecated — use style.pointerEvents' on the (business) home. Cosmetic; carried over from prior iterations."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_business_platform.py",
+    "/app/backend/tests/test_iter81_business_secure_link.py",
+    "/app/backend/tests/qa_seed_iter82.py",
+    "/app/test_reports/pytest/pytest_iter82_regression.xml"
+  ],
+  "action_items": [
+    "(Optional) Fix time-sensitive assertion in test_business_platform.py::test_04 by pinning start_datetime to today (UTC) instead of now+3h so the 'today' host_type filter is deterministic.",
+    "(Optional / cosmetic) Migrate remaining shadow* + props.pointerEvents to boxShadow + style.pointerEvents to silence RN-web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "business-setup.tsx correctly resumes step 4 when business profile exists but verification_status != 'Pending Review' (line 80-84). Redirect guard at line 89-90 correctly bounces non-business users to /(tabs) and unverified email users to /verify-email. Step counter '{step} of 6' + STEP_LABELS dot row on lines 368-382 render as designed.",
+    "(business)/index.tsx routes to /business-verified only once by consulting AsyncStorage flag biz_verified_seen (confirmed via reload test — flag persisted across reloads within a single session).",
+    "business/dashboard.tsx (desktop) correctly loads inside BizShell with sidebar Overview highlighted, and Create Event button correctly navigates to /business/events/create.",
+    "account-type.tsx exposes exactly 2 pressables (account-type-personal, account-type-business). Personal -> /how-location-works, Business -> /register?type=business. Cleanly separated from onboarding.",
+    "Backend business.py subscription activation returns {ok, subscription:{status:'active', sandbox:true}} without mutating verification_status; verification-link redemption single-use is enforced (verified in existing test_iter81_business_secure_link.py, 5/5 pass)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/qa_seed_iter82.py (new — QA seed helper for Iter82 UI journey)"
+  ],
+  "success_rate": {
+    "backend": "14/15 (93%) — 1 pre-existing timezone-flake, unrelated to Iter82",
+    "frontend": "12/12 UI checks (100%)"
+  },
+  "seed_data_creation": "Created one QA business user (biz-ui-qa-ce02645e@orrbbitqa.example.com, uid 4b1dd29b-cb4b-42ff-8da8-ac2485fe1bb5) + business profile (b90bd3d6-…, name 'Iter82 QA Cafe ce02645e', Café, Australia) + verification submission + sandbox subscription + approval audit log. FULL teardown performed at end of run (users, consent_records, business_profiles, business_verifications, business_login_links, notifications, email_events, email_deliveries, admin_audit_logs, and any created events). Also cleaned two throwaway users used to introspect /api/business/me categories list.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "For iter82+ UI QA of the business journey, reuse /app/backend/tests/qa_seed_iter82.py — it registers a business account, sets email_verified=True in Mongo, seeds a business profile (with logo/cover URLs + phone/country/primary_contact so the UI resumes at step 4), and prints access_token + biz_id as JSON. Then Playwright: localStorage.setItem('auth_token', JSON.stringify(token)) + goto /(auth)/business-setup — the wizard picks up at step 4. To retest the one-time /business-verified success screen, also remove biz_verified_seen before reloading; leave it set to bypass. Business categories list is FIXED to ['Hotel','Café','Restaurant','Bar / Venue','Gym / Fitness','Coworking','Community Venue','Entertainment','Retail','Education','Wellness','Professional Services','Sports Club','Golf Club','Accommodation','Hospitality','Other'] — 'Cafe / Coffee Shop' returns 400. Countries list appears to load lazily / may be empty on cold start. Control endpoint approval must be direct against preview backend (never via /control browser origin). test_business_platform.py::test_04 is time-sensitive — run after 03:00 UTC or pin explicit start_datetime.",
+  "rca_of_issue": "test_business_platform::test_04 failure RCA: line 149 creates biz event with start_datetime = datetime.now(UTC) + 3h. The nearby 'today' filter (backend business.py events/nearby ?date=today) filters by UTC calendar day. When run between 21:00 UTC and 24:00 UTC, start_datetime falls into the NEXT UTC day and is correctly excluded from 'today' — assertion at line 171 fails. Reproduction: run at 23:14 UTC (as this suite did). Mitigation: either (a) freeze start_datetime to same-day UTC ('now + 30min' capped so date_utc == today), or (b) add pytest xfail marker when now.hour >= 21, or (c) mock server clock."
+}

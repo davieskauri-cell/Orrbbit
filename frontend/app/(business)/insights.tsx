@@ -19,6 +19,11 @@ export default function BusinessInsights() {
   return (
     <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, padding: spacing.xl, paddingBottom: insets.bottom + spacing.xxxl }}>
       <Text style={st.title}>Insights</Text>
+      {a && (a.events_hosted || 0) === 0 && (a.profile_views || 0) === 0 ? (
+        <View style={st.emptyBox}>
+          <Text style={st.emptyTxt}>Insights will appear once people start discovering your events.</Text>
+        </View>
+      ) : null}
       <View style={st.grid}>
         <Stat label="Profile Views" value={a?.profile_views} icon="storefront" />
         <Stat label="Event Impressions" value={a?.event_impressions} icon="radio" />
@@ -59,6 +64,8 @@ export default function BusinessInsights() {
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.surface },
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800", marginBottom: spacing.lg },
+  emptyBox: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, marginBottom: spacing.lg, backgroundColor: colors.card },
+  emptyTxt: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 19, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   card: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, marginTop: spacing.lg },
   cardLbl: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },

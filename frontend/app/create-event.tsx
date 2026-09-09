@@ -286,7 +286,7 @@ export default function CreateEvent() {
           </Pressable>
         </View>
 
-        <Pressable testID="submit-event" style={[s.cta, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
+        <Pressable testID="submit-event" style={[s.cta, isBiz && { backgroundColor: colors.cobalt }, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
           {busy ? <ActivityIndicator color="#FFF" /> : <Text style={s.ctaTxt}>{editing ? "SAVE CHANGES" : "CREATE EVENT"}</Text>}
         </Pressable>
       </ScrollView>

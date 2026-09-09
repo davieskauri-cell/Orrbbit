@@ -7,6 +7,11 @@ import { colors, spacing, font } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 
+// Orrbbit Business desktop — dark navy sidebar (brand spec, same in all themes)
+const NAVY = "#0F1E38";
+const NAVY_LIGHT = "#1B2C4F";
+const NAVY_TEXT = "#A9B7CE";
+
 const NAV = [
   { label: "Overview", path: "/business/dashboard", icon: "grid-outline" },
   { label: "Events", path: "/business/events", icon: "calendar-outline" },
@@ -19,7 +24,7 @@ const NAV = [
 ];
 
 /** Responsive shell for the authenticated Business platform at orrbbit.com/business.
- * Desktop/laptop: fixed sidebar. Tablet/mobile web: collapsible top navigation. */
+ * Desktop/laptop: fixed dark navy sidebar. Tablet/mobile web: collapsible navigation. */
 export default function BizShell({ title, children }: { title: string; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,17 +45,20 @@ export default function BizShell({ title, children }: { title: string; children:
         return (
           <Pressable key={n.path} testID={`biznav-${n.label}`} onPress={() => { setMenuOpen(false); router.push(n.path as any); }}
             style={[st.navItem, active && st.navItemOn]}>
-            <Ionicons name={n.icon as any} size={17} color={active ? colors.cobalt : colors.textSecondary} />
-            <Text style={[st.navTxt, active && { color: colors.cobalt, fontWeight: "800" }]}>{n.label}</Text>
+            <Ionicons name={n.icon as any} size={17} color={active ? "#FFFFFF" : NAVY_TEXT} />
+            <Text style={[st.navTxt, active && { color: "#FFFFFF", fontWeight: "800" }]}>{n.label}</Text>
           </Pressable>
         );
       })}
+      <View style={st.navDivider} />
       <Pressable onPress={signOut} style={st.navItem}>
-        <Ionicons name="log-out-outline" size={17} color="#DC2626" />
-        <Text style={[st.navTxt, { color: "#DC2626" }]}>Log out</Text>
+        <Ionicons name="log-out-outline" size={17} color="#F87171" />
+        <Text style={[st.navTxt, { color: "#F87171" }]}>Log out</Text>
       </Pressable>
     </>
   );
+
+  const initial = (user?.display_name || user?.email || "B").charAt(0).toUpperCase();
 
   return (
     <View style={[st.wrap, { paddingTop: insets.top }]}>
@@ -66,7 +74,11 @@ export default function BizShell({ title, children }: { title: string; children:
           <View style={st.brandPill}><Text style={st.brandPillTxt}>BUSINESS</Text></View>
         </View>
         <View style={{ flex: 1 }} />
-        <Text style={st.topEmail} numberOfLines={1}>{user?.email}</Text>
+        <View style={st.userRow}>
+          <View style={st.avatar}><Text style={st.avatarTxt}>{initial}</Text></View>
+          <Text style={st.topEmail} numberOfLines={1}>{user?.display_name || user?.email}</Text>
+          <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
+        </View>
       </View>
       <View style={{ flex: 1, flexDirection: "row" }}>
         {wide && <ScrollView style={st.sidebar} contentContainerStyle={{ paddingVertical: spacing.lg }}>{navItems}</ScrollView>}
@@ -89,7 +101,7 @@ export function BizCard({ children, style }: { children: React.ReactNode; style?
 export function BizStat({ label, value, icon }: { label: string; value: any; icon: string }) {
   return (
     <View style={st.statCard}>
-      <Ionicons name={icon as any} size={18} color={colors.cobalt} />
+      <View style={st.statIcon}><Ionicons name={icon as any} size={16} color={colors.cobalt} /></View>
       <Text style={st.statVal}>{value ?? "—"}</Text>
       <Text style={st.statLbl}>{label}</Text>
     </View>
@@ -99,20 +111,25 @@ export function BizStat({ label, value, icon }: { label: string; value: any; ico
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: "#F6F8FB" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
-  topBar: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: spacing.xl, paddingVertical: 12, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  topBar: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: spacing.xl, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
-  topEmail: { color: colors.textTertiary, fontSize: font.sm, maxWidth: 220 },
-  sidebar: { width: 230, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border },
-  overlayNav: { position: "absolute", top: 0, left: 0, bottom: 0, width: 250, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, zIndex: 50 },
-  navItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: spacing.xl, paddingVertical: 11 },
-  navItemOn: { backgroundColor: colors.cobaltSoft, borderRightWidth: 3, borderRightColor: colors.cobalt },
-  navTxt: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
-  content: { padding: spacing.xl, maxWidth: 1080, width: "100%", alignSelf: "center" },
-  pageTitle: { color: colors.text, fontSize: font.xxl, fontWeight: "800", marginBottom: spacing.lg },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.cobalt, alignItems: "center", justifyContent: "center" },
+  avatarTxt: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
+  topEmail: { color: colors.text, fontSize: font.sm, fontWeight: "600", maxWidth: 200 },
+  sidebar: { width: 232, maxWidth: 232, flexGrow: 0, backgroundColor: NAVY },
+  overlayNav: { position: "absolute", top: 0, left: 0, bottom: 0, width: 252, backgroundColor: NAVY, zIndex: 50 },
+  navItem: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 11, borderRadius: 10, minHeight: 42 },
+  navItemOn: { backgroundColor: NAVY_LIGHT },
+  navTxt: { color: NAVY_TEXT, fontSize: font.sm, fontWeight: "600" },
+  navDivider: { height: 1, backgroundColor: NAVY_LIGHT, marginVertical: spacing.md, marginHorizontal: spacing.lg },
+  content: { padding: spacing.xl, maxWidth: 1120, width: "100%", alignSelf: "center" },
+  pageTitle: { color: colors.text, fontSize: font.xxl, fontWeight: "800", marginBottom: spacing.lg, letterSpacing: -0.3 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: spacing.xl, marginBottom: spacing.lg },
-  statCard: { flexGrow: 1, minWidth: 140, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, gap: 4 },
-  statVal: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
+  statCard: { flexGrow: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, gap: 4 },
+  statIcon: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.cobaltSoft, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  statVal: { color: colors.text, fontSize: 24, fontWeight: "800" },
   statLbl: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600" },
 });

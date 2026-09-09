@@ -44,7 +44,18 @@ export default function BusinessEvents() {
         data={data}
         keyExtractor={(e) => e.id}
         contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + spacing.xxxl }}
-        ListEmptyComponent={<Text style={st.empty}>No {tab.toLowerCase()} events.</Text>}
+        ListEmptyComponent={
+          tab === "Active" ? (
+            <View style={st.emptyBox}>
+              <Text style={st.empty}>You haven&apos;t hosted an event yet.</Text>
+              <Pressable onPress={() => router.push("/create-event")} style={st.emptyBtn}>
+                <Text style={st.emptyBtnTxt}>Create Your First Event</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={st.empty}>No {tab.toLowerCase()} events.</Text>
+          )
+        }
         renderItem={({ item: e }) => (
           <Pressable onPress={() => router.push(`/event/${e.id}`)} style={st.row}>
             <View style={st.badge}><Ionicons name="storefront" size={12} color="#FFF" /><Text style={st.badgeTxt}>BUSINESS EVENT</Text></View>
@@ -71,6 +82,9 @@ const st = StyleSheet.create({
   tabOn: { backgroundColor: colors.cobalt, borderColor: colors.cobalt },
   tabTxt: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
   empty: { color: colors.textTertiary, textAlign: "center", marginTop: spacing.xxl },
+  emptyBox: { alignItems: "center", gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.xl, backgroundColor: colors.card, marginTop: spacing.lg },
+  emptyBtn: { backgroundColor: colors.cobalt, borderRadius: 12, paddingHorizontal: spacing.xl, paddingVertical: 11, minHeight: 44, justifyContent: "center" },
+  emptyBtnTxt: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
   row: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, marginBottom: spacing.md, backgroundColor: colors.surface },
   badge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.cobalt, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6 },
   badgeTxt: { color: "#FFF", fontSize: 10, fontWeight: "800" },

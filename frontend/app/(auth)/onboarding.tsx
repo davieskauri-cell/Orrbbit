@@ -1,37 +1,13 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
-import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
-import { colors, spacing, radius, font, shadow, type } from "@/src/theme";
+import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const HERO = require("@/assets/images/onboarding-hero.jpg");
-
-const STEPS: { icon: string; tint: string; bg: string; text: string }[] = [
-  { icon: "swap-horizontal", tint: colors.teal, bg: colors.tealSoft, text: "Choose People or Professional" },
-  { icon: "options", tint: colors.orange, bg: colors.orangeSoft, text: "Set what you are looking for" },
-  { icon: "radio", tint: colors.teal, bg: colors.tealSoft, text: "Discover relevant people nearby" },
-  { icon: "checkmark-done", tint: colors.orange, bg: colors.orangeSoft, text: "Connect only when both people agree" },
-];
-
-const PEOPLE_VIBES = [
-  { label: "Open to Chat", color: colors.teal },
-  { label: "Networking", color: colors.teal },
-  { label: "Coffee / Drinks", color: colors.orange },
-  { label: "Relationship", color: colors.pink },
-  { label: "Activity Buddy", color: colors.success },
-  { label: "Events", color: colors.orange },
-  { label: "Campus", color: colors.purple },
-];
-
-const PRO_VIBES = [
-  { label: "Need Help", color: "#F59E0B" },
-  { label: "Can Help", color: "#F59E0B" },
-  { label: "Verified Professionals", color: colors.teal },
-];
 
 export default function Welcome() {
   const router = useRouter();
@@ -39,21 +15,21 @@ export default function Welcome() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xxl }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl, flexGrow: 1 }}
       showsVerticalScrollIndicator={false}
       testID="onboarding-screen"
     >
       <View style={styles.center}>
-        <LogoMark size={84} />
-        <View style={{ marginTop: spacing.md }}>
-          <Wordmark height={40} />
+        <View style={styles.logoRow}>
+          <LogoMark size={40} />
+          <Wordmark height={26} />
         </View>
         <Text style={styles.tagline}>Real people. Real moments. Right nearby.</Text>
       </View>
 
-      <Text style={styles.headline}>Connect with the right people nearby.</Text>
+      <Text style={styles.headline}>Connect with the right people, events and opportunities nearby.</Text>
       <Text style={styles.sub}>
-        Meet people, build relationships or find trusted professional help nearby — on your terms.
+        Meet people, find professional help and discover local business-hosted events — on your terms.
       </Text>
 
       <View style={styles.heroCard}>
@@ -64,67 +40,33 @@ export default function Welcome() {
         </View>
       </View>
 
-      <Text style={styles.chipsSectionLabel}>People</Text>
-      <View style={styles.chipsRow}>
-        {PEOPLE_VIBES.map((v) => (
-          <View key={v.label} style={[styles.miniChip, { backgroundColor: v.color + "15" }]}>
-            <Text style={[styles.miniChipText, { color: v.color }]}>{v.label}</Text>
-          </View>
-        ))}
-      </View>
-      <Text style={styles.chipsSectionLabel}>Professional</Text>
-      <View style={styles.chipsRow}>
-        {PRO_VIBES.map((v) => (
-          <View key={v.label} style={[styles.miniChip, { backgroundColor: v.color + "15" }]}>
-            <Text style={[styles.miniChipText, { color: v.color }]}>{v.label}</Text>
-          </View>
-        ))}
-      </View>
-      <Text style={styles.chipsCaption}>
-        One app. Real people. Real conversations. Real opportunities nearby.
-      </Text>
+      <View style={{ flex: 1 }} />
 
-      <View style={styles.howCard}>
-        <Text style={styles.howTitle}>How Orrbbit works</Text>
-        {STEPS.map((s) => (
-          <View key={s.text} style={styles.stepRow}>
-            <View style={[styles.stepIcon, { backgroundColor: s.bg }]}>
-              <Ionicons name={s.icon as any} size={17} color={s.tint} />
-            </View>
-            <Text style={styles.stepText}>{s.text}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={{ gap: spacing.md, marginTop: spacing.xxl }}>
-        <Text style={styles.joinLabel}>How are you joining Orrbbit?</Text>
-        <PrimaryButton
+      <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
+        <Pressable
           testID="onboarding-get-started"
-          title="Personal — meet people nearby"
-          onPress={() => router.push("/(auth)/how-location-works")}
-        />
-        <SecondaryButton
-          testID="onboarding-business"
-          title="Business — host events for your community"
-          onPress={() => router.push({ pathname: "/(auth)/register", params: { type: "business" } })}
-        />
-        <SecondaryButton
-          testID="onboarding-login"
-          title="Log In"
-          onPress={() => router.push("/(auth)/login")}
-        />
+          onPress={() => router.push("/(auth)/account-type")}
+          style={styles.cta}
+        >
+          <Text style={styles.ctaTxt}>Get Started</Text>
+        </Pressable>
+        <Pressable testID="onboarding-login" onPress={() => router.push("/(auth)/login")} style={styles.loginRow} hitSlop={8}>
+          <Text style={styles.loginTxt}>
+            Already have an account? <Text style={styles.loginLink}>Log In</Text>
+          </Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  joinLabel: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700", textAlign: "center" },
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
-  center: { alignItems: "center", marginBottom: spacing.xxl },
-  tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: spacing.xs },
-  headline: { ...type.title, maxWidth: 320 },
-  sub: { ...type.body, marginTop: spacing.md, maxWidth: 340 },
+  center: { alignItems: "center", marginBottom: spacing.xl },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  tagline: { color: colors.orange, fontSize: font.sm, fontWeight: "600", marginTop: spacing.sm },
+  headline: { color: colors.text, fontSize: 27, lineHeight: 33, fontWeight: "800", letterSpacing: -0.4 },
+  sub: { color: colors.textSecondary, fontSize: font.lg, lineHeight: 23, marginTop: spacing.md },
   heroCard: {
     marginTop: spacing.xl,
     borderRadius: radius.lg,
@@ -132,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     ...shadow.card,
   },
-  heroImg: { width: "100%", aspectRatio: 16 / 9 },
+  heroImg: { width: "100%", aspectRatio: 4 / 3 },
   heroBadge: {
     position: "absolute",
     bottom: spacing.md,
@@ -147,55 +89,9 @@ const styles = StyleSheet.create({
     ...shadow.soft,
   },
   heroBadgeText: { color: colors.text, fontSize: font.sm, fontWeight: "700" },
-  chipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    justifyContent: "center",
-  },
-  miniChip: {
-    paddingHorizontal: spacing.lg,
-    borderRadius: 999,
-    minHeight: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  miniChipText: { fontSize: font.sm, fontWeight: "700" },
-  chipsCaption: {
-    ...type.helper,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: spacing.lg,
-    maxWidth: 300,
-    alignSelf: "center",
-  },
-  chipsSectionLabel: {
-    color: colors.textTertiary,
-    fontSize: font.sm,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textAlign: "center",
-    marginTop: spacing.xl,
-    textTransform: "uppercase",
-  },
-  howCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
-    marginTop: spacing.xxl,
-    gap: spacing.lg,
-  },
-  howTitle: { ...type.heading, marginBottom: spacing.xs },
-  stepRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  stepIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepText: { color: colors.textSecondary, fontSize: font.base, lineHeight: 20, fontWeight: "500", flex: 1 },
+  cta: { backgroundColor: colors.teal, borderRadius: 16, minHeight: 54, alignItems: "center", justifyContent: "center" },
+  ctaTxt: { color: "#FFF", fontSize: font.lg, fontWeight: "800" },
+  loginRow: { alignItems: "center", minHeight: 44, justifyContent: "center" },
+  loginTxt: { color: colors.textSecondary, fontSize: font.base },
+  loginLink: { color: colors.teal, fontWeight: "800", textDecorationLine: "underline" },
 });
