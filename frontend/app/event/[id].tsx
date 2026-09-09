@@ -134,7 +134,12 @@ export default function EventDetail() {
         )}
         {ev.status === "cancelled" && <View style={s.cancelBanner} testID="cancelled-banner"><Text style={s.cancelTxt}>EVENT CANCELLED</Text></View>}
         {ev.status === "completed" && <View style={[s.cancelBanner, { backgroundColor: colors.tealSoft }]}><Text style={[s.cancelTxt, { color: colors.teal }]}>COMPLETED</Text></View>}
+        <View style={[s.hostTypeBadge, { backgroundColor: ev.host_type === "business" ? colors.cobalt : colors.orange }]} testID="event-host-type">
+          <Ionicons name={ev.host_type === "business" ? "storefront" : "person"} size={11} color="#FFF" />
+          <Text style={s.hostTypeTxt}>{ev.host_type === "business" ? "BUSINESS HOSTED EVENT" : "PERSONAL HOSTED EVENT"}</Text>
+        </View>
         <Text style={s.title} testID="event-title">{ev.title}</Text>
+        {!!ev.offer && <Text style={s.offerTxt} testID="event-offer">{ev.offer}</Text>}
         <Text style={s.meta}>{ev.category} · {ev.join_type === "approval" ? "Approval required" : "Everyone"} · Approx. {ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`} away</Text>
 
         <View style={s.rows}>
@@ -145,11 +150,25 @@ export default function EventDetail() {
 
         {!!ev.description && <Text style={s.desc}>{ev.description}</Text>}
 
-        <View style={s.hostRow}>
+        <Pressable
+          style={s.hostRow}
+          testID="event-host-row"
+          disabled={ev.host_type !== "business" || !ev.host.business_id}
+          onPress={() => ev.host.business_id && router.push(`/business/${ev.host.business_id}`)}
+        >
           <Avatar uri={ev.host.photo_url} name={ev.host.name} size={36} />
           <Text style={s.hostTxt}>Hosted by {ev.host.name}</Text>
           {ev.host.verified && <Ionicons name="checkmark-circle" size={16} color={colors.teal} />}
-        </View>
+          {ev.host_type === "business" && <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />}
+        </Pressable>
+
+        {/* review CTA — completed Business Events, eligibility enforced server-side */}
+        {ev.host_type === "business" && ev.status === "completed" && !ev.is_host && ev.my_status === "accepted" && (
+          <Pressable testID="event-review-cta" onPress={() => router.push(`/review/${ev.id}`)} style={s.reviewCta}>
+            <Ionicons name="star" size={16} color="#FFF" />
+            <Text style={s.reviewCtaTxt}>How was your experience? Leave a review</Text>
+          </Pressable>
+        )}
 
         {/* attendees */}
         <Pressable testID="view-attendees" onPress={() => (atts ? setAtts(null) : loadAtts())} style={s.attToggle}>
@@ -276,6 +295,11 @@ const s = StyleSheet.create({
   rowSub: { color: colors.textTertiary, fontSize: font.micro, marginTop: 2 },
   desc: { color: colors.textSecondary, fontSize: font.base, lineHeight: 21, marginBottom: spacing.lg },
   hostRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: spacing.lg },
+  hostTypeBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", borderRadius: 9, paddingHorizontal: 9, paddingVertical: 4, marginBottom: spacing.sm },
+  hostTypeTxt: { color: "#FFF", fontSize: 10.5, fontWeight: "800" },
+  offerTxt: { color: colors.cobalt, fontSize: font.base, fontWeight: "800", marginTop: 4 },
+  reviewCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: colors.cobalt, borderRadius: 14, paddingVertical: 12, marginBottom: spacing.lg },
+  reviewCtaTxt: { color: "#FFF", fontSize: font.sm, fontWeight: "800" },
   hostTxt: { color: colors.text, fontSize: font.base, fontWeight: "600" },
   attToggle: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10 },
   attToggleTxt: { color: colors.teal, fontWeight: "700", fontSize: font.base },

@@ -22,6 +22,8 @@ export default function Index() {
 
   if (!token) return <Redirect href="/(auth)/onboarding" />;
   if (user && !user.email_verified && !user.is_demo) return <Redirect href="/(auth)/verify-email" />;
+  // Business accounts operate from the Business Dashboard, never the People Radar
+  if (user?.account_type === "business") return <Redirect href="/(business)" />;
   // Resume onboarding at the correct incomplete step (never restart completed steps)
   if (user && !user.is_demo && user.profile_required_complete === false) {
     return <Redirect href="/(auth)/profile-setup" />;

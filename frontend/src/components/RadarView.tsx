@@ -662,6 +662,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
 
             {/* Event hotspots — rendered LAST so taps land; sized to stay secondary to people markers */}
             {(events || []).map((ev) => {
+              const isBiz = (ev as any).host_type === "business";
               const rr = Math.min(ev.distance / MAX_DIST, 1) * maxR;
               const rad = (ev.bearing * Math.PI) / 180;
               // keep events clear of the central People zone (min 55% of radar radius)
@@ -672,13 +673,14 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
               return (
                 <MapAnchor key={`ev-${ev.id}`} cx={pos.x} cy={pos.y} oy={cy} w={110} h={size + 44} z={z} style={styles.blip}>
                   <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} hitSlop={8} style={{ alignItems: "center", width: 110 }}>
-                    <View style={[styles.eventGlow, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
-                    <View style={[styles.eventDot, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
-                      <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
+                    <View style={[styles.eventGlow, isBiz && styles.eventGlowBiz, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
+                    <View style={[styles.eventDot, isBiz && { backgroundColor: colors.cobalt }, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
+                      <Ionicons name={(isBiz ? "storefront" : EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
                     </View>
-                    <View style={styles.eventPill}>
+                    <View style={[styles.eventPill, isBiz && { backgroundColor: colors.cobalt }]}>
                       <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
                       <Text style={styles.eventMeta} numberOfLines={1}>
+                        {isBiz ? "BUSINESS · " : "PERSONAL · "}
                         {(ev as any).status === "full" ? "FULL" : live ? "● Live now" : `${ev.going} going`}
                         {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
                       </Text>
@@ -912,6 +914,7 @@ const styles = StyleSheet.create({
   },
   eventsChipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   eventGlow: { backgroundColor: "rgba(255,90,31,0.18)", borderWidth: 1, borderColor: "rgba(255,90,31,0.30)" },
+  eventGlowBiz: { backgroundColor: "rgba(47,107,255,0.18)", borderColor: "rgba(47,107,255,0.30)" },
   eventDot: {
     backgroundColor: colors.orange,
     alignItems: "center",

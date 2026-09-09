@@ -34,6 +34,7 @@ export default function Register() {
   const { register } = useAuth();
 
   const [step, setStep] = useState(0);
+  const [accountType, setAccountType] = useState<"personal" | "business">("personal");
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -94,6 +95,7 @@ export default function Register() {
         password,
         name: name.trim(),
         display_name: displayName.trim(),
+        account_type: accountType,
         date_of_birth: dob,
         accept_policies: true,
         marketing_opt_in: marketingOptIn,
@@ -187,6 +189,30 @@ export default function Register() {
             <Text style={styles.sub}>
               Create your Orrbbit account and start discovering people and professionals nearby.
             </Text>
+            <Text style={styles.label}>How are you joining Orrbbit?</Text>
+            {([
+              { key: "personal", icon: "person", title: "Personal", desc: "Meet people, discover events and connect with professionals nearby." },
+              { key: "business", icon: "storefront", title: "Business", desc: "Build your business presence and host events for your local community." },
+            ] as const).map((opt) => {
+              const active = accountType === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  testID={`register-type-${opt.key}`}
+                  onPress={() => setAccountType(opt.key)}
+                  style={[styles.typeCard, active && styles.typeCardActive]}
+                >
+                  <View style={[styles.typeIcon, active && { backgroundColor: opt.key === "business" ? colors.cobalt : colors.orange }]}>
+                    <Ionicons name={opt.icon as any} size={18} color={active ? "#FFF" : colors.textSecondary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.typeTitle}>{opt.title}</Text>
+                    <Text style={styles.typeDesc}>{opt.desc}</Text>
+                  </View>
+                  <Ionicons name={active ? "radio-button-on" : "radio-button-off"} size={20} color={active ? colors.teal : colors.textTertiary} />
+                </Pressable>
+              );
+            })}
             <Text style={styles.label}>Full name</Text>
             <TextInput
               testID="register-name"
@@ -398,6 +424,11 @@ const styles = StyleSheet.create({
   sub: { color: colors.textSecondary, fontSize: font.lg, marginTop: spacing.xs, marginBottom: spacing.lg, lineHeight: 23 },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600", marginBottom: spacing.sm, marginTop: spacing.md },
   helperText: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.xs, lineHeight: 18 },
+  typeCard: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1.5, borderColor: colors.border, borderRadius: 16, padding: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface },
+  typeCardActive: { borderColor: colors.teal, backgroundColor: colors.tealSoft },
+  typeIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
+  typeTitle: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  typeDesc: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 17 },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1.5,

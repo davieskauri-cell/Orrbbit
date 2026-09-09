@@ -8,6 +8,8 @@ export const colors = {
   border: "#E5E7EB",
   orange: "#FF5A1F",
   orangeSoft: "#FFF0E9",
+  cobalt: "#2F6BFF",
+  cobaltSoft: "#EAF0FF",
   teal: "#20B2AA",
   tealSoft: "#E4F6F5",
   pink: "#FF2D55",

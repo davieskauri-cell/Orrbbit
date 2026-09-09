@@ -10,6 +10,7 @@ export type User = {
   email: string;
   name: string | null;
   display_name?: string | null;
+  account_type?: "personal" | "business";
   profile_required_complete?: boolean;
   age: number | null;
   bio: string;
@@ -69,6 +70,7 @@ export type RegisterPayload = {
   password: string;
   name: string;
   display_name: string;
+  account_type?: "personal" | "business";
   date_of_birth: string; // YYYY-MM-DD
   accept_policies: boolean;
   marketing_opt_in: boolean;

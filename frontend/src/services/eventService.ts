@@ -18,7 +18,10 @@ export type OrbEvent = {
   spots_left: number | null;
   distance: number;
   bearing: number;
-  host: { id: string; name: string; photo_url?: string | null; verified: boolean };
+  host: { id: string; name: string; photo_url?: string | null; verified: boolean; business_id?: string | null };
+  host_type?: "personal" | "business";
+  business_id?: string | null;
+  offer?: string | null;
   is_host: boolean;
   my_status?: string | null;
 };
@@ -30,21 +33,32 @@ export const EVENT_CATEGORY_ICONS: Record<string, string> = {
   "Sport": "basketball",
   "Social": "people",
   "Networking": "briefcase",
+  "Business Networking": "business",
   "Study": "book",
   "Food": "restaurant",
+  "Food Deals / Discounts": "pricetag",
+  "Happy Hour": "beer",
   "Games": "dice",
   "Outdoor": "leaf",
   "Community": "hand-left",
   "Music": "musical-notes",
+  "Live Music": "mic",
   "Wellness": "flower",
   "Gaming": "game-controller",
   "Entertainment": "ticket",
+  "Professional Meetup": "people-circle",
+  "Workshop": "construct",
+  "Classes": "school",
+  "Hospitality": "wine",
+  "Launch Event": "rocket",
+  "Market": "storefront",
+  "Promotions": "megaphone",
   "Other": "sparkles",
 };
 
-export const nearbyEvents = (lat: number, lng: number, category?: string) =>
+export const nearbyEvents = (lat: number, lng: number, category?: string, hostType?: string, date?: string) =>
   api<{ events: OrbEvent[]; categories: string[] }>(
-    `/events/nearby?lat=${lat}&lng=${lng}${category ? `&category=${encodeURIComponent(category)}` : ""}`);
+    `/events/nearby?lat=${lat}&lng=${lng}${category ? `&category=${encodeURIComponent(category)}` : ""}${hostType ? `&host_type=${hostType}` : ""}${date ? `&date=${date}` : ""}`);
 
 export const getEvent = (id: string) => api<OrbEvent>(`/events/${id}`);
 export const createEvent = (body: any) => api<OrbEvent>("/events", { method: "POST", body });

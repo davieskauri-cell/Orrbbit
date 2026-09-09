@@ -7,7 +7,7 @@ area (events are radius-scoped, hard-capped at 1 km, matching radar rules).
 """
 import uuid
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -22,8 +22,10 @@ events_router = APIRouter(prefix="/api/events")
 EVENT_TZ = ZoneInfo(os.environ.get("EVENT_EMAIL_TZ", "Australia/Melbourne"))
 
 EVENT_CATEGORIES = ["Coffee / Drinks", "Fitness", "Walking / Running", "Sport", "Social",
-                    "Networking", "Study", "Food", "Games", "Outdoor", "Community",
-                    "Music", "Wellness", "Gaming", "Entertainment", "Other"]
+                    "Networking", "Business Networking", "Study", "Food", "Food Deals / Discounts",
+                    "Happy Hour", "Games", "Outdoor", "Community", "Music", "Live Music",
+                    "Wellness", "Gaming", "Entertainment", "Professional Meetup", "Workshop",
+                    "Classes", "Hospitality", "Launch Event", "Market", "Promotions", "Other"]
 EVENT_RADII = [250, 500, 750, 1000]
 EVENT_REPORT_REASONS = ["Unsafe activity", "Harassment", "Spam", "Misleading event",
                         "Inappropriate content", "Illegal activity", "Other"]
@@ -43,6 +45,7 @@ class EventIn(BaseModel):
     capacity: Optional[int] = None       # None = unlimited
     join_type: str = "everyone"          # everyone | approval
     cover_image: Optional[str] = None
+    offer: Optional[str] = None          # business events: time-bound offer/promotion text
 
 
 class EventReportIn(BaseModel):
@@ -67,6 +70,13 @@ def bind(server):
         if ev.get("status") == "active" and (ev.get("end_datetime") or "") < _now():
             await db.events.update_one({"id": ev["id"]}, {"$set": {"status": "completed", "updated_at": now_iso()}})
             ev["status"] = "completed"
+            # Business Hosted Event ended → review requests to ELIGIBLE attendees only
+            fn = getattr(server, "business_review_requests", None)
+            if fn and ev.get("host_type") == "business":
+                try:
+                    await fn(ev)
+                except Exception:
+                    pass  # review requests never block event reads
         return ev
 
     async def _going(event_id: str) -> int:
@@ -75,7 +85,11 @@ def bind(server):
     async def _payload(ev: dict, viewer: dict, going: Optional[int] = None) -> dict:
         """Client-safe event payload — NEVER includes lat/lng."""
         going = going if going is not None else await _going(ev["id"])
+        host_type = ev.get("host_type", "personal")
         host = await db.users.find_one({"id": ev["creator_user_id"]}, {"_id": 0, "name": 1, "display_name": 1, "photo_url": 1, "verified": 1, "id": 1})
+        biz = None
+        if host_type == "business":
+            biz = await db.business_profiles.find_one({"user_id": ev["creator_user_id"]}, {"_id": 0})
         vlat = viewer.get("lat") if viewer.get("lat") is not None else -37.8136
         vlng = viewer.get("lng") if viewer.get("lng") is not None else 144.9631
         if ev.get("demo_env") and viewer.get("is_demo"):
@@ -99,8 +113,15 @@ def bind(server):
             "going": going,
             "spots_left": (max(cap - going, 0) if cap else None),
             "distance": round(dist), "bearing": round(brg),
-            "host": {"id": (host or {}).get("id"), "name": (host or {}).get("display_name") or (host or {}).get("name") or "Orrbbit member",
-                     "photo_url": (host or {}).get("photo_url"), "verified": bool((host or {}).get("verified"))},
+            "host_type": host_type,
+            "business_id": (biz or {}).get("id") if host_type == "business" else None,
+            "offer": ev.get("offer") or None,
+            "host": ({"id": (host or {}).get("id"), "name": biz["name"],
+                      "photo_url": biz.get("logo_url") or (host or {}).get("photo_url"),
+                      "verified": biz.get("verification_status") == "Verified",
+                      "business_id": biz["id"]} if biz else
+                     {"id": (host or {}).get("id"), "name": (host or {}).get("display_name") or (host or {}).get("name") or "Orrbbit member",
+                      "photo_url": (host or {}).get("photo_url"), "verified": bool((host or {}).get("verified"))}),
             "is_host": ev["creator_user_id"] == viewer["id"],
             "my_status": (me or {}).get("join_status"),
         }
@@ -148,21 +169,45 @@ def bind(server):
     @events_router.get("/nearby")
     async def nearby_events(lat: float = Query(...), lng: float = Query(...),
                             category: Optional[str] = None,
+                            host_type: Optional[str] = None,   # personal | business
+                            date: Optional[str] = None,        # today | tomorrow | week | weekend
                             user: dict = Depends(get_current_user)):
-        """Radar hotspots — geographically bounded, active-only, privacy-safe."""
+        """Radar hotspots — geographically bounded, active-only, privacy-safe.
+        Filters are combinable and applied backend-side (host_type + category + date)."""
         blocked = await get_blocked_ids(user["id"])
         q = {"status": {"$in": ["active", "full"]}}
         if category and category != "All Events":
             q["category"] = category
+        if host_type in ("personal", "business"):
+            q["host_type"] = host_type
+        if date in ("today", "tomorrow", "week", "weekend"):
+            now = datetime.now(timezone.utc)
+            day0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            windows = {
+                "today": (now, day0 + timedelta(days=1)),
+                "tomorrow": (day0 + timedelta(days=1), day0 + timedelta(days=2)),
+                "week": (now, day0 + timedelta(days=7)),
+                "weekend": (day0 + timedelta(days=(5 - day0.weekday()) % 7),
+                            day0 + timedelta(days=((5 - day0.weekday()) % 7) + 2)),
+            }
+            ws, we = windows[date]
+            # overlap: event must start before window end AND end after window start
+            q["start_datetime"] = {"$lt": we.isoformat()}
+            q["end_datetime"] = {"$gte": ws.isoformat()}
         rows = await db.events.find(q, {"_id": 0}).to_list(300)
         # defensive rule: an event must NEVER stay active if its host account is gone —
         # orphans are auto-cancelled here (self-heals any pre-existing production orphans)
         host_ids = list({r["creator_user_id"] for r in rows})
-        alive = {u["id"] async for u in db.users.find({"id": {"$in": host_ids}}, {"id": 1})}
+        hosts = {u["id"]: u async for u in db.users.find(
+            {"id": {"$in": host_ids}}, {"id": 1, "admin_status": 1})}
+        alive = set(hosts.keys())
         out = []
         for ev in rows:
             if ev["creator_user_id"] not in alive:
                 await _cancel_orphan(ev)
+                continue
+            # banned/suspended hosts are hidden (not cancelled — suspension can lift)
+            if hosts[ev["creator_user_id"]].get("admin_status") in ("banned", "suspended"):
                 continue
             ev = await _lazy_complete(ev)
             if ev["status"] not in ("active", "full"):
@@ -186,7 +231,11 @@ def bind(server):
                 ev["status"] = "full"
             out.append(await _payload(ev, user, going))
         out.sort(key=lambda e: (-e["going"], e["distance"]))
-        return {"events": out[:30], "categories": EVENT_CATEGORIES}
+        shown = out[:30]
+        ids = [e["id"] for e in shown]
+        if ids:  # aggregate discovery impressions for business analytics
+            await db.events.update_many({"id": {"$in": ids}}, {"$inc": {"impressions": 1}})
+        return {"events": shown, "categories": EVENT_CATEGORIES}
 
     @events_router.post("")
     async def create_event(body: EventIn, user: dict = Depends(get_current_user)):
@@ -198,9 +247,19 @@ def bind(server):
             raise HTTPException(status_code=400, detail="Invalid join type")
         if body.end_datetime <= body.start_datetime:
             raise HTTPException(status_code=400, detail="End time must be after start time")
+        host_type = "business" if user.get("account_type") == "business" else "personal"
+        if host_type == "business":
+            biz = await db.business_profiles.find_one({"user_id": user["id"]})
+            if not biz:
+                raise HTTPException(status_code=403, detail="Set up your Business Profile before hosting events")
+            if not server.business_can_publish(biz):
+                raise HTTPException(status_code=403, detail="An active Orrbbit Business subscription is required to publish events")
         radius = body.visibility_radius if body.visibility_radius in EVENT_RADII else 500
         ev = {
             "id": str(uuid.uuid4()), "creator_user_id": user["id"],
+            "host_type": host_type,
+            "business_id": (biz["id"] if host_type == "business" else None),
+            "offer": ((body.offer or "").strip()[:160] or None) if host_type == "business" else None,
             "title": body.title.strip()[:60], "description": (body.description or "").strip()[:400],
             "category": body.category, "cover_image": body.cover_image,
             "lat": body.lat, "lng": body.lng,

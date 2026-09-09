@@ -23,7 +23,8 @@ export default function VerifyEmailGate() {
     const u: any = await refreshUser().catch(() => null);
     if (u?.email_verified) {
       // Continue onboarding at the correct step: Profile Setup → Set Vibe → Radar
-      if (u?.profile_required_complete === false) router.replace("/(auth)/profile-setup");
+      if (u?.account_type === "business") router.replace("/(business)");
+      else if (u?.profile_required_complete === false) router.replace("/(auth)/profile-setup");
       else if (!u?.vibe) router.replace("/(auth)/choose-vibe");
       else router.replace("/(tabs)");
     }

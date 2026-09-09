@@ -260,3 +260,7 @@ needs_retesting: false
 Guards: (tabs)/_layout hard gate (email_verified → profile_required_complete → vibe; demo exempt); profile-setup/choose-vibe step-order redirects; verify-email routes via backend flags only. Backend: own_user.profile_required_complete. Map: CARTO now requires API key (tiles watermarked "API KEY REQUIRED") — switched MapTiles to keyless tile.openstreetmap.org (max z19). AppContext foreground location watch (15m/20s + jitter guard, AppState stop/resume). Profile tab spacing polish. Testing agent: 7/7 PASS; fixed profile-setup hydration (display_name/city/country/home_city). Backend suites 10/10.
 NOTE for future agents: never reintroduce CARTO tiles without a key; /control browser page targets PRODUCTION — don't UI-test it.
 needs_retesting: false
+
+## Iteration 80 — Business Platform + Business Hosted Events (June 2026)
+Full business layer added (see PRD Iter80). backend/business.py + events host_type/filters/reviews + 5 managed-email templates + control businesses APIs. Frontend: signup choice, business-setup, /(business) mobile tabs, desktop /business/* (BizShell), cobalt vs orange event identity, filters, review screen, control/businesses.tsx. Suites: test_business_platform.py 10/10, test_iter80_business_platform_e2e.py 10/10 (by testing agent), regression 13/13. Fixed: login.tsx account_type routing (critical, found by testing agent), offer label glitch. Demo-refresh transient failure under parallel run only — passes standalone (cross-suite demo reset interference; run demo suite separately).
+needs_retesting: false

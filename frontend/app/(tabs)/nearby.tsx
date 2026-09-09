@@ -215,13 +215,20 @@ function NearbyEventsList({ coords }: { coords: any }) {
   const router = useRouter();
   const [events, setEvents] = useState<OrbEvent[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hostType, setHostType] = useState<string>("");   // "" | personal | business
+  const [dateF, setDateF] = useState<string>("");         // "" | today | tomorrow | week | weekend
+  const [category, setCategory] = useState<string>("");
+  const [cats, setCats] = useState<string[]>([]);
 
   const load = React.useCallback(async () => {
     const lat = coords?.lat ?? -37.8136;
     const lng = coords?.lng ?? 144.9631;
-    try { const r = await nearbyEvents(lat, lng); setEvents(r.events); }
-    catch { setEvents([]); }
-  }, [coords]);
+    try {
+      const r = await nearbyEvents(lat, lng, category || undefined, hostType || undefined, dateF || undefined);
+      setEvents(r.events);
+      if (r.categories?.length) setCats(r.categories);
+    } catch { setEvents([]); }
+  }, [coords, hostType, dateF, category]);
   useEffect(() => { load(); }, [load]);
   // refetch on focus so cancelled events disappear without a manual refresh
   useFocusEffect(React.useCallback(() => { load(); }, [load]));
@@ -237,6 +244,38 @@ function NearbyEventsList({ coords }: { coords: any }) {
       keyExtractor={(e) => e.id}
       contentContainerStyle={styles.list}
       showsVerticalScrollIndicator={false}
+      ListHeaderComponent={
+        <View style={{ marginBottom: spacing.md, gap: spacing.sm }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+            {[{ k: "", l: "All Events" }, { k: "personal", l: "Personal Hosted" }, { k: "business", l: "Business Hosted" }].map((h) => (
+              <Pressable key={h.k} testID={`evfilter-host-${h.k || "all"}`} onPress={() => setHostType(h.k)}
+                style={[styles.evFilterChip, hostType === h.k && { backgroundColor: h.k === "business" ? colors.cobalt : colors.orange, borderColor: h.k === "business" ? colors.cobalt : colors.orange }]}>
+                <Text style={[styles.evFilterTxt, hostType === h.k && { color: "#FFF" }]}>{h.l}</Text>
+              </Pressable>
+            ))}
+            {[{ k: "today", l: "Today" }, { k: "tomorrow", l: "Tomorrow" }, { k: "week", l: "This Week" }, { k: "weekend", l: "Weekend" }].map((d) => (
+              <Pressable key={d.k} testID={`evfilter-date-${d.k}`} onPress={() => setDateF(dateF === d.k ? "" : d.k)}
+                style={[styles.evFilterChip, dateF === d.k && { backgroundColor: colors.teal, borderColor: colors.teal }]}>
+                <Text style={[styles.evFilterTxt, dateF === d.k && { color: "#FFF" }]}>{d.l}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {cats.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+              <Pressable testID="evfilter-cat-all" onPress={() => setCategory("")}
+                style={[styles.evFilterChip, !category && { backgroundColor: colors.text, borderColor: colors.text }]}>
+                <Text style={[styles.evFilterTxt, !category && { color: "#FFF" }]}>All categories</Text>
+              </Pressable>
+              {cats.map((c) => (
+                <Pressable key={c} testID={`evfilter-cat-${c}`} onPress={() => setCategory(category === c ? "" : c)}
+                  style={[styles.evFilterChip, category === c && { backgroundColor: colors.text, borderColor: colors.text }]}>
+                  <Text style={[styles.evFilterTxt, category === c && { color: "#FFF" }]}>{c}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.teal} />}
       ListEmptyComponent={
         events === null ? null : (
@@ -253,15 +292,20 @@ function NearbyEventsList({ coords }: { coords: any }) {
           {ev.cover_image ? (
             <Image source={{ uri: ev.cover_image }} style={styles.evCover} resizeMode="cover" />
           ) : (
-            <View style={styles.evCoverPlaceholder}>
-              <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={34} color={colors.orange} />
+            <View style={[styles.evCoverPlaceholder, ev.host_type === "business" && { backgroundColor: colors.cobaltSoft }]}>
+              <Ionicons name={(EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={34} color={ev.host_type === "business" ? colors.cobalt : colors.orange} />
             </View>
           )}
           <View style={styles.evBody}>
+            <View style={[styles.evHostBadge, { backgroundColor: ev.host_type === "business" ? colors.cobalt : colors.orange }]}>
+              <Ionicons name={ev.host_type === "business" ? "storefront" : "person"} size={9} color="#FFF" />
+              <Text style={styles.evHostBadgeTxt}>{ev.host_type === "business" ? "BUSINESS EVENT" : "PERSONAL EVENT"}</Text>
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Text style={styles.evTitle} numberOfLines={1}>{ev.title}</Text>
               {ev.status === "full" && <Text style={styles.evFull}>FULL</Text>}
             </View>
+            {!!ev.offer && <Text style={styles.evOffer} numberOfLines={1}>{ev.offer}</Text>}
             <Text style={styles.evMeta}>{ev.category} · Approx. {ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`} away</Text>
             <Text style={styles.evMeta}>{when(ev.start_datetime)}</Text>
             <Text style={styles.evGoing}>
@@ -348,6 +392,11 @@ const styles = StyleSheet.create({
   evFull: { color: colors.orange, fontSize: font.micro, fontWeight: "800" },
   evMeta: { color: colors.textSecondary, fontSize: font.sm },
   evGoing: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
+  evHostBadge: { flexDirection: "row", alignItems: "center", gap: 3, alignSelf: "flex-start", borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 3 },
+  evHostBadgeTxt: { color: "#FFF", fontSize: 8.5, fontWeight: "800" },
+  evOffer: { color: colors.cobalt, fontSize: font.sm, fontWeight: "800" },
+  evFilterChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.surface },
+  evFilterTxt: { color: colors.text, fontSize: 12, fontWeight: "700" },
   proCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: spacing.lg, marginBottom: spacing.md, gap: 4 },
   proBadge: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   proTitle: { color: colors.text, fontSize: font.lg, fontWeight: "700" },

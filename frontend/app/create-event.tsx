@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
 import { showAlert } from "@/src/lib/alert";
 import { useApp } from "@/src/context/AppContext";
+import { useAuth } from "@/src/context/AuthContext";
 import { createEvent, editEvent, getEvent, EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -49,6 +50,9 @@ export default function CreateEvent() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { coords } = useApp();
+  const { user } = useAuth();
+  const isBiz = user?.account_type === "business";
+  const [offer, setOffer] = useState("");
   const editing = !!id;
   const defs = defaultTimes();
 
@@ -114,6 +118,7 @@ export default function CreateEvent() {
     getEvent(String(id)).then((ev) => {
       setTitle(ev.title); setCategory(ev.category); setLocationDisplay(ev.location_display === "Approximate area shown on radar" ? "" : ev.location_display);
       setRadius(ev.visibility_radius); setDesc(ev.description); setCap(ev.capacity); setJoinType(ev.join_type as any);
+      setOffer(ev.offer || "");
       setPhoto(ev.cover_image || null);
       const st = new Date(ev.start_datetime); const en = new Date(ev.end_datetime);
       const d0 = new Date(st); d0.setHours(0, 0, 0, 0);
@@ -139,7 +144,7 @@ export default function CreateEvent() {
       const body = { title: title.trim(), description: desc.trim(), category, lat, lng,
         location_display: locationDisplay.trim(), location_privacy_type: locationDisplay.trim() ? "venue" : "area",
         visibility_radius: radius, start_datetime: start.toISOString(), end_datetime: end.toISOString(),
-        capacity: cap, join_type: joinType, cover_image: photo };
+        capacity: cap, join_type: joinType, cover_image: photo, offer: offer.trim() || null };
       const ev = editing ? await editEvent(String(id), body) : await createEvent(body);
       if (editing) { router.back(); return; }
       showAlert("🎉 Your event is live", `${ev.title}\n\nPeople nearby can now discover your event on their Orrbbit Radar.`, [
@@ -158,6 +163,10 @@ export default function CreateEvent() {
         <View style={{ width: 24 }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 40 }} keyboardShouldPersistTaps="handled">
+        <View style={[s.hostTypeBanner, { backgroundColor: isBiz ? colors.cobalt : colors.orange }]} testID="host-type-banner">
+          <Ionicons name={isBiz ? "storefront" : "person"} size={13} color="#FFF" />
+          <Text style={s.hostTypeTxt}>{isBiz ? "BUSINESS HOSTED EVENT" : "PERSONAL HOSTED EVENT"}</Text>
+        </View>
         <Text style={s.label}>PHOTO OR EVENTS POSTER (optional)</Text>
         {photo ? (
           <View>
@@ -194,6 +203,12 @@ export default function CreateEvent() {
 
         <Text style={s.label}>EVENT NAME</Text>
         <TextInput testID="event-name" style={s.input} value={title} onChangeText={setTitle} placeholder="e.g. Saturday Morning Run Club" placeholderTextColor={colors.textTertiary} maxLength={60} />
+        {isBiz && (
+          <>
+            <Text style={s.label}>OFFER / PROMOTION (optional)</Text>
+            <TextInput testID="event-offer" style={s.input} value={offer} onChangeText={setOffer} placeholder="e.g. 20% off selected drinks 5-7pm" placeholderTextColor={colors.textTertiary} maxLength={160} />
+          </>
+        )}
 
         <Text style={s.label}>CATEGORY</Text>
         <View style={s.chipWrap}>
@@ -376,6 +391,8 @@ function TimeSheet({ visible, title, initial, bottomInset, onClose, onDone }:
 const s = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   headerTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  hostTypeBanner: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", borderRadius: 9, paddingHorizontal: 10, paddingVertical: 5, marginBottom: spacing.md },
+  hostTypeTxt: { color: "#FFF", fontSize: 11, fontWeight: "800" },
   label: { color: colors.textSecondary, fontSize: font.micro, fontWeight: "800", letterSpacing: 0.8, marginTop: spacing.lg, marginBottom: 8 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: font.base, backgroundColor: "#FFF" },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

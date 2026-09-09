@@ -49,7 +49,9 @@ export default function Notifications() {
   // route by stored references (event_id) — never by parsing text
   const open = (n: Notif) => {
     markRead(n);
-    if (n.event_id) {
+    if (n.type === "review_request" && n.event_id) {
+      router.push(`/review/${n.event_id}`);
+    } else if (n.event_id) {
       const focus = n.type === "event_join_request" ? "requests"
         : n.type === "event_joined" || n.type === "event_left" ? "attendees" : "";
       router.push(`/event/${n.event_id}${focus ? `?focus=${focus}` : ""}`);

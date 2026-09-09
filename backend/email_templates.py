@@ -167,6 +167,28 @@ _t("verify_email", "Verify your Orrbbit email", "Verify your email",
 _t("welcome", "Welcome to Orrbbit 🎉", "Welcome to Orrbbit, {name}!",
    "You're in! Orrbbit connects you with real people and verified professionals right nearby. Set your vibe, switch on your radar and see who's around you.",
    cta=("Open Orrbbit", "/"), trigger="On registration")
+
+# ---------------------------------------------------------------- BUSINESS (mandatory transactional)
+_t("business_verification_approved", "Your business is now Verified on Orrbbit ✓",
+   "Verified Business",
+   "Great news, {name} — <b>{business_name}</b> has been verified. Your Verified Business badge is now live and your Business Hosted Events carry the verified mark.",
+   cta=("Open Business Dashboard", "/business/dashboard"), trigger="Admin approves business verification")
+_t("business_verification_more_info", "More information needed for your Orrbbit business verification",
+   "More information required",
+   "We need a little more information to verify <b>{business_name}</b>. {note} Please update your verification details and resubmit.",
+   cta=("Update Verification", "/business/settings"), trigger="Admin requests more info")
+_t("business_verification_rejected", "Your Orrbbit business verification decision",
+   "Verification not approved",
+   "Unfortunately we couldn't verify <b>{business_name}</b> at this time. {note} You can review the details and submit again.",
+   cta=("Review Details", "/business/settings"), trigger="Admin rejects business verification")
+_t("business_verification_suspended", "Your Orrbbit business verification status has changed",
+   "Verification suspended",
+   "Verification for <b>{business_name}</b> has been suspended. {note} Contact support if you believe this is a mistake.",
+   trigger="Admin suspends/revokes business verification")
+_t("business_review_request", "How was {event_title}?",
+   "How was your experience?",
+   "Hi {name},<br><br>Thanks for attending <b>{event_title}</b>, hosted by <b>{business_name}</b>. We'd love to hear about your experience.",
+   cta=("Leave a Review", "/review/{event_id}"), trigger="Business event ends — eligible attendees only")
 _t("pro_desktop_verification", "Complete your Orrbbit Professional Verification",
    "Finish verification on your computer",
    "You asked to complete your Professional Verification on a desktop or laptop. "
@@ -429,4 +451,5 @@ SAMPLE_CTX = {
     "count": 3, "plural": "s", "count_label": "1 connection request", "rating": 5,
     "review_part": ': "Fantastic session, really helpful."', "stats": "4 new connections · 2 sessions",
     "feature": "Live Radar 2.0", "ttl_min": 15, "code_box": code_box("123456"),
+    "business_name": "The Park Hotel", "event_title": "Friday Happy Hour", "event_id": "sample",
 }

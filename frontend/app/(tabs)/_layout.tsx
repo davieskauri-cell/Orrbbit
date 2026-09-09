@@ -40,6 +40,7 @@ export default function TabsLayout() {
     if (!token) return <Redirect href="/(auth)/onboarding" />;
     if (user && !user.is_demo) {
       if (!user.email_verified) return <Redirect href="/(auth)/verify-email" />;
+      if (user.account_type === "business") return <Redirect href="/(business)" />;
       if (user.profile_required_complete === false) return <Redirect href="/(auth)/profile-setup" />;
       if (!user.vibe) return <Redirect href="/(auth)/choose-vibe" />;
     }

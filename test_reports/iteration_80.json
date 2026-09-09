@@ -1,0 +1,58 @@
+{
+  "summary": "Iter80 Business Platform frontend/API integration — 10/10 pytest wire-level flows PASS (signup as business, verify-email gate, business profile POST, sandbox subscription activate, business event create with host_type=business + offer, personal user radar sees blue business event, desktop create + cancel event syncing, Control Centre /api/control/businesses lists 'TA Park Hotel', demo login regression). BUT 1 CRITICAL frontend routing bug found: verified BUSINESS accounts are redirected to /(auth)/choose-vibe (personal onboarding) instead of /(business) → /(auth)/business-setup after login, blocking the entire business onboarding UI path (FLOWS 2, 3, 5 unreachable through UI). Root cause: login.tsx line 31 hard-coded post-login redirect ignores account_type. Signup UI (Personal + Business cards, testIDs register-type-personal/business) renders correctly; business selectable; verify-email screen shows for unverified business account. Control Centre UI test skipped in browser (CONTROL_BACKEND resolves to nearby-connect-93.emergent.host — separate host from preview backend nearby-connect-93.preview.emergentagent.com — per instructions verified via preview /api/control/businesses which returned TA Park Hotel with 200 OK).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/(auth)/login.tsx",
+        "issue": "Post-login redirect at line 31 does NOT branch on account_type. A verified BUSINESS account with no vibe (business users never set a vibe) is redirected to /(auth)/choose-vibe (personal onboarding) instead of /(business). This blocks flows 2/3/5 through the UI. Current line: `router.replace(!u.email_verified && !u.is_demo ? \"/(auth)/verify-email\" : u.vibe ? \"/(tabs)\" : \"/(auth)/choose-vibe\")`. Should be: `... : u.account_type === \"business\" ? \"/(business)\" : u.vibe ? \"/(tabs)\" : \"/(auth)/choose-vibe\"`. Confirmed reproducibly via UI: qa.ta80.uiXXXX@example.com (business, email_verified=true) logs in and lands on /choose-vibe. Reference: /app/frontend/app/(auth)/login.tsx:31",
+        "testID": "login-submit",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "app/business/events/create.tsx",
+        "issue": "Broken label text at line 136 — a merge/replace glitch left the Offer field label as: 'Offer / promotion (optional — tied to this eventOffer / promotion (optional — must match this event\\'s date & times)rsquo;s date and times)'. Renders as garbled HTML entity + duplicated phrase. Reference: /app/frontend/app/business/events/create.tsx:136",
+        "testID": "bizform-offer",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "FLOW 1/2 (business signup → verify → business-setup)",
+        "issue": "Blocked by login.tsx redirect bug above — cannot proceed past verify-email to business-setup via UI. Verify-email screen tap-through would also redirect through /choose-vibe (verify-email.tsx line 26-28 correctly checks account_type and routes to /(business), but the login.tsx path is the primary broken one).",
+        "affected_testIDs": ["login-submit", "gate-check"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter80_business_platform_e2e.py",
+    "/app/test_reports/pytest/iter80_e2e.xml"
+  ],
+  "action_items": [
+    "URGENT: Fix /app/frontend/app/(auth)/login.tsx line 31 to route business accounts to /(business) after successful login. Add a branch before the `u.vibe ? \"/(tabs)\" : \"/(auth)/choose-vibe\"` selector — e.g. `... : u.account_type === 'business' ? '/(business)' : u.vibe ? '/(tabs)' : '/(auth)/choose-vibe'`.",
+    "Fix garbled label text on /app/frontend/app/business/events/create.tsx line 136 — replace with a single clean sentence e.g. 'Offer / promotion (optional — must match this event\\'s date & times)'.",
+    "Consider unifying the multiple post-auth routing tables (login.tsx, verify-email.tsx, index.tsx, (tabs)/_layout.tsx) into one helper — three of the four already handle account_type, but login.tsx does not.",
+    "After the fix, main agent can self-test by: creating a business account via /api/auth/register (account_type=business), marking email_verified=true in Mongo, logging in via the UI, and asserting we land on /(auth)/business-setup, not /choose-vibe."
+  ],
+  "critical_code_review_comments": [
+    "(business)/_layout.tsx correctly guards for business account, verified email, and existence of business profile — routes to /(auth)/business-setup when profile absent. Good.",
+    "business-setup.tsx correctly bounces non-business accounts to /(tabs) and unverified accounts to /(auth)/verify-email. Good.",
+    "index.tsx post-boot redirect correctly branches on account_type === 'business' → /(business). Good.",
+    "verify-email.tsx checkVerified correctly branches on account_type. Good.",
+    "login.tsx post-login redirect is the ONLY branch missing the account_type check — this is the root cause of the reported failure.",
+    "Backend event create returns host_type='business' automatically when caller has a business profile — confirmed via test_5_business_event_create.",
+    "Sandbox subscription activation via POST /api/business/subscription/activate {platform: 'sandbox'} returns {ok:true, subscription:{status:'active', ...}} — works.",
+    "Preview backend /api/control/businesses correctly returns the newly created TA Park Hotel with X-Admin-Mode: live — control UI would render it identically if pointed at preview (currently points at .emergent.host per EXPO_PUBLIC_CONTROL_BACKEND_URL)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter80_business_platform_e2e.py (new — 10/10 pass)"
+  ],
+  "success_rate": {"backend": "10/10 (100%)", "frontend": "~40% — signup UI + verify-email gate + control API OK; business onboarding + dashboard + event create UI blocked by login.tsx routing bug"},
+  "seed_data_creation": "All QA seed data (users matching qa.ta80.*, business_profiles, business_verifications, consent_records, notifications, email_events, email_deliveries, events titled 'TA Blue Networking'/'TA Desktop Event') created and CLEANED UP at end of run (via test fixture teardown + manual pymongo sweep). Demo/is_demo data untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The blocking bug is a 1-line fix in /app/frontend/app/(auth)/login.tsx:31 — add an account_type === 'business' branch to the router.replace call. Once fixed, the full FLOW 2/3/5 UI paths become traversable because (business)/_layout.tsx already correctly bounces to business-setup when no profile exists. Wire-level pytest suite at /app/backend/tests/test_iter80_business_platform_e2e.py can be re-run to re-verify. Control Centre browser test is intentionally skipped because EXPO_PUBLIC_CONTROL_BACKEND_URL points to a separate .emergent.host origin (not the preview backend); use the pytest test_9 (preview /api/control/businesses) as the equivalent check.",
+  "rca_of_issue": "app/(auth)/login.tsx line 31 uses a nested ternary that only checks email_verified and vibe. Business accounts don't have a vibe (personal-only field) and don't need one — so a verified business user with u.vibe undefined always falls through to '/(auth)/choose-vibe'. Elsewhere (index.tsx, verify-email.tsx, (tabs)/_layout.tsx) the redirect table correctly checks account_type first and sends business users to '/(business)', whose layout then redirects to '/(auth)/business-setup' when no business profile exists. The login redirect was simply never updated when Iter80 introduced account_type. Reproduction: register with account_type=business → set email_verified=true in Mongo → login via UI → lands on /choose-vibe. Fix: insert `u.account_type === 'business' ? '/(business)' :` in the ternary before the vibe check."
+}

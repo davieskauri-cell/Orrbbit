@@ -27,8 +27,11 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
 
-  const go = (u: { vibe: string | null; email_verified?: boolean; is_demo?: boolean }) =>
-    router.replace(!u.email_verified && !u.is_demo ? "/(auth)/verify-email" : u.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
+  const go = (u: { vibe: string | null; email_verified?: boolean; is_demo?: boolean; account_type?: string }) =>
+    router.replace(
+      !u.email_verified && !u.is_demo ? "/(auth)/verify-email"
+        : u.account_type === "business" ? "/(business)"
+          : u.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
 
   const submit = async () => {
     setError(null);

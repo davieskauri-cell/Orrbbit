@@ -51,6 +51,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=8, max_length=72)
     name: str
     display_name: Optional[str] = None  # public-facing name shown to others; Full Name stays private
+    account_type: Optional[str] = "personal"  # personal | business
     date_of_birth: str  # YYYY-MM-DD — authoritative 18+ gate is server-side
     accept_policies: bool = False
     marketing_opt_in: bool = False
@@ -357,6 +358,8 @@ def is_discoverable(u: dict) -> bool:
     Curated demo profiles stay visible inside the isolated demo realm."""
     if u.get("is_demo"):
         return True
+    if u.get("account_type") == "business":
+        return False  # businesses NEVER appear as people on People Radar
     return completion_checklist(u)[2]
 
 
@@ -370,6 +373,7 @@ def own_user(u: dict) -> dict:
         "email": u["email"],
         "name": u.get("name"),
         "display_name": u.get("display_name"),
+        "account_type": u.get("account_type", "personal"),
         "age": u.get("age"),
         "bio": u.get("bio", ""),
         "photo_url": u.get("photo_url"),
@@ -425,7 +429,8 @@ def own_user(u: dict) -> dict:
         "joined": (u.get("created_at") or "")[:7],
         "people_discoverable": is_discoverable(u),
         # Onboarding gate: all REQUIRED profile fields done (email verification is gated separately)
-        "profile_required_complete": bool(u.get("is_demo")) or all(
+        # Business accounts use their own Business Profile setup gate instead.
+        "profile_required_complete": bool(u.get("is_demo")) or u.get("account_type") == "business" or all(
             c["done"] for c in completion_checklist(u)[1] if c["required"] and c["key"] != "email"),
     }
 
@@ -902,6 +907,7 @@ async def register(body: RegisterIn):
         "hashed_password": pwd_context.hash(body.password),
         "name": body.name,
         "display_name": _clean_text(body.display_name, 80) if body.display_name else None,
+        "account_type": body.account_type if body.account_type in ("personal", "business") else "personal",
         "date_of_birth": dob.isoformat(),
         "marketing_opt_in": bool(body.marketing_opt_in),
         "age": _legal_age(dob),
@@ -3776,7 +3782,7 @@ async def seed_demo_events():
         ev_id = str(uuid.uuid4())
         start = now + timedelta(hours=start_h)
         await db.events.insert_one({
-            "id": ev_id, "creator_user_id": host["id"],
+            "id": ev_id, "creator_user_id": host["id"], "host_type": "personal",
             "title": title, "description": desc, "category": category,
             "cover_image": f"https://picsum.photos/seed/orrbbit-ev-{ev_id[:8]}/800/500",
             "lat": base_lat + (dist * math.cos(rad)) / 111320,
@@ -3882,6 +3888,29 @@ app.include_router(_events.events_router)
 import legal_consent as _legal_mod  # noqa: E402
 _legal_mod.bind(_sys.modules[__name__])
 app.include_router(_legal_mod.legal_router)
+
+import business as _business  # noqa: E402
+_business.bind(_sys.modules[__name__])
+app.include_router(_business.business_router)
+app.include_router(_business.reviews_router)
+app.include_router(_business.control_biz_router)
+
+
+@app.on_event("startup")
+async def migrate_business_platform():
+    """Safe defaults: every existing user is personal, every existing event is a
+    Personal Hosted Event. Idempotent — nothing existing disappears or changes type."""
+    await db.users.update_many({"account_type": {"$exists": False}}, {"$set": {"account_type": "personal"}})
+    await db.events.update_many({"host_type": {"$exists": False}}, {"$set": {"host_type": "personal"}})
+    try:
+        await db.events.create_index([("status", 1), ("host_type", 1), ("category", 1)])
+        await db.events.create_index([("start_datetime", 1)])
+        await db.event_reviews.create_index([("business_id", 1), ("status", 1)])
+        await db.event_reviews.create_index([("event_id", 1), ("user_id", 1)], unique=True)
+        await db.business_profiles.create_index([("user_id", 1)], unique=True)
+        await db.business_profiles.create_index([("slug", 1)])
+    except Exception as e:
+        logger.warning("business index setup: %s", e)
 
 _demo_mode.bind(_sys.modules[__name__])
 app.include_router(_demo_mode.demo_router)
