@@ -272,3 +272,10 @@ needs_retesting: false
 ## Iteration 82 — Secure computer-continue link
 business_login_links tokens (single-use, 48h, server-validated); /business/verify web landing + AuthContext.adoptSession; token excluded from email logs. QA: redeem/reuse/expiry/bogus all correct; suites 20/20.
 needs_retesting: false
+
+## Iteration 83 — Separate sign-ups + Business branding (June 2026)
+User request: separate sign-ups after Personal/Business choice, Orrbbit theme+logos on business dashboard (no blanks), spacing check.
+Changes: register.tsx in-form type radio cards REMOVED — account type comes solely from ?type= param (Get Started choice); static badge (register-type-personal/business) + register-switch-type link (router.setParams) to flip variants; business-specific copy on account/success steps. Orrbbit brand header (LogoMark+Wordmark+BUSINESS pill) added to: (business)/index.tsx mobile dashboard (testID biz-home-brand), (auth)/business-setup stepper, /business/login card, BizShell top bar.
+Testing agent iteration_81 report: backend 15/15 (business lifecycle 10/10 + NEW tests/test_iter81_business_secure_link.py 5/5 — subscription never auto-verifies, publish 403 while pending, secure link single-use/expiry/bogus, token never in email_events, personal auth regression). Frontend: onboarding 2 options, both register variants + switch, full business signup→setup→dashboard journey, web /business/login→BizShell dashboard, /business/verify bogus-token graceful error, iter80 login redirect fix confirmed. QA data fully cleaned.
+Known cosmetic only: web "shadow* deprecated, use boxShadow" warnings.
+needs_retesting: false

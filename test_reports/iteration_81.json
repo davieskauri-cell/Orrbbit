@@ -1,0 +1,39 @@
+{
+  "summary": "Iter81 Business platform verification — 15/15 pytest PASS + full UI journey PASS. Backend: test_business_platform.py 10/10 (signup→profile→verification→control approve→event publish→attendees→reviews→moderation→ownership→subscription-gate→deletion-cascade); NEW test_iter81_business_secure_link.py 5/5 (subscription does NOT auto-verify, event publish blocked while Pending Review, secure 48h link request+redeem+reuse-rejected+bogus-rejected+no-token-leak-in-email_events, personal register/login-routes, demo-login regression). Frontend UI: Onboarding shows exactly 2 join options (onboarding-get-started=Personal, onboarding-business=Business) + onboarding-login; no Professional path. /register default = Personal badge (register-type-personal), /register?type=business = Business badge (register-type-business), title 'Create your Business account', register-switch-type flips variant back-and-forth via router.setParams, zero legacy radio cards present. Full mobile business flow (register→email_verified via Mongo→login→business-setup redirect→create profile+sandbox subscription→lands on /(business) home) — biz-home-brand present with LogoMark+Wordmark+BUSINESS pill, biz-home-name populated, stats grid renders (0 values, not blank), Upcoming Events empty state text 'No active events yet — create one to reach people nearby.' rendered, Quick Actions row rendered. Web /business/login shows Orrbbit logo+BUSINESS pill; login lands on /business/dashboard inside BizShell with top-bar brand + sidebar (Overview/Events/Analytics/Reviews/Notifications/Business Profile/Subscription/Settings). /business/verify?token=bogus renders graceful error with testID bizverify-error. Login redirect bug from iter80 (login.tsx line 33) is FIXED — verified business account correctly lands on /(business) instead of /choose-vibe.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (all screens)", "issues": ["Console warning: 'shadow*' style props are deprecated on web — use boxShadow. Repeats on every screen. Cosmetic, non-blocking, but should be migrated to StyleSheet-level boxShadow to silence and future-proof."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_business_platform.py",
+    "/app/backend/tests/test_iter81_business_secure_link.py",
+    "/app/test_reports/pytest/pytest_iter81_business.xml",
+    "/app/test_reports/pytest/pytest_iter81_focus.xml"
+  ],
+  "action_items": [
+    "(Optional cosmetic) Migrate remaining `shadow*` style props to `boxShadow` to silence RN-web deprecation warnings visible on every screen load."
+  ],
+  "critical_code_review_comments": [
+    "login.tsx redirect now correctly branches on account_type === 'business' (line 33) — iter80 blocker fixed.",
+    "(business)/index.tsx correctly wraps testID biz-home-brand around LogoMark+Wordmark+BUSINESS pill; VerifBadge handles Verified / Pending Review / Not Submitted colours; Stat renders '—' fallback when overview data missing.",
+    "business/login.tsx redirects a logged-in business user to /business/dashboard and rejects a non-business account with a clean error message. Good.",
+    "business/verify.tsx correctly reports 'Missing verification link token' vs server rejection message via testID bizverify-error.",
+    "BizShell.tsx guards for unauthenticated + non-business accounts (redirects to /business/login); responsive top bar carries LogoMark+Wordmark+BUSINESS pill on both wide and narrow layouts.",
+    "backend business.py: verification-link endpoint /business/me/verification-link generates a 64-char opaque token, stored in business_login_links with used=false and 48h expiry; /business/verification-link/redeem enforces single-use + expiry check + account_type check and returns a fresh session token. Token is passed to email template ctx but never persisted into email_events records themselves — verified in test.",
+    "Subscription activation returns {ok, subscription:{status:'active', sandbox:true}} and DOES NOT mutate verification_status — confirmed with test_a."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter81_business_secure_link.py (new — 5/5 pass)"
+  ],
+  "success_rate": {"backend": "15/15 (100%)", "frontend": "10/10 UI checks (100%)"},
+  "seed_data_creation": "One UI-QA business user (biz-qa-uie77d45@example.com, uid c8318182-…) plus its business profile, sandbox subscription and business_login_links row created for the mobile+web dashboard render test. Full teardown executed at end of run (users, consent_records, business_profiles, business_login_links, business_verifications, email_events, email_deliveries, notifications). test_business_platform.py fixture handles its own cleanup. test_iter81_business_secure_link.py fixture handles its own cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iter81 requirements verified. Backend test suites to reuse: /app/backend/tests/test_business_platform.py (full 10-step lifecycle) and /app/backend/tests/test_iter81_business_secure_link.py (secure link + subscription-no-auto-verify + pending-gate + personal regression + demo regression). Both run with `EXPO_PUBLIC_BACKEND_URL=<preview>` env var. UI validation shortcut: seed the biz user via /api/auth/register + Mongo email_verified update, then localStorage.setItem('auth_token', JSON.stringify(token)) and navigate to '/'. Control Centre must be tested via preview backend directly (never in the browser — production origin) — see test_business_platform.test_03_verification_flow_and_control_approval for the pattern. Note register.tsx no longer has in-form radio cards; type comes from ?type= param and register-switch-type toggles via router.setParams.",
+  "rca_of_issue": ""
+}

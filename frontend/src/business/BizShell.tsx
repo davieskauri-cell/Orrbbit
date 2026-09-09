@@ -4,6 +4,7 @@ import { useRouter, usePathname, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
+import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 
 const NAV = [
@@ -59,7 +60,11 @@ export default function BizShell({ title, children }: { title: string; children:
             <Ionicons name={menuOpen ? "close" : "menu"} size={22} color={colors.text} />
           </Pressable>
         )}
-        <Text style={st.brand}>orrbbit <Text style={{ color: colors.cobalt }}>business</Text></Text>
+        <View style={st.brandRow}>
+          <LogoMark size={26} />
+          <Wordmark height={17} />
+          <View style={st.brandPill}><Text style={st.brandPillTxt}>BUSINESS</Text></View>
+        </View>
         <View style={{ flex: 1 }} />
         <Text style={st.topEmail} numberOfLines={1}>{user?.email}</Text>
       </View>
@@ -95,7 +100,9 @@ const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: "#F6F8FB" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
   topBar: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: spacing.xl, paddingVertical: 12, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  brand: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   topEmail: { color: colors.textTertiary, fontSize: font.sm, maxWidth: 220 },
   sidebar: { width: 230, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border },
   overlayNav: { position: "absolute", top: 0, left: 0, bottom: 0, width: 250, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, zIndex: 50 },

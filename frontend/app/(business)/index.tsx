@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font, shadow } from "@/src/theme";
+import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { getBusinessOverview, BizOverview } from "@/src/services/businessService";
 import { myEvents, OrbEvent } from "@/src/services/eventService";
 
@@ -49,6 +50,11 @@ export default function BusinessHome() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxxl, paddingHorizontal: spacing.xl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); setTimeout(() => setRefreshing(false), 600); }} />}
     >
+      <View style={st.brandRow} testID="biz-home-brand">
+        <LogoMark size={30} />
+        <Wordmark height={20} />
+        <View style={st.brandPill}><Text style={st.brandPillTxt}>BUSINESS</Text></View>
+      </View>
       <Text style={st.hello}>Welcome back,</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <Text style={st.bizName} testID="biz-home-name">{ov?.business_name || "…"}</Text>
@@ -103,6 +109,9 @@ export default function BusinessHome() {
 
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.surface },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.lg },
+  brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   hello: { color: colors.textSecondary, fontSize: font.base },
   bizName: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
   vBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },

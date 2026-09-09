@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { colors, spacing, font } from "@/src/theme";
+import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
 import { getMyBusiness, saveBusiness, submitBusinessVerification, activateBusinessSubscription, getBusinessSubscription, requestVerificationComputerLink } from "@/src/services/businessService";
@@ -152,6 +153,11 @@ export default function BusinessSetup() {
 
   return (
     <ScrollView style={s.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxxl, paddingHorizontal: spacing.xl }} keyboardShouldPersistTaps="handled">
+      <View style={s.brandRow}>
+        <LogoMark size={30} />
+        <Wordmark height={20} />
+        <View style={s.brandPill}><Text style={s.brandPillTxt}>BUSINESS</Text></View>
+      </View>
       <Text style={s.title}>
         {step === 1 ? "Set up your business" : step === 2 ? "Verification details" : step === 3 ? "Orrbbit Business" : "Verification Pending"}
       </Text>
@@ -272,6 +278,9 @@ export default function BusinessSetup() {
 
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.surface },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.lg },
+  brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   title: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
   sub: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.xs, lineHeight: 20 },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700", marginTop: spacing.lg, marginBottom: spacing.sm },

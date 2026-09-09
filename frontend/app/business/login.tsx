@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { colors, spacing, font } from "@/src/theme";
+import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 
 /** Business login at orrbbit.com/business/login — SAME account as the mobile app. */
@@ -36,7 +37,11 @@ export default function BusinessLogin() {
   return (
     <View style={st.wrap}>
       <View style={st.card}>
-        <Text style={st.brand}>orrbbit <Text style={{ color: colors.cobalt }}>business</Text></Text>
+        <View style={st.brandRow}>
+          <LogoMark size={34} />
+          <Wordmark height={22} />
+          <View style={st.brandPill}><Text style={st.brandPillTxt}>BUSINESS</Text></View>
+        </View>
         <Text style={st.sub}>Manage your Business Profile and Hosted Events. Same account as the Orrbbit app.</Text>
         <TextInput testID="bizlogin-email" value={email} onChangeText={setEmail} placeholder="Business email" autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textTertiary} style={st.input} />
         <TextInput testID="bizlogin-password" value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry placeholderTextColor={colors.textTertiary} style={st.input} />
@@ -53,7 +58,9 @@ export default function BusinessLogin() {
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: "#F6F8FB", alignItems: "center", justifyContent: "center", padding: spacing.xl },
   card: { width: "100%", maxWidth: 420, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: spacing.xxl },
-  brand: { color: colors.text, fontSize: font.xxl, fontWeight: "800" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brandPill: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  brandPillTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   sub: { color: colors.textSecondary, fontSize: font.sm, marginTop: spacing.sm, marginBottom: spacing.xl, lineHeight: 19 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: spacing.lg, paddingVertical: 12, fontSize: font.base, color: colors.text, marginBottom: spacing.md },
   error: { color: "#DC2626", fontSize: font.sm, marginBottom: spacing.md },
