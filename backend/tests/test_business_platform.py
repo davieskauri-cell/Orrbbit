@@ -109,6 +109,7 @@ def test_03_verification_flow_and_control_approval(ctx):
     biz = ctx["biz"]
     r = requests.post(f"{API}/business/me/verification", json={
         "legal_name": "Park Hotel QA Pty Ltd", "abn": "12 345 678 901",
+        "country": "Australia", "phone": "+61 3 9999 9999", "primary_contact": "QA Owner",
         "address": "123 Collins St", "document_name": "registration.pdf",
     }, headers=_hdr(biz["access_token"]), timeout=30)
     assert r.status_code == 200 and r.json()["status"] == "Pending Review"

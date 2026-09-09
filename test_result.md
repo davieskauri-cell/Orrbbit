@@ -264,3 +264,7 @@ needs_retesting: false
 ## Iteration 80 — Business Platform + Business Hosted Events (June 2026)
 Full business layer added (see PRD Iter80). backend/business.py + events host_type/filters/reviews + 5 managed-email templates + control businesses APIs. Frontend: signup choice, business-setup, /(business) mobile tabs, desktop /business/* (BizShell), cobalt vs orange event identity, filters, review screen, control/businesses.tsx. Suites: test_business_platform.py 10/10, test_iter80_business_platform_e2e.py 10/10 (by testing agent), regression 13/13. Fixed: login.tsx account_type routing (critical, found by testing agent), offer label glitch. Demo-refresh transient failure under parallel run only — passes standalone (cross-suite demo reset interference; run demo suite separately).
 needs_retesting: false
+
+## Iteration 81 — Business onboarding overhaul (June 2026)
+Get Started 2-option choice; 4-step business stepper (details→country-dependent verification→$5.99 subscription→Verification Pending); mandatory verification fields incl. phone/country/registration; computer-continue email link; publish gate now requires Verified; Control Centre split (Personal/Pro Users + Business Verification queue separate from Professional). 30/30 backend + full UI journey verified. demo_refresh: run standalone (ordering interference after e2e suite only).
+needs_retesting: false

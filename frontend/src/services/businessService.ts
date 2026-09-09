@@ -88,3 +88,5 @@ export const submitReview = (eventId: string, body: { rating: number; text?: str
   api(`/events/${eventId}/review`, { method: "POST", body });
 export const reportReview = (reviewId: string, reason: string) =>
   api(`/reviews/${reviewId}/report`, { method: "POST", body: { reason } });
+export const requestVerificationComputerLink = () =>
+  api<{ ok: boolean; delivery: string }>("/business/me/verification-link", { method: "POST" });

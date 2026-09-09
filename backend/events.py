@@ -254,6 +254,8 @@ def bind(server):
                 raise HTTPException(status_code=403, detail="Set up your Business Profile before hosting events")
             if not server.business_can_publish(biz):
                 raise HTTPException(status_code=403, detail="An active Orrbbit Business subscription is required to publish events")
+            if biz.get("verification_status") != "Verified":
+                raise HTTPException(status_code=403, detail="Business verification must be approved before publishing events")
         radius = body.visibility_radius if body.visibility_radius in EVENT_RADII else 500
         ev = {
             "id": str(uuid.uuid4()), "creator_user_id": user["id"],

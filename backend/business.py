@@ -34,6 +34,16 @@ REVIEW_TAGS = ["Great atmosphere", "Friendly host", "Well organised", "Great net
                "Good food", "Good venue", "Great value", "Would attend again", "Other"]
 BILLING_MODE = os.environ.get("BILLING_MODE", "disabled").lower()
 
+# Country-dependent business registration requirements (extensible per country)
+COUNTRY_REQUIREMENTS = {
+    "Australia": {"registration_label": "ABN", "hint": "11-digit Australian Business Number"},
+    "New Zealand": {"registration_label": "NZBN", "hint": "13-digit NZ Business Number"},
+    "United States": {"registration_label": "EIN / State registration", "hint": "Federal EIN or state registration"},
+    "United Kingdom": {"registration_label": "Company number", "hint": "Companies House number"},
+    "Canada": {"registration_label": "Business Number (BN)", "hint": "9-digit CRA Business Number"},
+    "Other": {"registration_label": "Business registration number", "hint": "Official registration/licence number"},
+}
+
 
 def _now():
     return datetime.now(timezone.utc)
@@ -51,6 +61,9 @@ class BusinessProfileIn(BaseModel):
     lng: Optional[float] = None
     website: Optional[str] = ""
     phone: Optional[str] = ""
+    country: Optional[str] = ""
+    primary_contact: Optional[str] = ""
+    registration_number: Optional[str] = ""
     socials: Optional[str] = ""
     secondary_category: Optional[str] = ""
     opening_hours: Optional[str] = ""
@@ -59,10 +72,13 @@ class BusinessProfileIn(BaseModel):
 
 class VerificationIn(BaseModel):
     legal_name: str
-    abn: Optional[str] = ""
+    country: Optional[str] = ""
+    abn: Optional[str] = ""          # registration number (label is country-dependent)
     email: Optional[str] = ""
+    phone: Optional[str] = ""
     website: Optional[str] = ""
     address: Optional[str] = ""
+    primary_contact: Optional[str] = ""
     document_name: Optional[str] = ""   # filename/reference only; never public
 
 
@@ -183,6 +199,9 @@ def bind(server):
         avg, n, dist = await _rating(biz["id"])
         sub = biz.get("subscription") or {"status": "not_subscribed"}
         return {"business": {**_pub_biz(biz), "email": biz.get("email"), "abn": biz.get("abn") or "",
+                             "country": biz.get("country") or "",
+                             "primary_contact": biz.get("primary_contact") or "",
+                             "registration_number": biz.get("registration_number") or "",
                              "verification_status": biz.get("verification_status", "Not Submitted"),
                              "verification_note": biz.get("verification_note") or "",
                              "average_rating": avg, "review_count": n, "rating_distribution": dist,
@@ -193,7 +212,9 @@ def bind(server):
                                               "billing_mode": BILLING_MODE,
                                               "billing_pending_configuration": BILLING_MODE == "disabled",
                                               "can_publish": can_publish(biz)}},
-                "categories": BUSINESS_CATEGORIES}
+                "categories": BUSINESS_CATEGORIES,
+                "countries": list(COUNTRY_REQUIREMENTS.keys()),
+                "country_requirements": COUNTRY_REQUIREMENTS}
 
     @business_router.post("/me")
     async def upsert_business(body: BusinessProfileIn, user: dict = Depends(get_current_user)):
@@ -214,6 +235,9 @@ def bind(server):
             "description": body.description.strip()[:800],
             "logo_url": body.logo_url, "cover_url": body.cover_url,
             "website": (body.website or "").strip()[:200], "phone": (body.phone or "").strip()[:40],
+            "country": (body.country or "").strip()[:60],
+            "primary_contact": (body.primary_contact or "").strip()[:120],
+            "registration_number": (body.registration_number or "").strip()[:60],
             "socials": (body.socials or "").strip()[:300],
             "opening_hours": (body.opening_hours or "").strip()[:300],
             "abn": (body.abn or "").strip()[:40], "updated_at": now_iso(),
@@ -239,18 +263,49 @@ def bind(server):
         biz = await _require_biz(user)
         if biz.get("verification_status") in ("Pending Review", "Verified"):
             raise HTTPException(status_code=400, detail=f"Verification is already {biz['verification_status']}")
+        # MANDATORY before a business can be submitted for verification (website optional)
+        country = (body.country or biz.get("country") or "").strip()
+        phone = (body.phone or biz.get("phone") or "").strip()
+        address = (body.address or biz.get("location_display") or "").strip()
+        email = (body.email or biz.get("email") or "").strip()
+        reg = (body.abn or biz.get("registration_number") or "").strip()
+        req_label = COUNTRY_REQUIREMENTS.get(country, COUNTRY_REQUIREMENTS["Other"])["registration_label"]
+        for val, label in [(body.legal_name, "Business name"), (country, "Country"),
+                           (address, "Business address"), (email, "Business email"),
+                           (phone, "Business phone number"), (reg, req_label)]:
+            if not (val or "").strip():
+                raise HTTPException(status_code=400, detail=f"{label} is required for verification")
         sub_id = str(uuid.uuid4())
         await db.business_verifications.insert_one({
             "id": sub_id, "business_id": biz["id"], "user_id": user["id"],
-            "legal_name": body.legal_name.strip()[:120], "abn": (body.abn or "").strip()[:40],
-            "email": (body.email or biz.get("email") or "").strip()[:120],
-            "website": (body.website or "").strip()[:200], "address": (body.address or "").strip()[:200],
+            "legal_name": body.legal_name.strip()[:120], "country": country[:60],
+            "registration_label": req_label, "abn": reg[:60],
+            "email": email[:120], "phone": phone[:40],
+            "website": (body.website or biz.get("website") or "").strip()[:200],
+            "address": address[:200],
+            "primary_contact": (body.primary_contact or biz.get("primary_contact") or "").strip()[:120],
             "document_name": (body.document_name or "").strip()[:120],   # private — never public
             "status": "Pending Review", "submitted_at": now_iso(),
             "history": [{"action": "submitted", "by": user["id"], "at": now_iso()}], "notes": []})
         await db.business_profiles.update_one(
-            {"id": biz["id"]}, {"$set": {"verification_status": "Pending Review", "verification_note": ""}})
+            {"id": biz["id"]}, {"$set": {"verification_status": "Pending Review", "verification_note": "",
+                                         "country": country, "phone": phone,
+                                         "registration_number": reg}})
         return {"ok": True, "status": "Pending Review", "submission_id": sub_id}
+
+    @business_router.get("/verification-requirements")
+    async def verification_requirements(user: dict = Depends(get_current_user)):
+        return {"countries": list(COUNTRY_REQUIREMENTS.keys()), "requirements": COUNTRY_REQUIREMENTS}
+
+    @business_router.post("/me/verification-link")
+    async def verification_computer_link(user: dict = Depends(get_current_user)):
+        """'Complete Business Verification on Computer' — emails a secure continue
+        link to the BUSINESS email; same account, progress saved server-side."""
+        biz = await _require_biz(user)
+        result = await _email("business_verification_link",
+                              {**user, "email": biz.get("email") or user.get("email")},
+                              ctx={"business_name": biz["name"]}, entity_id=biz["id"])
+        return {"ok": result.get("status") in ("sent", "skipped"), "delivery": result.get("status")}
 
     # ----------------------------------------------------- dashboard/analytics
     @business_router.get("/me/overview")
@@ -490,7 +545,7 @@ def bind(server):
             active_ev = await db.events.count_documents(
                 {"creator_user_id": b["user_id"], "status": {"$in": ["active", "full"]}})
             out.append({"id": b["id"], "name": b["name"], "category": b["category"],
-                        "location": b.get("location_display", ""),
+                        "location": b.get("location_display", ""), "country": b.get("country") or "",
                         "verification_status": b.get("verification_status", "Not Submitted"),
                         "subscription_status": (b.get("subscription") or {}).get("status", "not_subscribed"),
                         "active_events": active_ev, "average_rating": avg, "review_count": n,

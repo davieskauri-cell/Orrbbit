@@ -185,6 +185,10 @@ _t("business_verification_suspended", "Your Orrbbit business verification status
    "Verification suspended",
    "Verification for <b>{business_name}</b> has been suspended. {note} Contact support if you believe this is a mistake.",
    trigger="Admin suspends/revokes business verification")
+_t("business_verification_link", "Continue your Orrbbit Business verification",
+   "Complete verification on your computer",
+   "You chose to finish verification for <b>{business_name}</b> on a computer. Log in below with your Orrbbit Business account — your progress is saved and everything stays on the same account.",
+   cta=("Continue Verification", "/business/login"), trigger="Business taps 'Complete Business Verification on Computer'")
 _t("business_review_request", "How was {event_title}?",
    "How was your experience?",
    "Hi {name},<br><br>Thanks for attending <b>{event_title}</b>, hosted by <b>{business_name}</b>. We'd love to hear about your experience.",

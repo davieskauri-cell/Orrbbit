@@ -104,6 +104,10 @@ def test_4_activate_sandbox_subscription():
     assert r.status_code == 200, r.text
     d = r.json()
     assert d.get("ok") is True or (d.get("subscription") or {}).get("status") == "active", d
+    # Iter81: publishing now also requires APPROVED verification — set it for flow tests
+    import pymongo as _pm
+    _pm.MongoClient(MONGO_URL)[DB_NAME].business_profiles.update_one(
+        {"user_id": state["biz_user_id"]}, {"$set": {"verification_status": "Verified"}})
 
 
 # ---- FLOW 3 — Business event create (blue banner, offer, host_type) ------

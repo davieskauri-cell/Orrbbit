@@ -97,10 +97,16 @@ export default function Welcome() {
       </View>
 
       <View style={{ gap: spacing.md, marginTop: spacing.xxl }}>
+        <Text style={styles.joinLabel}>How are you joining Orrbbit?</Text>
         <PrimaryButton
           testID="onboarding-get-started"
-          title="Get Started"
+          title="Personal — meet people nearby"
           onPress={() => router.push("/(auth)/how-location-works")}
+        />
+        <SecondaryButton
+          testID="onboarding-business"
+          title="Business — host events for your community"
+          onPress={() => router.push({ pathname: "/(auth)/register", params: { type: "business" } })}
         />
         <SecondaryButton
           testID="onboarding-login"
@@ -113,6 +119,7 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
+  joinLabel: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700", textAlign: "center" },
   container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: spacing.xl },
   center: { alignItems: "center", marginBottom: spacing.xxl },
   tagline: { color: colors.orange, fontSize: font.base, fontWeight: "600", marginTop: spacing.xs },

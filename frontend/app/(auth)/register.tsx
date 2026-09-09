@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants";
@@ -34,7 +34,8 @@ export default function Register() {
   const { register } = useAuth();
 
   const [step, setStep] = useState(0);
-  const [accountType, setAccountType] = useState<"personal" | "business">("personal");
+  const { type } = useLocalSearchParams<{ type?: string }>();
+  const [accountType, setAccountType] = useState<"personal" | "business">(type === "business" ? "business" : "personal");
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");

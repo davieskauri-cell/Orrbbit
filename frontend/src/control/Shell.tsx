@@ -9,8 +9,9 @@ import { ModalCard, Btn, Badge } from './ui';
 const NAV: { label: string; path: string; icon: any; soon?: number }[] = [
   { label: 'Dashboard', path: '/control', icon: 'grid-outline' },
   { label: 'Command Centre', path: '/control/command-centre', icon: 'pulse-outline' },
-  { label: 'Users', path: '/control/users', icon: 'people-outline' },
+  { label: 'Personal / Pro Users', path: '/control/users', icon: 'people-outline' },
   { label: 'Businesses', path: '/control/businesses', icon: 'storefront-outline' },
+  { label: 'Business Verification', path: '/control/business-verification', icon: 'shield-half-outline' },
   { label: 'Professionals', path: '/control/professionals', icon: 'briefcase-outline' },
   { label: 'Help Requests', path: '/control/help-requests', icon: 'hand-left-outline' },
   { label: 'People Radar', path: '/control/people-radar', icon: 'locate-outline' },
