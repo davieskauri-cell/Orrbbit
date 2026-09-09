@@ -268,3 +268,7 @@ needs_retesting: false
 ## Iteration 81 — Business onboarding overhaul (June 2026)
 Get Started 2-option choice; 4-step business stepper (details→country-dependent verification→$5.99 subscription→Verification Pending); mandatory verification fields incl. phone/country/registration; computer-continue email link; publish gate now requires Verified; Control Centre split (Personal/Pro Users + Business Verification queue separate from Professional). 30/30 backend + full UI journey verified. demo_refresh: run standalone (ordering interference after e2e suite only).
 needs_retesting: false
+
+## Iteration 82 — Secure computer-continue link
+business_login_links tokens (single-use, 48h, server-validated); /business/verify web landing + AuthContext.adoptSession; token excluded from email logs. QA: redeem/reuse/expiry/bogus all correct; suites 20/20.
+needs_retesting: false

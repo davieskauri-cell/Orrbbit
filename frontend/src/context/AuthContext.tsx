@@ -90,6 +90,7 @@ type AuthValue = {
   register: (payload: RegisterPayload) => Promise<User>;
   demoLogin: (email?: string) => Promise<User>;
   signOut: () => Promise<void>;
+  adoptSession: (token: string, user: User) => Promise<void>;
   setUser: (u: User) => void;
   refreshUser: () => Promise<User | null>;
 };
@@ -124,6 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
     setUser(u);
   };
+
+  // Secure link redemption (e.g. business "continue on computer") — adopts an
+  // already-server-validated session; never handles raw passwords.
+  const adoptSession = useCallback(async (t: string, u: User) => {
+    await persist(t, u);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await api<{ access_token: string; user: User }>("/auth/login", {
@@ -168,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, user, loading, signIn, register, demoLogin, signOut, setUser, refreshUser }}
+      value={{ token, user, loading, signIn, register, demoLogin, signOut, adoptSession, setUser, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

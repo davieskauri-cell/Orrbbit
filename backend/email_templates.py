@@ -188,7 +188,7 @@ _t("business_verification_suspended", "Your Orrbbit business verification status
 _t("business_verification_link", "Continue your Orrbbit Business verification",
    "Complete verification on your computer",
    "You chose to finish verification for <b>{business_name}</b> on a computer. Log in below with your Orrbbit Business account — your progress is saved and everything stays on the same account.",
-   cta=("Continue Verification", "/business/login"), trigger="Business taps 'Complete Business Verification on Computer'")
+   cta=("Continue Verification", "/business/verify?token={link_token}"), trigger="Business taps 'Complete Business Verification on Computer'")
 _t("business_review_request", "How was {event_title}?",
    "How was your experience?",
    "Hi {name},<br><br>Thanks for attending <b>{event_title}</b>, hosted by <b>{business_name}</b>. We'd love to hear about your experience.",
@@ -455,5 +455,5 @@ SAMPLE_CTX = {
     "count": 3, "plural": "s", "count_label": "1 connection request", "rating": 5,
     "review_part": ': "Fantastic session, really helpful."', "stats": "4 new connections · 2 sessions",
     "feature": "Live Radar 2.0", "ttl_min": 15, "code_box": code_box("123456"),
-    "business_name": "The Park Hotel", "event_title": "Friday Happy Hour", "event_id": "sample",
+    "business_name": "The Park Hotel", "event_title": "Friday Happy Hour", "event_id": "sample", "link_token": "sample-token",
 }

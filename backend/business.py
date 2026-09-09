@@ -299,13 +299,35 @@ def bind(server):
 
     @business_router.post("/me/verification-link")
     async def verification_computer_link(user: dict = Depends(get_current_user)):
-        """'Complete Business Verification on Computer' — emails a secure continue
-        link to the BUSINESS email; same account, progress saved server-side."""
+        """'Complete Business Verification on Computer' — emails a SECURE single-use,
+        time-limited continue link to the BUSINESS email; same account, progress saved."""
         biz = await _require_biz(user)
+        link_token = uuid.uuid4().hex + uuid.uuid4().hex   # opaque, never a password/JWT
+        await db.business_login_links.insert_one({
+            "token": link_token, "user_id": user["id"], "business_id": biz["id"],
+            "used": False, "created_at": now_iso(),
+            "expires_at": (_now() + timedelta(hours=48)).isoformat()})
         result = await _email("business_verification_link",
                               {**user, "email": biz.get("email") or user.get("email")},
-                              ctx={"business_name": biz["name"]}, entity_id=biz["id"])
+                              ctx={"business_name": biz["name"], "link_token": link_token},
+                              entity_id=biz["id"])
         return {"ok": result.get("status") in ("sent", "skipped"), "delivery": result.get("status")}
+
+    class RedeemIn(BaseModel):
+        token: str
+
+    @business_router.post("/verification-link/redeem")
+    async def redeem_verification_link(body: RedeemIn):
+        """Server-validated: single-use + expiry + bound to the issuing Business account."""
+        rec = await db.business_login_links.find_one({"token": body.token})
+        if not rec or rec.get("used") or rec.get("expires_at", "") < _now().isoformat():
+            raise HTTPException(status_code=400, detail="This verification link is invalid or has expired. Request a new one from the app.")
+        await db.business_login_links.update_one({"token": body.token}, {"$set": {"used": True, "used_at": now_iso()}})
+        u = await db.users.find_one({"id": rec["user_id"]})
+        if not u or u.get("account_type") != "business":
+            raise HTTPException(status_code=404, detail="Business account not found")
+        return {"access_token": server.create_token(u["id"], u.get("token_version", 0)),
+                "user": server.own_user(u)}
 
     # ----------------------------------------------------- dashboard/analytics
     @business_router.get("/me/overview")
