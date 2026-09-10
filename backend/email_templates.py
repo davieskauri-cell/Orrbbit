@@ -187,8 +187,8 @@ _t("business_verification_suspended", "Your Orrbbit business verification status
    trigger="Admin suspends/revokes business verification")
 _t("business_verification_link", "Continue your Orrbbit Business verification",
    "Complete verification on your computer",
-   "You chose to finish verification for <b>{business_name}</b> on a computer. Log in below with your Orrbbit Business account — your progress is saved and everything stays on the same account.",
-   cta=("Continue Verification", "/business/verify?token={link_token}"), trigger="Business taps 'Complete Business Verification on Computer'")
+   "You chose to finish verification for <b>{business_name}</b> on a computer. Open the secure link below in your browser — the Business verification form loads directly, your progress is saved and everything stays on the same account. No app required.",
+   cta=("Continue Verification in Browser", "__CTX_LINK__"), trigger="Business taps 'Complete Business Verification on Computer' — direct browser link, never the app interstitial")
 _t("business_welcome", "Welcome to Orrbbit Business",
    "Welcome to Orrbbit Business!",
    "Hi {business_name},<br><br>Welcome to Orrbbit Business. Your Business account has been created successfully.<br><br>"

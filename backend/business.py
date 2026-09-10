@@ -396,9 +396,11 @@ def bind(server):
             "token": link_token, "user_id": user["id"], "business_id": biz["id"],
             "used": False, "created_at": now_iso(),
             "expires_at": (_now() + timedelta(hours=48)).isoformat()})
+        base = (os.environ.get("CUSTOMER_WEB_BASE_URL") or "https://www.orrbbit.com").rstrip("/")
         result = await _email("business_verification_link",
                               {**user, "email": biz.get("email") or user.get("email")},
-                              ctx={"business_name": biz["name"], "link_token": link_token},
+                              ctx={"business_name": biz["name"], "link_token": link_token,
+                                   "action_url": f"{base}/business/verify?token={link_token}"},
                               entity_id=biz["id"])
         return {"ok": result.get("status") in ("sent", "skipped"), "delivery": result.get("status")}
 

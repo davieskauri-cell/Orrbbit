@@ -23,7 +23,7 @@ export default function BusinessVerifyLink() {
       .then(async (r) => {
         await adoptSession(r.access_token, r.user);
         setState("ok");
-        setTimeout(() => router.replace("/business/settings"), 900);
+        setTimeout(() => router.replace("/business-setup"), 900);
       })
       .catch((e: any) => { setState("error"); setMsg(e?.message || "This link is invalid or has expired."); });
     // eslint-disable-next-line react-hooks/exhaustive-deps

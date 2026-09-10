@@ -699,6 +699,9 @@ async def control_users(q: Optional[str] = None, status: Optional[str] = None,
                         page: int = Query(1, ge=1), limit: int = Query(25, ge=1, le=100),
                         admin: dict = Depends(require_perm("users")), mode: str = Depends(get_mode)):
     f = dict(user_filter(mode))
+    # Business accounts are managed exclusively in Control Centre → Businesses,
+    # never mixed into the Personal / Professional users list.
+    f["account_type"] = {"$ne": "business"}
     if q:
         f["$or"] = [{"name": {"$regex": q, "$options": "i"}}, {"email": {"$regex": q, "$options": "i"}}, {"id": q}]
     if status == "suspended":

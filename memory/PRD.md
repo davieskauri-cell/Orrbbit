@@ -828,3 +828,9 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - New statuses/actions: In Review (Start Review), Revoked, Reverification Required; control BV updated.
 - Email display sender now "Orrbbit" + reply-to support@orrbbit.com; underlying FROM address remains provider-controlled (owner/Emergent domain config needed for notifications@updates.orrbbit.com).
 - OWNER GATES unchanged: redeploy via Publish; connect orrbbit.com custom domain + CUSTOMER_WEB_BASE_URL; production Control Centre gets Businesses/Business Verification sidebar after redeploy.
+
+## Iter88 — Final business release correction (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- Control users list excludes business accounts (separate Businesses management); 0 misclassified in preview.
+- Computer-verification email now opens the browser verification form DIRECTLY (no app interstitial); /business/verify → business-setup form; full browser completion verified E2E.
+- Google autocomplete remains BLOCKED on GOOGLE_PLACES_API_KEY (backend env; enable "Places API" in an Orrbbit Google Cloud project); country-conflict validation added.
+- Owner gates: Publish redeploy; orrbbit.com domain + CUSTOMER_WEB_BASE_URL; GOOGLE_PLACES_API_KEY; Emergent-side sender-domain config for true Orrbbit FROM address.

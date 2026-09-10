@@ -149,6 +149,12 @@ export default function BusinessSetup() {
       const d = await api<any>(`/business/address-details?place_id=${encodeURIComponent(s.place_id)}`);
       if (d?.formatted_address) setLocation(d.formatted_address);
       if (d?.lat != null && d?.lng != null) setAddrCoords({ lat: d.lat, lng: d.lng });
+      // Country conflict guard — never silently save contradictory data.
+      if (d?.country && country && d.country !== country) {
+        setError(`This address is in ${d.country}, but you selected ${country}. Update your Country or choose a matching address.`);
+      } else {
+        setError(null);
+      }
     } catch {}
   };
 
