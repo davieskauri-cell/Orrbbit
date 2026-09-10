@@ -9,6 +9,7 @@ import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { api } from "@/src/lib/api";
 import { openBusinessDashboard } from "@/src/lib/businessLinks";
 import { getBusinessOverview, getMyBusiness, BizOverview, Business } from "@/src/services/businessService";
+import PendingLock from "@/src/business/PendingLock";
 import { myEvents, OrbEvent } from "@/src/services/eventService";
 
 export function Stat({ label, value, icon }: { label: string; value: any; icon: string }) {
@@ -67,6 +68,19 @@ export default function BusinessHome() {
 
   const verified = ov?.verification_status === "Verified";
   const pending = ov?.verification_status === "Pending Review";
+
+  // Full Business Dashboard stays LOCKED until Control Centre approval.
+  if (ov && !verified) {
+    return (
+      <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xxl, paddingHorizontal: spacing.xl }}>
+        <View style={st.brandRow} testID="biz-home-brand">
+          <LogoMark size={26} />
+          <Wordmark height={17} />
+        </View>
+        <PendingLock biz={biz} status={ov.verification_status} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

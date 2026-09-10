@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
+import PendingLock from "@/src/business/PendingLock";
+import { getBusinessOverview, getMyBusiness, Business } from "@/src/services/businessService";
 
 // Orrbbit Business desktop — dark navy sidebar (brand spec, same in all themes)
 const NAVY = "#0F1E38";
@@ -32,7 +34,19 @@ export default function BizShell({ title, children }: { title: string; children:
   const { width } = useWindowDimensions();
   const { token, user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [vStatus, setVStatus] = React.useState<string | null>(null);
+  const [biz, setBiz] = React.useState<Business | null>(null);
   const wide = width >= 980;
+
+  React.useEffect(() => {
+    if (!token) return;
+    getBusinessOverview().then((o) => setVStatus(o.verification_status)).catch(() => {});
+    getMyBusiness().then((r) => setBiz(r.business)).catch(() => {});
+  }, [token, pathname]);
+
+  // While not Verified, only status/subscription/settings/support are available.
+  const LOCK_EXEMPT = ["/business/subscription", "/business/settings", "/business/notifications", "/business/verify"];
+  const locked = vStatus !== null && vStatus !== "Verified" && !LOCK_EXEMPT.includes(pathname);
 
   if (loading) return <View style={st.center}><ActivityIndicator color={colors.cobalt} /></View>;
   if (!token) return <Redirect href="/business/login" />;
@@ -87,7 +101,7 @@ export default function BizShell({ title, children }: { title: string; children:
         )}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={[st.content, { paddingBottom: insets.bottom + spacing.xxxl }]}>
           <Text style={st.pageTitle}>{title}</Text>
-          {children}
+          {locked ? <View style={{ maxWidth: 480, alignSelf: "center", width: "100%" }}><PendingLock biz={biz} status={vStatus as string} /></View> : children}
         </ScrollView>
       </View>
     </View>

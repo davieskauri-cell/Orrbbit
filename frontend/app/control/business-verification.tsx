@@ -14,6 +14,8 @@ const TABS = [
   { label: "Verified", value: "Verified" },
   { label: "Rejected", value: "Rejected" },
   { label: "Suspended", value: "Suspended" },
+  { label: "Revoked", value: "Revoked" },
+  { label: "Reverification", value: "Reverification Required" },
   { label: "All", value: "All" },
 ];
 
@@ -26,6 +28,8 @@ const PILL: Record<string, { bg: string; fg: string }> = {
   Verified: { bg: "#DCFCE7", fg: "#15803D" },
   Rejected: { bg: "#FEE2E2", fg: "#B91C1C" },
   Suspended: { bg: "#FEE2E2", fg: "#B91C1C" },
+  Revoked: { bg: "#FEE2E2", fg: "#B91C1C" },
+  "Reverification Required": { bg: "#FFEDD5", fg: "#C2410C" },
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -216,10 +220,13 @@ export default function ControlBusinessVerification() {
                 ))}
                 <TextInput value={note} onChangeText={setNote} placeholder="Internal note / message to the business" placeholderTextColor={CC.sub} style={st.input} testID="bv-note" />
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  <Btn title="Start Review" variant="outline" onPress={() => act("start_review")} testID="bv-start-review" />
                   <Btn title="Approve" onPress={() => act("approve")} testID="bv-approve" />
                   <Btn title="Request More Info" variant="outline" onPress={() => act("more_info")} />
+                  <Btn title="Request Reverification" variant="outline" onPress={() => act("request_reverification")} />
                   <Btn title="Reject" variant="danger" onPress={() => confirmAct("reject", "Reject")} />
                   <Btn title="Suspend" variant="danger" onPress={() => confirmAct("suspend", "Suspend")} />
+                  <Btn title="Revoke" variant="danger" onPress={() => confirmAct("revoke", "Revoke")} />
                   <Btn title="Reinstate" variant="outline" onPress={() => act("reinstate")} />
                 </View>
                 <Text style={st.meta}>Every action is audited and triggers the central in-app + email pipeline.</Text>

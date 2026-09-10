@@ -3,18 +3,30 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
-import { getBusinessAnalytics, getBusinessReviews } from "@/src/services/businessService";
+import { getBusinessAnalytics, getBusinessReviews, getBusinessOverview } from "@/src/services/businessService";
+import PendingLock from "@/src/business/PendingLock";
 import { Stat } from "./index";
 
 export default function BusinessInsights() {
   const insets = useSafeAreaInsets();
   const [a, setA] = useState<any | null>(null);
   const [rev, setRev] = useState<any | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
+    getBusinessOverview().then((o) => setStatus(o.verification_status)).catch(() => {});
     getBusinessAnalytics().then(setA).catch(() => {});
     getBusinessReviews().then(setRev).catch(() => {});
   }, []));
+
+  if (status && status !== "Verified") {
+    return (
+      <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, padding: spacing.xl }}>
+        <Text style={st.title}>Insights</Text>
+        <PendingLock status={status} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, padding: spacing.xl, paddingBottom: insets.bottom + spacing.xxxl }}>

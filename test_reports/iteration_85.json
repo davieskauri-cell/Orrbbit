@@ -1,0 +1,44 @@
+{
+  "summary": "Iter85 ORRBBIT Business release-correction pass QA. Backend: 35/35 pass (5 new iter85 + 30 regression). New /app/backend/tests/test_iter85_business_release.py verifies: (1) GET /api/business/me returns 250 alphabetical countries (Australia/Japan/Zimbabwe/United Kingdom present, 'Other' appended at end); (2) POST /business/me with country 'Japan' stores country_code 'JP'; (3) GET /business/address-autocomplete → {enabled:false, suggestions:[]} (no GOOGLE_PLACES_API_KEY — known PARTIAL); (4) LOCK — analytics 403 while In Progress, remains 403 while Pending Review, event publish 403 while pending; after QA admin approve → analytics 200 (verified:true) and event creation 200; (5) Control lifecycle — start_review → 'In Review' with NO email_event recorded (tpl=None), revoke → 'Revoked', request_reverification → 'Reverification Required' with business_verification_more_info email_event recorded, reinstate → 'Verified'; each of the 4 actions produces admin_audit_logs entry (business_verification_start_review / _revoke / _request_reverification / _reinstate). Regression 30/30 (test_business_platform + test_iter81 + test_iter83 + test_iter84). Frontend mobile 390x844 (Playwright, JSON-stringified auth_token): PendingLock (testID biz-pending-lock) appears on business Home tab and Insights tab for Pending Review businesses — shows submitted details card + Continue Verification + Contact Support + Log out; NO KPI cards / NO Create Event visible while pending. After QA admin approve+reload: biz-verified-title one-time screen shown, tapping biz-verified-cta reveals FULL dashboard (Active Events / People Going / Event Views / Average Rating KPIs + Create Event CTA). Country search in /(auth)/business-setup step 1: initial run of test showed FAILURE — the 11-country fallback list was rendered because GET /api/business/me for a business with NO profile yet returned only {business:null, categories:[...]} (missing 'countries' + 'country_requirements'). Fixed backend business.py line 230-233 to always include countries+country_requirements in the null-biz branch → re-ran and country search 'jap' shows biz-country-Japan, 'zim' shows biz-country-Zimbabwe, selecting Japan renders biz-country-selected with 'Japan' + 'Change'. Web (1366x900) BizShell verified: /business/dashboard shows PendingLock (no KPIs), /business/subscription + /business/settings accessible while pending; after approve dashboard renders full Overview (KPIs + Create Event). Google Places autocomplete disabled (no key) is a known PARTIAL — not failed. Cleaned all @orrbbitqa.example.com QA data.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (web)", "issues": ["Non-blocking console warnings carried from iter84: 'shadow*' style props deprecated on web (should be boxShadow); props.pointerEvents deprecated. Cosmetic only."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter85_business_release.py",
+    "/app/test_reports/pytest/pytest_iter85.xml",
+    "/app/test_reports/pytest/pytest_iter85_full.xml"
+  ],
+  "action_items": [
+    "None — release-correction pass verified. Backend fix applied (business.py my_business null-biz branch now returns countries+country_requirements) which was required to make the setup-wizard country search actually use the full 250-country list on a fresh business account (spec item #1). Confirm this fix is acceptable — otherwise the initial setup wizard silently falls back to the 11-country FALLBACK_COUNTRIES list and Japan/Zimbabwe cannot be selected on step 1.",
+    "(Optional / cosmetic, carried over) Migrate remaining shadow* + props.pointerEvents to boxShadow + style.pointerEvents on web to silence RN-web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "business.py my_business (line 225-251) originally only returned {business:None, categories:...} on the no-profile branch, silently dropping countries+country_requirements — but business-setup.tsx step 1 loads GetMyBusiness() to populate the country selector. Result: fresh business signups saw the 11-country FALLBACK list on step 1 (not the 250 from pycountry). FIXED in /app/backend/business.py (null branch now returns countries+country_requirements). All other branches were already correct.",
+    "business.py control_business_verification mapping (line 717-740) — start_review deliberately has tpl=None (no email template) which is the spec (no email on start_review). All new statuses (In Review, Revoked, Reverification Required) plumbed correctly through notify_user_action / audit / email pipeline.",
+    "business.py business_analytics (line 446-451) — properly returns 403 with 'Business analytics unlock after verification approval' when verification_status != 'Verified'. Server-side lock complements the frontend PendingLock.",
+    "PendingLock.tsx renders correctly on mobile Home + Insights tabs AND desktop BizShell (locked=true path at line 104 of BizShell.tsx). LOCK_EXEMPT for subscription/settings/notifications/verify verified end-to-end on 1366px viewport.",
+    "business.py address_autocomplete (line 341-363) — honest capability flag: returns enabled=false when GOOGLE_PLACES_API_KEY unset. Frontend falls back to manual entry. Known PARTIAL as spec'd."
+  ],
+  "updated_files": [
+    "/app/backend/business.py (added countries+country_requirements to my_business null-biz branch — required for setup-wizard step 1 country search on fresh accounts)",
+    "/app/backend/tests/test_iter85_business_release.py (new — 5/5 pass, JUnit at /app/test_reports/pytest/pytest_iter85.xml)"
+  ],
+  "success_rate": {
+    "backend": "35/35 (100%) — 5/5 iter85 focused + 30/30 regression (test_business_platform + test_iter81 + test_iter83 + test_iter84) after applied backend fix",
+    "frontend": "9/9 UI checks (100%) after fix — mobile PendingLock on Home+Insights, no KPIs/Create Event while pending, one-time verified screen + full dashboard after approve, country search returns Japan+Zimbabwe from 250-list, biz-country-selected renders after tap, web dashboard PendingLock + subscription/settings accessible while pending, web dashboard full Overview after approve"
+  ],
+  "seed_data_creation": "iter85 tests create their own uniquely-tagged QA users (biz-iter85-*, biz-ui-iter85-*, biz-web-iter85-*@orrbbitqa.example.com) via /api/auth/register (accept_policies+date_of_birth required) + Mongo email_verified=True. Each pytest fixture cleans user/biz/verifications/login_links/notifications/email_events/deliveries/consent/events/attendees on teardown. UI QA seed manually cleaned at end of run. Residual @orrbbitqa.example.com users after run: 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter85 focused suite lives at /app/backend/tests/test_iter85_business_release.py (5 tests). Run alongside test_business_platform + test_iter81 + test_iter83 + test_iter84 = 35 total for full business-platform regression. IMPORTANT registration schema now requires: date_of_birth (YYYY-MM-DD) AND accept_policies:true. QA admin login response uses key 'token' not 'access_token'. Event creation requires lat+lng (Melbourne test coords: -37.8136, 144.9631). Backend fix applied in this iteration: business.py my_business null-biz branch returns countries+country_requirements — required for /business-setup step 1 country search to show the full 250 list on fresh accounts. Google Places autocomplete disabled (no GOOGLE_PLACES_API_KEY) is a known PARTIAL — do NOT fail. NEVER UI-test /control in browser (production origin). Web BizShell LOCK_EXEMPT = /business/subscription, /business/settings, /business/notifications, /business/verify.",
+  "rca_of_issue": "ISSUE: Fresh business accounts saw only 11 countries on business-setup step 1 country search (Japan/Zimbabwe missing). RCA: /app/backend/business.py my_business() returned {business:None, categories:...} for accounts with no profile yet — omitting 'countries' and 'country_requirements' fields that the frontend needs to populate the selector. business-setup.tsx line 80-82 falls back to FALLBACK_COUNTRIES (11 entries) when list is empty. REPRO: register fresh business account → go to /(auth)/business-setup → type 'jap' → 'No match — choose Other' shown. MITIGATION APPLIED: added 'countries': ALL_COUNTRIES, 'country_requirements': COUNTRY_REQUIREMENTS to the null branch response in business.py. Verified end-to-end: 250 countries returned; Japan/Zimbabwe selectable; existing profile branch was already correct."
+}

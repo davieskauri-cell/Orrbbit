@@ -9,6 +9,7 @@ import { colors, spacing, font } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
+import { api } from "@/src/lib/api";
 import { getMyBusiness, saveBusiness, submitBusinessVerification, activateBusinessSubscription, getBusinessSubscription, requestVerificationComputerLink } from "@/src/services/businessService";
 
 async function pickImage(): Promise<string | null> {
@@ -67,6 +68,9 @@ export default function BusinessSetup() {
   const [countrySearch, setCountrySearch] = useState("");
   const [reqs, setReqs] = useState<Record<string, { registration_label: string; hint: string }>>({});
   const [linkSent, setLinkSent] = useState(false);
+  const [addrSug, setAddrSug] = useState<{ description: string; place_id: string }[]>([]);
+  const [addrCoords, setAddrCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const addrTimer = React.useRef<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,6 +129,29 @@ export default function BusinessSetup() {
 
   const next = (s: 1 | 2 | 3 | 4 | 5 | 6) => { setError(null); setStep(s); };
 
+  const onAddressChange = (v: string) => {
+    setLocation(v);
+    setAddrCoords(null);
+    if (addrTimer.current) clearTimeout(addrTimer.current);
+    if (v.trim().length < 3) { setAddrSug([]); return; }
+    addrTimer.current = setTimeout(() => {
+      api<{ enabled: boolean; suggestions: { description: string; place_id: string }[] }>(
+        `/business/address-autocomplete?q=${encodeURIComponent(v.trim())}&country=${encodeURIComponent(country)}`)
+        .then((r) => setAddrSug(r.enabled ? r.suggestions : []))
+        .catch(() => setAddrSug([]));
+    }, 350);
+  };
+
+  const pickAddress = async (s: { description: string; place_id: string }) => {
+    setLocation(s.description);
+    setAddrSug([]);
+    try {
+      const d = await api<any>(`/business/address-details?place_id=${encodeURIComponent(s.place_id)}`);
+      if (d?.formatted_address) setLocation(d.formatted_address);
+      if (d?.lat != null && d?.lng != null) setAddrCoords({ lat: d.lat, lng: d.lng });
+    } catch {}
+  };
+
   const submitDetails = () => {
     setError(null);
     if (!name.trim()) return setError("Business name is required.");
@@ -154,7 +181,7 @@ export default function BusinessSetup() {
       await saveBusiness({
         name: name.trim(), category, email: email.trim(), location_display: location.trim(),
         description: description.trim(), logo_url: logo, cover_url: cover,
-        lat: coords?.lat, lng: coords?.lng, website: website.trim(), phone: phone.trim(),
+        lat: addrCoords?.lat ?? coords?.lat, lng: addrCoords?.lng ?? coords?.lng, website: website.trim(), phone: phone.trim(),
         country, primary_contact: primaryContact.trim(),
         registration_number: registrationNumber.trim(),
       });
@@ -332,7 +359,17 @@ export default function BusinessSetup() {
           </>
         )}
         <Text style={s.label}>Business Address *</Text>
-        <TextInput testID="biz-location" value={location} onChangeText={setLocation} placeholder="Enter your business address" placeholderTextColor={colors.textTertiary} style={s.input} />
+        <TextInput testID="biz-location" value={location} onChangeText={onAddressChange} placeholder="Start typing your business address…" placeholderTextColor={colors.textTertiary} style={s.input} />
+        {addrSug.length > 0 && (
+          <View style={s.countryList}>
+            {addrSug.map((sg) => (
+              <Pressable key={sg.place_id} testID={`biz-addr-${sg.place_id}`} onPress={() => pickAddress(sg)} style={s.countryRow}>
+                <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                <Text style={[s.countryRowTxt, { flex: 1, marginLeft: 8 }]} numberOfLines={1}>{sg.description}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         {error && <Text style={s.error}>{error}</Text>}
         <Pressable testID="biz-details-continue" onPress={submitDetails} style={s.cta}>
           <Text style={s.ctaTxt}>Continue</Text>
@@ -437,11 +474,12 @@ export default function BusinessSetup() {
                 <View style={[s.dot, active && s.dotOn, step === i + 1 && s.dotCurrent]} />
                 {i < STEP_LABELS.length - 1 && <View style={[s.dotLine, step >= i + 2 && s.dotLineOn]} />}
               </View>
-              <Text style={[s.dotLbl, active && { color: colors.teal, fontWeight: "800" }]}>{lbl}</Text>
+              <Text style={[s.dotLbl, active && { color: colors.teal, fontWeight: "800" }]} numberOfLines={1}>{lbl}</Text>
             </View>
           );
         })}
       </View>
+      <View style={{ height: spacing.lg }} />
     </ScrollView>
   );
 }
@@ -505,9 +543,9 @@ const s = StyleSheet.create({
   // CTA + dots
   cta: { backgroundColor: colors.teal, borderRadius: 16, minHeight: 52, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   ctaTxt: { color: "#FFF", fontSize: font.lg, fontWeight: "800" },
-  dotsRow: { flexDirection: "row", marginTop: spacing.xl },
-  dotItem: { flex: 1, alignItems: "center", gap: 6 },
-  dotLineWrap: { flexDirection: "row", alignItems: "center", alignSelf: "stretch" },
+  dotsRow: { flexDirection: "row", marginTop: spacing.xxl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.card, alignItems: "flex-start" },
+  dotItem: { flex: 1, alignItems: "center", gap: 6, minWidth: 0 },
+  dotLineWrap: { flexDirection: "row", alignItems: "center", alignSelf: "stretch", height: 14 },
   dotLine: { flex: 1, height: 2, backgroundColor: colors.border },
   dotLineOn: { backgroundColor: colors.teal },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.border },

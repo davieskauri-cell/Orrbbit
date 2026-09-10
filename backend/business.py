@@ -25,8 +25,8 @@ BUSINESS_CATEGORIES = [
     "Community Venue", "Entertainment", "Retail", "Education", "Wellness",
     "Professional Services", "Sports Club", "Golf Club", "Accommodation", "Hospitality", "Other"]
 
-VERIFICATION_STATUSES = ["Not Submitted", "In Progress", "Pending Review", "Verified",
-                         "More Info Required", "Rejected", "Suspended"]
+VERIFICATION_STATUSES = ["Not Submitted", "In Progress", "Pending Review", "In Review", "Verified",
+                         "More Info Required", "Rejected", "Suspended", "Revoked", "Reverification Required"]
 SUBSCRIPTION_STATES = ["not_subscribed", "active", "grace", "cancelled", "expired", "billing_issue"]
 BUSINESS_PRODUCT_ID = "orrbbit_business_monthly"
 BUSINESS_PRICE = "$5.99/month"
@@ -48,6 +48,34 @@ COUNTRY_REQUIREMENTS = {
     "India": {"code": "IN", "registration_label": "GSTIN / CIN", "hint": "GST or corporate identification number"},
     "Other": {"code": "XX", "registration_label": "Business registration number", "hint": "Official registration/licence number"},
 }
+
+# Complete, alphabetical global country list (ISO 3166-1). Countries without a
+# configured requirement above fall back to the generic "Other" evidence rules
+# and are flagged for manual Control Centre review.
+try:
+    import pycountry as _pyc
+    ALL_COUNTRIES = sorted({getattr(c, "common_name", None) or c.name for c in _pyc.countries})
+except Exception:  # never leave the selector blank
+    ALL_COUNTRIES = sorted(set(COUNTRY_REQUIREMENTS.keys()) - {"Other"})
+if "Other" not in ALL_COUNTRIES:
+    ALL_COUNTRIES.append("Other")
+
+
+def _country_code(name: str) -> str:
+    n = (name or "").strip()
+    if not n:
+        return ""
+    if n in COUNTRY_REQUIREMENTS:
+        return COUNTRY_REQUIREMENTS[n]["code"]
+    try:
+        import pycountry as _pyc
+        hit = _pyc.countries.get(name=n) or next(
+            (c for c in _pyc.countries if getattr(c, "common_name", "") == n), None)
+        if hit:
+            return hit.alpha_2
+    except Exception:
+        pass
+    return "XX"
 
 
 def _now():
@@ -200,7 +228,9 @@ def bind(server):
             raise HTTPException(status_code=403, detail="Business account required")
         biz = await _biz_for(user["id"])
         if not biz:
-            return {"business": None, "categories": BUSINESS_CATEGORIES}
+            return {"business": None, "categories": BUSINESS_CATEGORIES,
+                    "countries": ALL_COUNTRIES,
+                    "country_requirements": COUNTRY_REQUIREMENTS}
         avg, n, dist = await _rating(biz["id"])
         sub = biz.get("subscription") or {"status": "not_subscribed"}
         return {"business": {**_pub_biz(biz), "email": biz.get("email"), "abn": biz.get("abn") or "",
@@ -219,7 +249,7 @@ def bind(server):
                                               "billing_pending_configuration": BILLING_MODE == "disabled",
                                               "can_publish": can_publish(biz)}},
                 "categories": BUSINESS_CATEGORIES,
-                "countries": list(COUNTRY_REQUIREMENTS.keys()),
+                "countries": ALL_COUNTRIES,
                 "country_requirements": COUNTRY_REQUIREMENTS}
 
     @business_router.post("/me")
@@ -242,7 +272,7 @@ def bind(server):
             "logo_url": body.logo_url, "cover_url": body.cover_url,
             "website": (body.website or "").strip()[:200], "phone": (body.phone or "").strip()[:40],
             "country": (body.country or "").strip()[:60],
-            "country_code": COUNTRY_REQUIREMENTS.get((body.country or "").strip(), COUNTRY_REQUIREMENTS["Other"])["code"] if (body.country or "").strip() else "",
+            "country_code": _country_code(body.country or ""),
             "primary_contact": (body.primary_contact or "").strip()[:120],
             "registration_number": (body.registration_number or "").strip()[:60],
             "socials": (body.socials or "").strip()[:300],
@@ -299,7 +329,7 @@ def bind(server):
         await db.business_profiles.update_one(
             {"id": biz["id"]}, {"$set": {"verification_status": "Pending Review", "verification_note": "",
                                          "country": country, "phone": phone,
-                                         "country_code": COUNTRY_REQUIREMENTS.get(country, COUNTRY_REQUIREMENTS["Other"])["code"],
+                                         "country_code": _country_code(country),
                                          "registration_number": reg}})
         await _email("business_verification_submitted",
                      {**user, "email": email or user.get("email")},
@@ -308,7 +338,53 @@ def bind(server):
 
     @business_router.get("/verification-requirements")
     async def verification_requirements(user: dict = Depends(get_current_user)):
-        return {"countries": list(COUNTRY_REQUIREMENTS.keys()), "requirements": COUNTRY_REQUIREMENTS}
+        return {"countries": ALL_COUNTRIES, "requirements": COUNTRY_REQUIREMENTS}
+
+    @business_router.get("/address-autocomplete")
+    async def address_autocomplete(q: str = "", country: str = "", user: dict = Depends(get_current_user)):
+        """Google Places-backed address suggestions, biased to the selected country.
+        Honest capability flag: when no GOOGLE_PLACES_API_KEY is configured this
+        returns enabled=false and the app keeps manual address entry (no fake data)."""
+        key = os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()
+        if not key:
+            return {"enabled": False, "suggestions": []}
+        if len((q or "").strip()) < 3:
+            return {"enabled": True, "suggestions": []}
+        import httpx as _hx
+        params = {"input": q.strip()[:120], "key": key, "types": "address"}
+        cc = _country_code(country)
+        if cc and cc != "XX":
+            params["components"] = f"country:{cc.lower()}"
+        try:
+            async with _hx.AsyncClient(timeout=8) as client:
+                r = await client.get("https://maps.googleapis.com/maps/api/place/autocomplete/json", params=params)
+            preds = (r.json() or {}).get("predictions", [])[:6]
+            return {"enabled": True, "suggestions": [
+                {"description": p.get("description"), "place_id": p.get("place_id")} for p in preds]}
+        except Exception:
+            return {"enabled": True, "suggestions": []}
+
+    @business_router.get("/address-details")
+    async def address_details(place_id: str, user: dict = Depends(get_current_user)):
+        key = os.environ.get("GOOGLE_PLACES_API_KEY", "").strip()
+        if not key:
+            return {"enabled": False}
+        import httpx as _hx
+        try:
+            async with _hx.AsyncClient(timeout=8) as client:
+                r = await client.get("https://maps.googleapis.com/maps/api/place/details/json",
+                                     params={"place_id": place_id, "key": key,
+                                             "fields": "formatted_address,geometry,address_component"})
+            res = (r.json() or {}).get("result", {})
+            comp = {c["types"][0]: c.get("long_name") for c in res.get("address_components", []) if c.get("types")}
+            loc = (res.get("geometry") or {}).get("location") or {}
+            return {"enabled": True, "formatted_address": res.get("formatted_address"),
+                    "street_number": comp.get("street_number"), "street": comp.get("route"),
+                    "city": comp.get("locality") or comp.get("sublocality"),
+                    "state": comp.get("administrative_area_level_1"), "postcode": comp.get("postal_code"),
+                    "country": comp.get("country"), "lat": loc.get("lat"), "lng": loc.get("lng")}
+        except Exception:
+            return {"enabled": True}
 
     @business_router.post("/me/verification-link")
     async def verification_computer_link(user: dict = Depends(get_current_user)):
@@ -372,6 +448,9 @@ def bind(server):
     @business_router.get("/me/analytics")
     async def business_analytics(user: dict = Depends(get_current_user)):
         biz = await _require_biz(user)
+        # Locked until Control Centre approval — pending/in-review businesses have no analytics access.
+        if biz.get("verification_status") != "Verified":
+            raise HTTPException(status_code=403, detail="Business analytics unlock after verification approval")
         base = await business_overview(user)
         evs = await db.events.find({"creator_user_id": user["id"]}, {"_id": 0}).to_list(300)
         by_cat = {}
@@ -637,7 +716,10 @@ def bind(server):
         b = await db.business_profiles.find_one({"id": biz_id})
         if not b:
             raise HTTPException(status_code=404, detail="Business not found")
-        mapping = {"approve": ("Verified", "business_verification_approved",
+        mapping = {"start_review": ("In Review", None,
+                                    "Verification in review",
+                                    f"Your verification for {b['name']} is now being reviewed."),
+                   "approve": ("Verified", "business_verification_approved",
                                "Business verification approved",
                                f"{b['name']} is now a Verified Business on Orrbbit."),
                    "more_info": ("More Info Required", "business_verification_more_info",
@@ -649,9 +731,12 @@ def bind(server):
                    "suspend": ("Suspended", "business_verification_suspended",
                                "Business verification suspended",
                                f"Verification for {b['name']} has been suspended."),
-                   "revoke": ("Rejected", "business_verification_suspended",
+                   "revoke": ("Revoked", "business_verification_suspended",
                               "Business verification revoked",
                               f"Verification for {b['name']} has been revoked."),
+                   "request_reverification": ("Reverification Required", "business_verification_more_info",
+                                              "Reverification required",
+                                              f"{b['name']} must complete verification again to stay Verified."),
                    "reinstate": ("Verified", "business_verification_approved",
                                  "Business verification reinstated",
                                  f"{b['name']} is a Verified Business again.")}

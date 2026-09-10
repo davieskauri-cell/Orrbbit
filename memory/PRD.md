@@ -820,3 +820,11 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - Two-step typed Business deletion (/business-delete: DELETE MY BUSINESS + password + final confirm) with immediate host-event cascade (cancel/notify/email attendees), business record cleanup, retained verification audit, business_account_deleted email.
 - Dedicated business email templates: business_welcome (at signup — personal template never used), business_verification_submitted, business_subscription_activated, business_subscription_cancelled, business_account_deleted; all via managed email; real delivery proven (delivered@resend.dev: sent).
 - NOTE: user-reported production bugs (dead dashboard link, blank country, auto-verified) stem from the STALE production deployment + orrbbit.com domain not pointing at this app — owner must redeploy and connect the custom domain + set CUSTOMER_WEB_BASE_URL.
+
+## Iter87 — Business release correction pass (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- 250-country searchable selector w/ ISO codes; country-aware requirements w/ generic fallback + manual review flag.
+- Google Places autocomplete implemented as honest proxy — BLOCKED on owner-provided GOOGLE_PLACES_API_KEY (manual entry fallback active).
+- Pending/In-Review businesses fully LOCKED out of dashboard/analytics/publishing (UI mobile+web and server-side); dedicated PendingLock screen w/ submitted summary, subscription state, continue-verification, support, logout.
+- New statuses/actions: In Review (Start Review), Revoked, Reverification Required; control BV updated.
+- Email display sender now "Orrbbit" + reply-to support@orrbbit.com; underlying FROM address remains provider-controlled (owner/Emergent domain config needed for notifications@updates.orrbbit.com).
+- OWNER GATES unchanged: redeploy via Publish; connect orrbbit.com custom domain + CUSTOMER_WEB_BASE_URL; production Control Centre gets Businesses/Business Verification sidebar after redeploy.
