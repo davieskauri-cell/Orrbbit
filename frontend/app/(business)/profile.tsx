@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
 import { useAuth } from "@/src/context/AuthContext";
-import { api } from "@/src/lib/api";
 import { getMyBusiness, submitBusinessVerification, Business } from "@/src/services/businessService";
 import { showAlert } from "@/src/lib/alert";
 import { openLegal } from "@/src/lib/legalLinks";
@@ -37,27 +36,6 @@ export default function BusinessProfileTab() {
   };
 
   const sub = biz?.subscription;
-
-  const deleteAccount = () => {
-    showAlert(
-      "Delete Business Account?",
-      "This permanently deletes your business account, Business Profile and cancels your hosted events. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete", style: "destructive",
-          onPress: async () => {
-            try {
-              await api("/users/me", { method: "DELETE" });
-              await signOut();
-            } catch (e: any) {
-              showAlert("Delete account", e?.message || "Could not delete your account.");
-            }
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, padding: spacing.xl, paddingBottom: insets.bottom + spacing.xxxl }}>
@@ -137,7 +115,7 @@ export default function BusinessProfileTab() {
             <Row testID="biz-logout" icon="log-out-outline" label="Sign Out" danger onPress={signOut} />
           </Section>
           <Section title="DANGER ZONE">
-            <Row testID="biz-delete-account" icon="trash-outline" label="Delete Business Account" danger onPress={deleteAccount} />
+            <Row testID="biz-delete-account" icon="trash-outline" label="Delete Business Account" danger onPress={() => router.push("/business-delete")} />
           </Section>
         </>
       )}

@@ -9,7 +9,6 @@ import { showAlert } from "@/src/lib/alert";
 import { openLegal } from "@/src/lib/legalLinks";
 import { openBusinessDashboard, copyBusinessDashboardLink } from "@/src/lib/businessLinks";
 import { useAuth } from "@/src/context/AuthContext";
-import { api } from "@/src/lib/api";
 import { getMyBusiness, saveBusiness, submitBusinessVerification, Business } from "@/src/services/businessService";
 
 const NOTIF_PREFS = [
@@ -45,22 +44,7 @@ export default function BizSettings() {
     });
   };
 
-  const deleteAccount = () => {
-    showAlert(
-      "Delete Business Account?",
-      "This permanently deletes your business account, Business Profile and cancels your hosted events. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete", style: "destructive",
-          onPress: async () => {
-            try { await api("/users/me", { method: "DELETE" }); await signOut(); }
-            catch (e: any) { showAlert("Delete account", e?.message || "Could not delete your account."); }
-          },
-        },
-      ]
-    );
-  };
+  const deleteAccount = () => router.push("/business-delete");
 
   useFocusEffect(useCallback(() => {
     getMyBusiness().then((r) => {

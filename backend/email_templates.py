@@ -189,9 +189,43 @@ _t("business_verification_link", "Continue your Orrbbit Business verification",
    "Complete verification on your computer",
    "You chose to finish verification for <b>{business_name}</b> on a computer. Log in below with your Orrbbit Business account — your progress is saved and everything stays on the same account.",
    cta=("Continue Verification", "/business/verify?token={link_token}"), trigger="Business taps 'Complete Business Verification on Computer'")
-_t("business_welcome", "Welcome to Orrbbit Business — your dashboard access",
+_t("business_welcome", "Welcome to Orrbbit Business",
    "Welcome to Orrbbit Business!",
-   "Hi {business_name},<br><br>Thank you for joining Orrbbit Business. You can manage your Business Profile, "
+   "Hi {business_name},<br><br>Welcome to Orrbbit Business. Your Business account has been created successfully.<br><br>"
+   "With Orrbbit Business you can:<br>"
+   "• Build and manage your Business Profile<br>"
+   "• Host Business Events<br>"
+   "• Reach people nearby through Orrbbit Event discovery<br>"
+   "• Manage attendees<br>"
+   "• View reviews and ratings<br>"
+   "• Access Business insights<br>"
+   "• Manage your account from mobile or desktop<br><br>"
+   "<b>Your Account</b><br>"
+   "Business: {business_name}<br>"
+   "Verification Status: {verification_status}<br>"
+   "Subscription: {subscription_status}<br><br>"
+   "{verification_notice}"
+   "Business Dashboard: <a href=\"{action_url}\" style=\"color:#20B2AA;\">{action_url}</a><br><br>"
+   "<a href=\"https://www.orrbbit.com/support\" style=\"color:#20B2AA;\">Help Centre</a> · "
+   "<a href=\"https://www.orrbbit.com/terms\" style=\"color:#20B2AA;\">Terms</a> · "
+   "<a href=\"https://www.orrbbit.com/privacy\" style=\"color:#20B2AA;\">Privacy</a> · "
+   "<a href=\"https://www.orrbbit.com/community-guidelines\" style=\"color:#20B2AA;\">Community Guidelines</a> · "
+   "<a href=\"https://www.orrbbit.com/safety\" style=\"color:#20B2AA;\">Safety</a> · "
+   "<a href=\"https://www.orrbbit.com/refunds\" style=\"color:#20B2AA;\">Payments / Refunds</a> · "
+   "<a href=\"https://www.orrbbit.com/policies\" style=\"color:#20B2AA;\">Business Policies</a><br><br>"
+   "<i>Real people. Real moments. Right nearby.</i><br><b style=\"color:#2F6BFF;\">Orrbbit Business</b>",
+   cta=("Open Business Dashboard", "__CTX_LINK__"),
+   trigger="Business account registration (dedicated business welcome — never the personal template)")
+_t("business_verification_submitted", "Your Orrbbit Business verification is pending",
+   "Your business verification is pending",
+   "Hi {business_name},<br><br>We've received your verification details and our team will review them shortly. "
+   "We'll let you know as soon as a decision is made.<br><br>"
+   "Until then your business is <b>not yet verified</b> — verified Business features become active only after Orrbbit approval.<br><br>"
+   "<i>Real people. Real moments. Right nearby.</i><br><b style=\"color:#2F6BFF;\">Orrbbit Business</b>",
+   trigger="Business submits verification details")
+_t("business_subscription_activated", "Your Orrbbit Business subscription is active",
+   "Your subscription is active",
+   "Hi {business_name},<br><br>Your Orrbbit Business subscription is now active. You can manage your Business Profile, "
    "Events, attendees, reviews and insights from either the Orrbbit mobile app or the Business Dashboard on your computer.<br><br>"
    "<b>Your Account Details</b><br>"
    "Business Name: {business_name}<br>"
@@ -204,6 +238,24 @@ _t("business_welcome", "Welcome to Orrbbit Business — your dashboard access",
    "<a href=\"https://www.orrbbit.com/policies\" style=\"color:#20B2AA;\">Business Policies</a>",
    cta=("Open Business Dashboard", "__CTX_LINK__"),
    trigger="Business subscription activated (first activation)")
+_t("business_subscription_cancelled", "Your Orrbbit Business subscription has been cancelled",
+   "Subscription cancelled",
+   "Hi {business_name},<br><br>Your Orrbbit Business subscription has been cancelled. Your Business features remain "
+   "available until the end of the current billing period, and you can restore your subscription at any time from "
+   "the app or Business Dashboard.<br><br>"
+   "<a href=\"https://www.orrbbit.com/refunds\" style=\"color:#20B2AA;\">Payments / Cancellation / Refund Policy</a><br><br>"
+   "<i>Real people. Real moments. Right nearby.</i><br><b style=\"color:#2F6BFF;\">Orrbbit Business</b>",
+   trigger="Business cancels their subscription")
+_t("business_account_deleted", "Your Orrbbit Business account has been deleted",
+   "Your Business account has been deleted",
+   "Hi {business_name},<br><br>Your Orrbbit Business account was permanently deleted on {deleted_at}. "
+   "Account access has ended, your Business Profile has been removed, and any active or upcoming Business Events "
+   "were cancelled with confirmed attendees notified.<br><br>"
+   "Some records may be retained where legally or safely required, in line with our "
+   "<a href=\"https://www.orrbbit.com/privacy\" style=\"color:#20B2AA;\">data retention policy</a>.<br><br>"
+   "Need help? <a href=\"https://www.orrbbit.com/support\" style=\"color:#20B2AA;\">Contact Support</a><br><br>"
+   "<i>Real people. Real moments. Right nearby.</i><br><b style=\"color:#2F6BFF;\">Orrbbit Business</b>",
+   trigger="Business account deletion completed")
 _t("business_review_request", "How was {event_title}?",
    "How was your experience?",
    "Hi {name},<br><br>Thanks for attending <b>{event_title}</b>, hosted by <b>{business_name}</b>. We'd love to hear about your experience.",
@@ -472,5 +524,6 @@ SAMPLE_CTX = {
     "feature": "Live Radar 2.0", "ttl_min": 15, "code_box": code_box("123456"),
     "business_name": "The Park Hotel", "event_title": "Friday Happy Hour", "event_id": "sample", "link_token": "sample-token",
     "verification_status": "Pending Review", "subscription_status": "$5.99/month (Active)",
+    "verification_notice": "", "deleted_at": "10 June 2026",
     "action_url": "https://orrbbit.com/business/dashboard",
 }

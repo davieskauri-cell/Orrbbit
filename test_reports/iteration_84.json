@@ -1,0 +1,39 @@
+{
+  "summary": "Iter84 ORRBBIT Business targeted-fixes QA. Backend: 10/10 iter84 focused (new /app/backend/tests/test_iter84_business_lifecycle.py) covering (a) new biz starts 'In Progress' with country_code AU, (b) event publish blocked (403) while In Progress, (c) POST /business/me/verification -> Pending Review + business_verification_submitted email_event, (d) sandbox activate does NOT auto-Verify + business_subscription_activated email_event, (e) user self-call to /control/businesses/{id}/verification -> 403 (401/403 acceptable), (f) profile-save payload {verification_status:'Verified',verified:true} is IGNORED, (g) QA admin approve endpoint sets Verified, plus deletion cascade — business w/ verified subscription + hosted event + confirmed personal attendee: DELETE /users/me {password, confirmation:'DELETE'} => event.status='cancelled', attendee gets event_cancelled notification+email_event, business_profiles+business_login_links deleted, business_verifications retained with 'business_account_deleted' history entry, business_account_deleted email_event recorded, cancelled event absent from /events/nearby. Plus personal-register-regression: new personal user gets 'welcome' template (NOT 'business_welcome'). Regression: `pytest tests/test_business_platform.py tests/test_iter81_business_secure_link.py tests/test_iter83_business_welcome.py -q` = 20 passed (note: request said 21; suite actually contains 20 test cases — count discrepancy in spec, ALL PASS). Frontend mobile 390x844 (Playwright, JSON-stringified auth_token): /(auth)/business-setup step 1 — biz-country-search box visible; typing 'aus' filters list; biz-country-Australia present; tapping it renders biz-country-selected row containing 'Australia' + 'Change'. Filled Name+Category(Café)+Address, clicked biz-details-continue -> reached step 2 (2 of 6 dots). Filled email/phone/contact on step 2 and RELOADED the page -> wizard resumed on step 2 with email pre-populated (biz-ui-iter84-...@orrbbitqa.example.com visible in screenshot) — AsyncStorage draft persistence works end-to-end. /business-delete: warning card ('Delete your Business account?'), bullets card ('This will also:' + 'Cancel all active and upcoming Business Events' + 'Notify confirmed attendees (in-app and by email)' + additional bullets) all rendered; bizdel-continue button DISABLED with partial phrase ('DELETE'), DISABLED with full phrase but empty password, ENABLED (element.disabled=null) once phrase='DELETE MY BUSINESS' AND password entered — matches spec exactly. Business mobile dashboard while In Progress: no verified badge in DOM. Cleanup: all @orrbbitqa.example.com QA users purged (business_profiles/verifications/login_links/notifications/email_events/deliveries/consent_records/events/attendees). Residual QA users: 0.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (all screens)", "issues": ["Non-blocking console warnings carried over from iter83: 'shadow*' style props deprecated on web (should be boxShadow). Cosmetic only."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter84_business_lifecycle.py",
+    "/app/test_reports/pytest/pytest_iter84.xml"
+  ],
+  "action_items": [
+    "(Spec count) Regression command in problem statement says 'should be 21 passed' but tests/test_business_platform.py(10) + tests/test_iter81_business_secure_link.py(5) + tests/test_iter83_business_welcome.py(5) totals 20 tests. All 20/20 pass. Either update the acceptance count to 20 in the problem statement or add one more test to reach 21.",
+    "(Optional / cosmetic, carried over) Migrate remaining shadow* + props.pointerEvents to boxShadow + style.pointerEvents on web to silence RN-web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "business.py upsert_business (line 225-267) does NOT read verification_status from the request body — the 'fields' dict written to Mongo has no verification_status key, so payload injection {verification_status:'Verified'} is naturally ignored (verified end-to-end).",
+    "business.py new-profile insert (line 265) hard-codes verification_status='In Progress' on first save — good. country_code is derived server-side from country via COUNTRY_REQUIREMENTS on line 245 (AU/NZ/US/GB/CA/IE/SG/DE/FR/IN/XX + Other fallback).",
+    "server.py DELETE /users/me (line 999-1054) correctly cascades: cancels active/full hosted events via events.bind's cancel_orphan_event (attendee notify + email), deletes business_profiles/business_login_links, retains business_verifications with a business_account_deleted history entry, fires business_account_deleted managed email. Verified in tests.",
+    "business-setup.tsx (line 95-110) reads AsyncStorage biz_setup_draft when no profile exists yet, only resumes to step 2 or 3 (never elevates step past what has been saved) and re-populates all editable fields — verified with reload flow.",
+    "business-delete.tsx enforces two-condition ready gate (typed phrase matches PHRASE constant 'DELETE MY BUSINESS' AND password non-empty) before enabling the destructive CTA + a final showAlert confirm-dialog before firing DELETE /users/me. Solid safety pattern."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter84_business_lifecycle.py (new — 10/10 pass, JUnit at /app/test_reports/pytest/pytest_iter84.xml)"
+  ],
+  "success_rate": {
+    "backend": "30/30 (100%) — 20/20 regression (test_business_platform + test_iter81 + test_iter83) + 10/10 iter84 focused (test_iter84_business_lifecycle)",
+    "frontend": "8/8 UI checks (100%) — country search+filter+select+selected-state, step1→step2 continue, step-2 draft persistence after reload, /business-delete warning+bullets+disabled/enabled logic, dashboard in-progress state (no verified badge)"
+  },
+  "seed_data_creation": "iter84 test suite creates its own uniquely-tagged QA users (biz-iter84-*@orrbbitqa.example.com, biz-ref-qa-*, att-iter84-*, pers-iter84-*) via /api/auth/register + Mongo email_verified=True. Each pytest fixture cleans its user/biz/verifications/login_links/notifications/email_events/deliveries/consent/events/attendees on teardown. Additional standalone UI QA seed (biz-ui-iter84-*) manually cleaned at end of run. Residual @orrbbitqa.example.com users after run: 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter84 focused suite lives at /app/backend/tests/test_iter84_business_lifecycle.py (10 tests). Run alongside test_business_platform.py + test_iter81_business_secure_link.py + test_iter83_business_welcome.py = 30 total for full business-platform regression. IMPORTANT: /api/events schema uses start_datetime + end_datetime (NOT starts_at) — always send both ISO strings. Business event publish while 'In Progress' correctly returns 403 (not 402). DELETE /users/me MUST use JSON body {password, confirmation:'DELETE'} — python requests: pass json= to requests.delete. Cancellation cascade uses events.bind's cancel_orphan_event; look up notifications with type='event_cancelled' and email_events with template='event_cancelled' on the attendee's user_id. For the setup wizard reload test, AsyncStorage.setItem is called on submitDetails/submitContact (saveDraft(2)/saveDraft(3)) and cleared once submitAbout succeeds (step 3 -> 4). So the reload test must be run BEFORE reaching step 4. Frontend country_code payload is derived server-side (never blank in Mongo). NEVER UI-test /control in browser — production origin. QA admin API-only at qa-admin@intro.control / Qa!hpgOlIndvj0UbVWk.",
+  "rca_of_issue": ""
+}

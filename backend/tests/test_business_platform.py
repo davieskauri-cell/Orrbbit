@@ -83,7 +83,7 @@ def test_01_business_signup_and_profile(ctx):
     }, headers=_hdr(biz["access_token"]), timeout=30)
     assert r.status_code == 200, r.text
     b = r.json()["business"]
-    assert b["verification_status"] == "Not Submitted"
+    assert b["verification_status"] == "In Progress"  # started, not yet submitted — never auto-verified
     ctx["biz_id"] = b["id"]
     # staging subscription (sandbox billing mode) — $5.99 entitlement, no real charge
     r_sub = requests.post(f"{API}/business/subscription/activate", json={"platform": "sandbox"},

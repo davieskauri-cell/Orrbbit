@@ -101,7 +101,7 @@ class TestBusinessWelcomeAndSubscription:
 
     def test_first_activate_creates_business_welcome(self, biz_ctx):
         # Ensure no prior welcome events (fresh user)
-        DB.email_events.delete_many({"user_id": biz_ctx["uid"], "template": "business_welcome"})
+        DB.email_events.delete_many({"user_id": biz_ctx["uid"], "template": "business_subscription_activated"})
 
         r = requests.post(
             f"{API}/business/subscription/activate",
@@ -118,7 +118,7 @@ class TestBusinessWelcomeAndSubscription:
 
         # email_events must have one business_welcome record for this user (status can be failed)
         events = list(
-            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_welcome"})
+            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_subscription_activated"})
         )
         assert len(events) == 1, f"Expected 1 business_welcome event, got {len(events)}"
 
@@ -150,7 +150,7 @@ class TestBusinessWelcomeAndSubscription:
         assert r.status_code == 200
 
         events = list(
-            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_welcome"})
+            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_subscription_activated"})
         )
         assert len(events) == 1, (
             f"Duplicate business_welcome created on repeat activate: {len(events)}"
@@ -173,7 +173,7 @@ class TestBusinessWelcomeAndSubscription:
         )
         assert r.status_code == 200
         events = list(
-            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_welcome"})
+            DB.email_events.find({"user_id": biz_ctx["uid"], "template": "business_subscription_activated"})
         )
         assert len(events) == 2, f"Expected 2 welcome events after reactivate, got {len(events)}"
 
@@ -214,4 +214,4 @@ class TestControlBusinessDetail:
         assert "average_rating" in d
         # Emails: at least one business_welcome we sent earlier should appear here
         templates = [e.get("template") for e in d["emails"]]
-        assert "business_welcome" in templates, f"welcome not in email records: {templates}"
+        assert "business_subscription_activated" in templates, f"welcome not in email records: {templates}"

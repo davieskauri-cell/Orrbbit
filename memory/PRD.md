@@ -813,3 +813,10 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 ## Iter85 — Business profile/settings/web-access/subscription mgmt + blue event refinement (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
 - Business Profile tab full menu (account/business/subscription/web access/support & legal/settings/danger zone), mobile subscription management + reviews screens, web settings expansion (notification toggles/legal/support/delete), web subscription dates+actions, dashboard Quick Actions + Recent Activity, orrbbit.com dashboard open/copy links, business_welcome access email on subscription activation via managed email (proven 'sent' to delivered@resend.dev), Control BV detail now shows subscription/account state/events/reviews/emails/audit, cobalt audit on create/edit/detail for business events (personal untouched).
 - Testing agent iteration_83 full pass; backend 20/20; QA cleaned.
+
+## Iter86 — Business targeted production fixes (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- Auto-verify impossible: "In Progress" lifecycle, server-side-only Verified via Control Centre, self-approve/payload-injection blocked (tested).
+- Searchable Country selector w/ country_code storage + fallback list; draft resume for unfinished sign-ups.
+- Two-step typed Business deletion (/business-delete: DELETE MY BUSINESS + password + final confirm) with immediate host-event cascade (cancel/notify/email attendees), business record cleanup, retained verification audit, business_account_deleted email.
+- Dedicated business email templates: business_welcome (at signup — personal template never used), business_verification_submitted, business_subscription_activated, business_subscription_cancelled, business_account_deleted; all via managed email; real delivery proven (delivered@resend.dev: sent).
+- NOTE: user-reported production bugs (dead dashboard link, blank country, auto-verified) stem from the STALE production deployment + orrbbit.com domain not pointing at this app — owner must redeploy and connect the custom domain + set CUSTOMER_WEB_BASE_URL.

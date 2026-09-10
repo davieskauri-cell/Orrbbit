@@ -25,7 +25,7 @@ BUSINESS_CATEGORIES = [
     "Community Venue", "Entertainment", "Retail", "Education", "Wellness",
     "Professional Services", "Sports Club", "Golf Club", "Accommodation", "Hospitality", "Other"]
 
-VERIFICATION_STATUSES = ["Not Submitted", "Pending Review", "Verified",
+VERIFICATION_STATUSES = ["Not Submitted", "In Progress", "Pending Review", "Verified",
                          "More Info Required", "Rejected", "Suspended"]
 SUBSCRIPTION_STATES = ["not_subscribed", "active", "grace", "cancelled", "expired", "billing_issue"]
 BUSINESS_PRODUCT_ID = "orrbbit_business_monthly"
@@ -36,12 +36,17 @@ BILLING_MODE = os.environ.get("BILLING_MODE", "disabled").lower()
 
 # Country-dependent business registration requirements (extensible per country)
 COUNTRY_REQUIREMENTS = {
-    "Australia": {"registration_label": "ABN", "hint": "11-digit Australian Business Number"},
-    "New Zealand": {"registration_label": "NZBN", "hint": "13-digit NZ Business Number"},
-    "United States": {"registration_label": "EIN / State registration", "hint": "Federal EIN or state registration"},
-    "United Kingdom": {"registration_label": "Company number", "hint": "Companies House number"},
-    "Canada": {"registration_label": "Business Number (BN)", "hint": "9-digit CRA Business Number"},
-    "Other": {"registration_label": "Business registration number", "hint": "Official registration/licence number"},
+    "Australia": {"code": "AU", "registration_label": "ABN", "hint": "11-digit Australian Business Number"},
+    "New Zealand": {"code": "NZ", "registration_label": "NZBN", "hint": "13-digit NZ Business Number"},
+    "United States": {"code": "US", "registration_label": "EIN / State registration", "hint": "Federal EIN or state registration"},
+    "United Kingdom": {"code": "GB", "registration_label": "Company number", "hint": "Companies House number"},
+    "Canada": {"code": "CA", "registration_label": "Business Number (BN)", "hint": "9-digit CRA Business Number"},
+    "Ireland": {"code": "IE", "registration_label": "CRO number", "hint": "Companies Registration Office number"},
+    "Singapore": {"code": "SG", "registration_label": "UEN", "hint": "Unique Entity Number"},
+    "Germany": {"code": "DE", "registration_label": "Handelsregister number", "hint": "Commercial register number"},
+    "France": {"code": "FR", "registration_label": "SIREN / SIRET", "hint": "9 or 14 digit registration number"},
+    "India": {"code": "IN", "registration_label": "GSTIN / CIN", "hint": "GST or corporate identification number"},
+    "Other": {"code": "XX", "registration_label": "Business registration number", "hint": "Official registration/licence number"},
 }
 
 
@@ -200,6 +205,7 @@ def bind(server):
         sub = biz.get("subscription") or {"status": "not_subscribed"}
         return {"business": {**_pub_biz(biz), "email": biz.get("email"), "abn": biz.get("abn") or "",
                              "country": biz.get("country") or "",
+                             "country_code": biz.get("country_code") or "",
                              "primary_contact": biz.get("primary_contact") or "",
                              "registration_number": biz.get("registration_number") or "",
                              "verification_status": biz.get("verification_status", "Not Submitted"),
@@ -236,6 +242,7 @@ def bind(server):
             "logo_url": body.logo_url, "cover_url": body.cover_url,
             "website": (body.website or "").strip()[:200], "phone": (body.phone or "").strip()[:40],
             "country": (body.country or "").strip()[:60],
+            "country_code": COUNTRY_REQUIREMENTS.get((body.country or "").strip(), COUNTRY_REQUIREMENTS["Other"])["code"] if (body.country or "").strip() else "",
             "primary_contact": (body.primary_contact or "").strip()[:120],
             "registration_number": (body.registration_number or "").strip()[:60],
             "socials": (body.socials or "").strip()[:300],
@@ -253,7 +260,9 @@ def bind(server):
                 slug = f"{slug}-{biz_id[:6]}"
             await db.business_profiles.insert_one({
                 "id": biz_id, "user_id": user["id"], "slug": slug,
-                "verification_status": "Not Submitted",
+                # "In Progress" until verification info is actually SUBMITTED; only a
+                # Control Centre approval action may ever set "Verified" (server-side).
+                "verification_status": "In Progress",
                 "subscription": {"status": "not_subscribed"},
                 "profile_views": 0, "created_at": now_iso(), **fields})
         return await my_business(user)
@@ -290,7 +299,11 @@ def bind(server):
         await db.business_profiles.update_one(
             {"id": biz["id"]}, {"$set": {"verification_status": "Pending Review", "verification_note": "",
                                          "country": country, "phone": phone,
+                                         "country_code": COUNTRY_REQUIREMENTS.get(country, COUNTRY_REQUIREMENTS["Other"])["code"],
                                          "registration_number": reg}})
+        await _email("business_verification_submitted",
+                     {**user, "email": email or user.get("email")},
+                     ctx={"business_name": biz["name"]}, entity_id=biz["id"])
         return {"ok": True, "status": "Pending Review", "submission_id": sub_id}
 
     @business_router.get("/verification-requirements")
@@ -416,9 +429,9 @@ def bind(server):
                "started_at": now_iso(), "renews_at": (_now() + timedelta(days=30)).isoformat()}
         await db.business_profiles.update_one({"id": biz["id"]}, {"$set": {"subscription": sub}})
         if prev_status != "active":
-            # Welcome / dashboard-access email through the central managed email layer.
+            # Subscription confirmation through the central managed email layer.
             base = (os.environ.get("CUSTOMER_WEB_BASE_URL") or "https://orrbbit.com").rstrip("/")
-            await _email("business_welcome",
+            await _email("business_subscription_activated",
                          {**user, "email": biz.get("email") or user.get("email")},
                          ctx={"business_name": biz["name"],
                               "verification_status": biz.get("verification_status", "Not Submitted"),
@@ -432,6 +445,9 @@ def bind(server):
         biz = await _require_biz(user)
         await db.business_profiles.update_one(
             {"id": biz["id"]}, {"$set": {"subscription.status": "cancelled"}})
+        await _email("business_subscription_cancelled",
+                     {**user, "email": biz.get("email") or user.get("email")},
+                     ctx={"business_name": biz["name"]}, entity_id=biz["id"])
         return {"ok": True, "status": "cancelled"}
 
     # --------------------------------------------------------- public profile

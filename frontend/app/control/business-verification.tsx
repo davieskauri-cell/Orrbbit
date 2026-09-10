@@ -7,6 +7,7 @@ import { Card, SectionTitle, Btn, Loading, EmptyText } from "../../src/control/u
 import { showAlert } from "../../src/lib/alert";
 
 const TABS = [
+  { label: "In Progress", value: "In Progress" },
   { label: "Pending", value: "Pending Review" },
   { label: "In Review", value: "In Review" },
   { label: "More Info", value: "More Info Required" },
@@ -17,6 +18,8 @@ const TABS = [
 ];
 
 const PILL: Record<string, { bg: string; fg: string }> = {
+  "In Progress": { bg: "#E2E8F0", fg: "#334155" },
+  "Not Submitted": { bg: "#E2E8F0", fg: "#334155" },
   "Pending Review": { bg: "#FEF3C7", fg: "#B45309" },
   "In Review": { bg: "#DBEAFE", fg: "#1D4ED8" },
   "More Info Required": { bg: "#FFEDD5", fg: "#C2410C" },

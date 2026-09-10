@@ -947,8 +947,19 @@ async def register(body: RegisterIn):
         await db.users.update_one({"id": user["id"]}, {"$set": {"email_prefs.marketing": True}})
     _es_fire(email_service.send("verify_email", user=user, entity_id=user["id"],
                                 ctx={"name": user["name"]}))
-    _es_fire(email_service.send("welcome", user=user, entity_id=user["id"],
-                                ctx={"name": user["name"]}))
+    if user["account_type"] == "business":
+        # Dedicated BUSINESS welcome — the personal template is never used for business accounts.
+        _biz_base = (os.environ.get("CUSTOMER_WEB_BASE_URL") or "https://orrbbit.com").rstrip("/")
+        _es_fire(email_service.send("business_welcome", user=user, entity_id=user["id"], ctx={
+            "business_name": user.get("display_name") or user["name"],
+            "verification_status": "Not Started",
+            "subscription_status": "Not Subscribed",
+            "verification_notice": ("Your Business is not yet verified. Complete the required verification steps and "
+                                    "wait for Orrbbit approval before verified Business features become active.<br><br>"),
+            "action_url": f"{_biz_base}/business/dashboard"}))
+    else:
+        _es_fire(email_service.send("welcome", user=user, entity_id=user["id"],
+                                    ctx={"name": user["name"]}))
     return {"access_token": create_token(user["id"], user.get("token_version", 0)), "user": own_user(user)}
 
 
@@ -1000,7 +1011,22 @@ async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current
     if not pwd_context.verify(body.password, user.get("hashed_password", "")):
         raise HTTPException(status_code=401, detail="Incorrect password")
     uid = user["id"]
+    # Cancel any active/upcoming hosted events FIRST (business + personal hosts):
+    # marks CANCELLED, removes from Radar/Nearby, notifies + emails confirmed attendees.
+    hosted = await db.events.find({"creator_user_id": uid, "status": {"$in": ["active", "full"]}}).to_list(200)
+    for _ev in hosted:
+        try:
+            await cancel_orphan_event(_ev)  # bound by events.bind — shared cascade logic
+        except Exception as e:
+            logger.warning(f"delete-cascade event cancel failed for {_ev.get('id')}: {e}")
+    _biz = await db.business_profiles.find_one({"user_id": uid})
     await db.users.delete_one({"id": uid})
+    if _biz:
+        await db.business_profiles.delete_many({"user_id": uid})
+        # Verification submissions + history are retained as audit records (status history preserved).
+        await db.business_verifications.update_many(
+            {"user_id": uid}, {"$push": {"history": {"action": "business_account_deleted", "at": now_iso()}}})
+        await db.business_login_links.delete_many({"user_id": uid})
     await db.pings.delete_many({"$or": [{"from_user_id": uid}, {"to_user_id": uid}]})
     await db.matches.delete_many({"$or": [{"user_a": uid}, {"user_b": uid}]})
     await db.meetups.delete_many({"$or": [{"user_a": uid}, {"user_b": uid}]})
@@ -1018,6 +1044,13 @@ async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current
     })
     _es_fire(email_service.send("account_deletion_completed",
                                 to_email=user.get("email"), ctx={"name": user.get("name")}))
+    if _biz:
+        # Dedicated Business deletion confirmation to the business email as well.
+        _es_fire(email_service.send("business_account_deleted",
+                                    to_email=_biz.get("email") or user.get("email"),
+                                    entity_id=_biz.get("id"),
+                                    ctx={"business_name": _biz.get("name") or user.get("display_name") or "",
+                                         "deleted_at": datetime.now(timezone.utc).strftime("%d %B %Y, %H:%M UTC")}))
     return {"ok": True, "message": "Your account and personal data have been deleted"}
 
 

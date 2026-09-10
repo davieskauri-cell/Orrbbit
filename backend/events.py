@@ -481,3 +481,7 @@ def bind(server):
             "created_at": now_iso(),
         })
         return {"ok": True}
+
+    # Shared with server.delete_account — immediate host-deletion cascade
+    # (cancel + Radar/Nearby removal + attendee notification/email, deduped).
+    server.cancel_orphan_event = _cancel_orphan

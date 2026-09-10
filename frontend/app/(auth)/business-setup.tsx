@@ -4,6 +4,7 @@ import { useRouter, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, font } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
 import { useAuth } from "@/src/context/AuthContext";
@@ -23,6 +24,11 @@ async function pickImage(): Promise<string | null> {
 }
 
 const STEP_LABELS = ["Details", "Contact", "About", "Verify", "Subscribe", "Finish"];
+
+// Fallback if the backend country list is unavailable — selector must never be blank.
+const FALLBACK_COUNTRIES = ["Australia", "New Zealand", "United States", "United Kingdom", "Canada", "Ireland", "Singapore", "Germany", "France", "India", "Other"];
+
+const DRAFT_KEY = "biz_setup_draft";
 
 const PLAN_FEATURES = [
   "Business Profile",
@@ -57,7 +63,8 @@ export default function BusinessSetup() {
   const [primaryContact, setPrimaryContact] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [uploads, setUploads] = useState<Record<string, boolean>>({});
-  const [countries, setCountries] = useState<string[]>([]);
+  const [countries, setCountries] = useState<string[]>(FALLBACK_COUNTRIES);
+  const [countrySearch, setCountrySearch] = useState("");
   const [reqs, setReqs] = useState<Record<string, { registration_label: string; hint: string }>>({});
   const [linkSent, setLinkSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -66,7 +73,8 @@ export default function BusinessSetup() {
   useEffect(() => {
     getMyBusiness().then((r) => {
       setCategories(r.categories || []);
-      setCountries((r as any).countries || []);
+      const list = (r as any).countries || [];
+      if (list.length > 0) setCountries(list);
       setReqs((r as any).country_requirements || {});
       if (r.business) {
         setName(r.business.name); setCategory(r.business.category);
@@ -82,9 +90,33 @@ export default function BusinessSetup() {
         } else {
           setStep(4);
         }
+      } else {
+        // Resume an unfinished sign-up exactly where the business left off — never reset progress.
+        AsyncStorage.getItem(DRAFT_KEY).then((v) => {
+          if (!v) return;
+          try {
+            const d = JSON.parse(v);
+            if (d.name) setName(d.name);
+            if (d.category) setCategory(d.category);
+            if (d.country) setCountry(d.country);
+            if (d.location) setLocation(d.location);
+            if (d.email) setEmail(d.email);
+            if (d.phone) setPhone(d.phone);
+            if (d.primaryContact) setPrimaryContact(d.primaryContact);
+            if (d.website) setWebsite(d.website);
+            if (d.description) setDescription(d.description);
+            if (d.step === 2 || d.step === 3) setStep(d.step);
+          } catch {}
+        }).catch(() => {});
       }
     }).catch(() => {});
   }, []);
+
+  const saveDraft = (nextStep: number) => {
+    AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
+      step: nextStep, name, category, country, location, email, phone, primaryContact, website, description,
+    })).catch(() => {});
+  };
 
   if (user && user.account_type !== "business") return <Redirect href="/(tabs)" />;
   if (user && !user.email_verified && !user.is_demo) return <Redirect href="/(auth)/verify-email" />;
@@ -99,6 +131,7 @@ export default function BusinessSetup() {
     if (!category) return setError("Choose a business type / category.");
     if (!country) return setError("Select your country — verification requirements depend on it.");
     if (!location.trim()) return setError("Business address is required.");
+    saveDraft(2);
     next(2);
   };
 
@@ -107,6 +140,7 @@ export default function BusinessSetup() {
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("A valid business email is required.");
     if (!phone.trim()) return setError("Business phone number is required.");
     if (!primaryContact.trim()) return setError("Primary contact person is required.");
+    saveDraft(3);
     next(3);
   };
 
@@ -124,6 +158,7 @@ export default function BusinessSetup() {
         country, primary_contact: primaryContact.trim(),
         registration_number: registrationNumber.trim(),
       });
+      AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
       next(4);
     } catch (e: any) {
       setError(e?.message || "Could not save your business profile.");
@@ -262,13 +297,40 @@ export default function BusinessSetup() {
           ))}
         </View>
         <Text style={s.label}>Country *</Text>
-        <View style={s.chips}>
-          {countries.map((c) => (
-            <Pressable key={c} testID={`biz-country-${c}`} onPress={() => setCountry(c)} style={[s.chip, country === c && s.chipOn]}>
-              <Text style={[s.chipTxt, country === c && { color: "#FFF" }]}>{c}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {country ? (
+          <Pressable testID="biz-country-selected" onPress={() => setCountry("")} style={s.countrySelected}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.teal} />
+            <Text style={s.countrySelectedTxt}>{country}</Text>
+            <Text style={s.countryChange}>Change</Text>
+          </Pressable>
+        ) : (
+          <>
+            <View style={s.countrySearchBox}>
+              <Ionicons name="search" size={16} color={colors.textTertiary} />
+              <TextInput
+                testID="biz-country-search"
+                value={countrySearch}
+                onChangeText={setCountrySearch}
+                placeholder="Search countries…"
+                placeholderTextColor={colors.textTertiary}
+                style={s.countrySearchInput}
+              />
+            </View>
+            <View style={s.countryList}>
+              {countries
+                .filter((c) => !countrySearch.trim() || c.toLowerCase().includes(countrySearch.trim().toLowerCase()))
+                .map((c) => (
+                  <Pressable key={c} testID={`biz-country-${c}`} onPress={() => { setCountry(c); setCountrySearch(""); }} style={s.countryRow}>
+                    <Text style={s.countryRowTxt}>{c}</Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+                  </Pressable>
+                ))}
+              {countries.filter((c) => !countrySearch.trim() || c.toLowerCase().includes(countrySearch.trim().toLowerCase())).length === 0 && (
+                <Text style={s.helper}>No match — choose “Other” and enter your registration details.</Text>
+              )}
+            </View>
+          </>
+        )}
         <Text style={s.label}>Business Address *</Text>
         <TextInput testID="biz-location" value={location} onChangeText={setLocation} placeholder="Enter your business address" placeholderTextColor={colors.textTertiary} style={s.input} />
         {error && <Text style={s.error}>{error}</Text>}
@@ -398,6 +460,14 @@ const s = StyleSheet.create({
   chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, minHeight: 36, justifyContent: "center" },
   chipOn: { backgroundColor: colors.teal, borderColor: colors.teal },
   chipTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
+  countrySearchBox: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: spacing.lg, minHeight: 48 },
+  countrySearchInput: { flex: 1, color: colors.text, fontSize: font.base, paddingVertical: 12 },
+  countryList: { borderWidth: 1, borderColor: colors.border, borderRadius: 14, marginTop: spacing.sm, maxHeight: 260, overflow: "hidden" },
+  countryRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.card, minHeight: 44 },
+  countryRowTxt: { color: colors.text, fontSize: font.base, fontWeight: "600" },
+  countrySelected: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: colors.teal, backgroundColor: colors.tealSoft, borderRadius: 14, paddingHorizontal: spacing.lg, minHeight: 48 },
+  countrySelectedTxt: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "700" },
+  countryChange: { color: colors.teal, fontSize: font.sm, fontWeight: "800" },
   logoBox: { width: 100, height: 100, borderRadius: 24, borderWidth: 1.5, borderColor: colors.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 4 },
   coverBox: { flex: 1, height: 100, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
   pickTxt: { color: colors.textTertiary, fontSize: font.sm, fontWeight: "600" },
