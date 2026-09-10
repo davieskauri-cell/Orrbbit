@@ -5,6 +5,7 @@ export type BusinessSubscription = {
   product_id?: string;
   price?: string;
   platform?: string | null;
+  started_at?: string | null;
   renews_at?: string | null;
   billing_mode?: string;
   billing_pending_configuration?: boolean;

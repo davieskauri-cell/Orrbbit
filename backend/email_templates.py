@@ -189,6 +189,21 @@ _t("business_verification_link", "Continue your Orrbbit Business verification",
    "Complete verification on your computer",
    "You chose to finish verification for <b>{business_name}</b> on a computer. Log in below with your Orrbbit Business account — your progress is saved and everything stays on the same account.",
    cta=("Continue Verification", "/business/verify?token={link_token}"), trigger="Business taps 'Complete Business Verification on Computer'")
+_t("business_welcome", "Welcome to Orrbbit Business — your dashboard access",
+   "Welcome to Orrbbit Business!",
+   "Hi {business_name},<br><br>Thank you for joining Orrbbit Business. You can manage your Business Profile, "
+   "Events, attendees, reviews and insights from either the Orrbbit mobile app or the Business Dashboard on your computer.<br><br>"
+   "<b>Your Account Details</b><br>"
+   "Business Name: {business_name}<br>"
+   "Verification Status: {verification_status}<br>"
+   "Subscription: {subscription_status}<br><br>"
+   "Business Dashboard: <a href=\"{action_url}\" style=\"color:#20B2AA;\">{action_url}</a><br><br>"
+   "<a href=\"https://www.orrbbit.com/support\" style=\"color:#20B2AA;\">Help Centre</a> · "
+   "<a href=\"https://www.orrbbit.com/terms\" style=\"color:#20B2AA;\">Terms</a> · "
+   "<a href=\"https://www.orrbbit.com/privacy\" style=\"color:#20B2AA;\">Privacy</a> · "
+   "<a href=\"https://www.orrbbit.com/policies\" style=\"color:#20B2AA;\">Business Policies</a>",
+   cta=("Open Business Dashboard", "__CTX_LINK__"),
+   trigger="Business subscription activated (first activation)")
 _t("business_review_request", "How was {event_title}?",
    "How was your experience?",
    "Hi {name},<br><br>Thanks for attending <b>{event_title}</b>, hosted by <b>{business_name}</b>. We'd love to hear about your experience.",
@@ -456,4 +471,6 @@ SAMPLE_CTX = {
     "review_part": ': "Fantastic session, really helpful."', "stats": "4 new connections · 2 sessions",
     "feature": "Live Radar 2.0", "ttl_min": 15, "code_box": code_box("123456"),
     "business_name": "The Park Hotel", "event_title": "Friday Happy Hour", "event_id": "sample", "link_token": "sample-token",
+    "verification_status": "Pending Review", "subscription_status": "$5.99/month (Active)",
+    "action_url": "https://orrbbit.com/business/dashboard",
 }

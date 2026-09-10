@@ -391,6 +391,7 @@ def bind(server):
         sub = biz.get("subscription") or {"status": "not_subscribed"}
         return {"product_id": BUSINESS_PRODUCT_ID, "price": BUSINESS_PRICE,
                 "status": sub.get("status", "not_subscribed"), "platform": sub.get("platform"),
+                "started_at": sub.get("started_at"),
                 "renews_at": sub.get("renews_at"), "billing_mode": BILLING_MODE,
                 "billing_pending_configuration": BILLING_MODE == "disabled",
                 "can_publish": can_publish(biz),
@@ -408,11 +409,22 @@ def bind(server):
             raise HTTPException(status_code=400, detail="Purchases must go through the app store")
         if BILLING_MODE == "disabled":
             raise HTTPException(status_code=400, detail="Billing is not enabled in this environment yet")
+        prev_status = (biz.get("subscription") or {}).get("status", "not_subscribed")
         sub = {"status": "active", "product_id": BUSINESS_PRODUCT_ID,
                "platform": body.platform or "sandbox", "sandbox": BILLING_MODE == "sandbox",
                "transaction_ref": (body.transaction_ref or f"sandbox-{uuid.uuid4().hex[:10]}")[:80],
                "started_at": now_iso(), "renews_at": (_now() + timedelta(days=30)).isoformat()}
         await db.business_profiles.update_one({"id": biz["id"]}, {"$set": {"subscription": sub}})
+        if prev_status != "active":
+            # Welcome / dashboard-access email through the central managed email layer.
+            base = (os.environ.get("CUSTOMER_WEB_BASE_URL") or "https://orrbbit.com").rstrip("/")
+            await _email("business_welcome",
+                         {**user, "email": biz.get("email") or user.get("email")},
+                         ctx={"business_name": biz["name"],
+                              "verification_status": biz.get("verification_status", "Not Submitted"),
+                              "subscription_status": f"{BUSINESS_PRICE} (Active)",
+                              "action_url": f"{base}/business/dashboard"},
+                         entity_id=biz["id"])
         return {"ok": True, "subscription": sub}
 
     @business_router.post("/subscription/cancel")

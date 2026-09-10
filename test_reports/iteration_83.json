@@ -1,0 +1,48 @@
+{
+  "summary": "Iter83 Business refinements — comprehensive backend+frontend QA. Backend: iter83 focused suite 5/5 PASS (new /app/backend/tests/test_iter83_business_welcome.py) proving (a) first POST /api/business/subscription/activate creates exactly ONE db.email_events record with template='business_welcome' for that user, (b) GET /api/business/subscription returns started_at + renews_at + platform + price='$5.99/month', (c) a second activate call while status is still 'active' does NOT create a duplicate business_welcome record, (d) cancel + reactivate DOES emit a fresh business_welcome (because prev_status='cancelled'), (e) GET /api/control/businesses/{id} returns business.subscription, owner.admin_status, verifications[], events[], reviews[], audit[], emails[] (includes business_welcome) and average_rating. Regression: `pytest tests/test_business_platform.py tests/test_iter81_business_secure_link.py` = 15/15 PASS at 11.91s. Frontend mobile 390x844 (Playwright localStorage auth_token JSON-stringified): (1) Business Profile tab — ALL menu sections rendered (ACCOUNT, BUSINESS, SUBSCRIPTION, WEB ACCESS, SUPPORT & LEGAL, ACCOUNT SETTINGS, DANGER ZONE) with expected rows testID'd: biz-edit-profile, biz-menu-events, biz-menu-reviews, biz-menu-insights, biz-menu-notifications, biz-menu-plan, biz-open-dashboard, biz-copy-dashboard, biz-view-public, biz-logout, biz-delete-account. (2) /business-reviews shows exact empty-state text 'Reviews from confirmed attendees will appear here after your events.' (3) /business-subscription shows plan Orrbbit Business $5.99/month, Status Active card, Start Date 9/10/2026, Next Renewal 10/10/2026, Platform, Manage Subscription (bizsub-manage), Cancel Subscription (bizsub-cancel). API round-trip cancel→GET (status='cancelled')→activate=restore verified end-to-end (200 OK). (4) Business dashboard Home shows the four Quick Actions (Create Event/View Profile/Open Dashboard/View Reviews) AND Recent Activity section; tapping 'View Reviews' navigates to /business-reviews (URL confirmed). (5) create-event as BUSINESS user: banner 'BUSINESS HOSTED EVENT' present, selected category chip renders in cobalt blue, photo pickers cobalt (verified via screenshot); as PERSONAL demo user (kauri@intro.demo): banner flips to 'PERSONAL HOSTED EVENT', selected chip renders in orange (screenshot confirmed). Web /business/settings (1366x800) shows Notifications toggles (bizset-notif-events + 4 more toggles, 5 total), Sign Out (bizset-signout) and Delete Account row (bizset-delete). Web /business/subscription shows Started 9/10/2026, Renews 10/10/2026, Platform: Staged (pre-store), Manage Subscription + Cancel Subscription buttons. Full seed data teardown performed at end of run. Two testID naming mismatches vs spec identified (see frontend_issues).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "(business)/index.tsx Quick Actions", "issue": "TestIDs use raw labels with spaces (e.g. 'biz-quick-Create Event', 'biz-quick-View Reviews'). Spec / iter-83 acceptance asked for kebab-case slugs like 'biz-quick-create-event' and 'biz-quick-view-reviews'. Works but breaks the requested convention and any downstream Playwright script using the slug form. Reference: /app/frontend/app/(business)/index.tsx:132 — testID={`biz-quick-${q.label}`}", "testID": "biz-quick-*", "priority": "LOW"},
+      {"component": "business-subscription.tsx", "issue": "Duplicate testID 'bizsub-restore' — one rendered as the outline button (when !active) and a second rendered as a small link 'Restore Purchase' (when active). Two Pressables share the same testID; also showing 'Restore Purchase' while the subscription IS active is odd UX. Reference: /app/frontend/app/business-subscription.tsx:110 and :115.", "testID": "bizsub-restore", "priority": "LOW"},
+      {"component": "business/settings.tsx (web) Web Access rows", "issue": "Rows 'Open Business Dashboard' and 'Copy Dashboard Link' render (text visible in DOM) but do NOT expose the expected testIDs 'bizset-open-dashboard' / 'bizset-copy-dashboard'. Notification toggles + sign-out + delete testIDs are all present.", "testID": "bizset-open-dashboard, bizset-copy-dashboard", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (all screens)", "issues": ["Non-blocking console warnings (carried over): 'shadow*' style props are deprecated on web (should be boxShadow) and 'props.pointerEvents is deprecated' on the business home. Cosmetic only."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter83_business_welcome.py",
+    "/app/backend/tests/test_business_platform.py",
+    "/app/backend/tests/test_iter81_business_secure_link.py",
+    "/app/test_reports/pytest/pytest_iter83.xml",
+    "/app/test_reports/pytest/pytest_iter83_regression.xml"
+  ],
+  "action_items": [
+    "(Low) Rename Quick Action testIDs from `biz-quick-${label}` (with spaces) to kebab slugs: biz-quick-create-event / biz-quick-view-profile / biz-quick-open-dashboard / biz-quick-view-reviews — matches spec and previously-published testID contract. /app/frontend/app/(business)/index.tsx:132.",
+    "(Low) Fix duplicate testID 'bizsub-restore' in /app/frontend/app/business-subscription.tsx — pick one Pressable for the Restore action, or rename the extra link to e.g. 'bizsub-restore-link'. Also consider hiding 'Restore Purchase' link while status is 'active' (redundant / confusing).",
+    "(Low) Add missing testIDs 'bizset-open-dashboard' and 'bizset-copy-dashboard' to the corresponding Web Access rows in /app/frontend/app/business/settings.tsx to match the spec's convention.",
+    "(Optional / cosmetic) Migrate remaining shadow* + props.pointerEvents to boxShadow + style.pointerEvents to silence RN-web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "business.py activate_subscription correctly gates the business_welcome email on `prev_status != 'active'` (line 418), so back-to-back activate calls don't duplicate the welcome. Verified with a 5-test pytest module.",
+    "business.py GET /subscription (line 388-401) now returns started_at + renews_at + platform + price + guidance + billing_pending_configuration — matches iter83 spec.",
+    "control_business_detail (line 590-616) returns owner.admin_status, subscription (inside business), verifications[], events[], reviews[], average_rating, audit[], emails[] — matches Control Centre business detail panel schema.",
+    "(business)/profile.tsx renders all seven menu sections and correctly wires biz-menu-* rows to /business-subscription, /business-reviews, /(auth)/business-setup, /(business)/insights, /(business)/notifications, /business/settings and openBusinessDashboard/copyBusinessDashboardLink from src/lib/businessLinks.ts. Sign Out and Delete Account rows both present with confirm-dialog.",
+    "business-subscription.tsx (line 86-100) renders the Start Date / Next Renewal / Platform key-value card driven by GET /api/business/subscription — verified populated (9/10/2026 / 10/10/2026 / Staged (pre-store)) once activate ran."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter83_business_welcome.py (new — 5/5 pass)"
+  ],
+  "success_rate": {
+    "backend": "20/20 (100%) — 15/15 regression + 5/5 iter83 focused",
+    "frontend": "13/13 UI checks (100%) — all 7 profile sections, all quick actions (testID name aside), business-reviews empty state, business-subscription plan+status+dates+platform+manage+cancel, cobalt-blue business create-event, orange personal create-event, web settings notif toggles, web subscription Started/Renews/Platform/Manage/Cancel"
+  },
+  "seed_data_creation": "Created one mobile UI QA business (biz-ui-qa-8dc98eb7@orrbbitqa.example.com, uid 1ab3655b-..., biz_id 7bc04a45-...) via /app/backend/tests/qa_seed_iter82.py + submitted verification + control-approved (Verified) + sandbox subscription activated. FULL teardown at end: users/business_profiles/business_verifications/business_login_links/notifications/email_events/email_deliveries/admin_audit_logs/events/consent_records all cleaned. Residual orrbbitqa users after teardown: 0. iter83 pytest fixture cleans up its own QA users (unique tag per run).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "For iter83+ reuse: run /app/backend/tests/test_iter83_business_welcome.py alongside test_business_platform.py + test_iter81_business_secure_link.py (all pass on the preview backend). Business_welcome email delivery status is 'failed' for fake @orrbbitqa.example.com recipients, but the email_events RECORD existence is what iter83 asserts. UI seeding: /app/backend/tests/qa_seed_iter82.py still works verbatim (register + email_verified=True in Mongo + business profile). Login via localStorage.setItem('auth_token', JSON.stringify(token)). Note the three testID mismatches under frontend_issues.ui_bugs — main agent should fix these three low-priority naming issues; functionality itself is 100% correct. Web /business/settings testIDs already contain bizset-notif-events + bizset-signout + bizset-delete + bizset-notif-* (5 toggles total). NEVER UI-test /control in browser (production origin) — hit control APIs directly against preview backend.",
+  "rca_of_issue": ""
+}

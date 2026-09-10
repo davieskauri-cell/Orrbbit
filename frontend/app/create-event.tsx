@@ -52,6 +52,8 @@ export default function CreateEvent() {
   const { coords } = useApp();
   const { user } = useAuth();
   const isBiz = user?.account_type === "business";
+  const on = isBiz ? { backgroundColor: colors.cobalt, borderColor: colors.cobalt } : null;
+  const onSoft = isBiz ? { backgroundColor: colors.cobaltSoft } : null;
   const [offer, setOffer] = useState("");
   const editing = !!id;
   const defs = defaultTimes();
@@ -185,13 +187,13 @@ export default function CreateEvent() {
         ) : (
           <View>
             <View style={s.photoRow}>
-              <Pressable testID="photo-library" style={s.photoAdd} onPress={() => pick(false)}>
-                <Ionicons name="images-outline" size={20} color={colors.orange} />
-                <Text style={s.photoAddTxt}>Photo Library</Text>
+              <Pressable testID="photo-library" style={[s.photoAdd, isBiz && { borderColor: colors.cobalt + "66", backgroundColor: colors.cobaltSoft }]} onPress={() => pick(false)}>
+                <Ionicons name="images-outline" size={20} color={isBiz ? colors.cobalt : colors.orange} />
+                <Text style={[s.photoAddTxt, isBiz && { color: colors.cobalt }]}>Photo Library</Text>
               </Pressable>
-              <Pressable testID="photo-camera" style={s.photoAdd} onPress={() => pick(true)}>
-                <Ionicons name="camera-outline" size={20} color={colors.orange} />
-                <Text style={s.photoAddTxt}>Take Photo</Text>
+              <Pressable testID="photo-camera" style={[s.photoAdd, isBiz && { borderColor: colors.cobalt + "66", backgroundColor: colors.cobaltSoft }]} onPress={() => pick(true)}>
+                <Ionicons name="camera-outline" size={20} color={isBiz ? colors.cobalt : colors.orange} />
+                <Text style={[s.photoAddTxt, isBiz && { color: colors.cobalt }]}>Take Photo</Text>
               </Pressable>
             </View>
             <View style={s.infoNote}>
@@ -213,7 +215,7 @@ export default function CreateEvent() {
         <Text style={s.label}>CATEGORY</Text>
         <View style={s.chipWrap}>
           {CATEGORIES.map((c) => (
-            <Pressable key={c} testID={`cat-${c}`} style={[s.chip, category === c && s.chipOn]} onPress={() => setCategory(c)}>
+            <Pressable key={c} testID={`cat-${c}`} style={[s.chip, category === c && [s.chipOn, on]]} onPress={() => setCategory(c)}>
               <Ionicons name={EVENT_CATEGORY_ICONS[c] as any} size={13} color={category === c ? "#FFF" : colors.textSecondary} />
               <Text style={[s.chipTxt, category === c && { color: "#FFF" }]}>{c}</Text>
             </Pressable>
@@ -258,7 +260,7 @@ export default function CreateEvent() {
         <Text style={s.label}>EVENT VISIBILITY RADIUS</Text>
         <View style={s.chipWrap}>
           {RADII.map((r) => (
-            <Pressable key={r} testID={`radius-${r}`} style={[s.chip, radius === r && s.chipOn]} onPress={() => setRadius(r)}>
+            <Pressable key={r} testID={`radius-${r}`} style={[s.chip, radius === r && [s.chipOn, on]]} onPress={() => setRadius(r)}>
               <Text style={[s.chipTxt, radius === r && { color: "#FFF" }]}>{r >= 1000 ? "1km" : `${r}m`}</Text>
             </Pressable>
           ))}
@@ -270,7 +272,7 @@ export default function CreateEvent() {
         <Text style={s.label}>CAPACITY</Text>
         <View style={s.chipWrap}>
           {CAPS.map((c) => (
-            <Pressable key={String(c)} style={[s.chip, cap === c && s.chipOn]} onPress={() => setCap(c)}>
+            <Pressable key={String(c)} style={[s.chip, cap === c && [s.chipOn, on]]} onPress={() => setCap(c)}>
               <Text style={[s.chipTxt, cap === c && { color: "#FFF" }]}>{c === null ? "Unlimited" : c}</Text>
             </Pressable>
           ))}
@@ -278,10 +280,10 @@ export default function CreateEvent() {
 
         <Text style={s.label}>WHO CAN JOIN</Text>
         <View style={s.chipWrap}>
-          <Pressable testID="join-everyone" style={[s.chip, joinType === "everyone" && s.chipOn]} onPress={() => setJoinType("everyone")}>
+          <Pressable testID="join-everyone" style={[s.chip, joinType === "everyone" && [s.chipOn, on]]} onPress={() => setJoinType("everyone")}>
             <Text style={[s.chipTxt, joinType === "everyone" && { color: "#FFF" }]}>Everyone</Text>
           </Pressable>
-          <Pressable testID="join-approval" style={[s.chip, joinType === "approval" && s.chipOn]} onPress={() => setJoinType("approval")}>
+          <Pressable testID="join-approval" style={[s.chip, joinType === "approval" && [s.chipOn, on]]} onPress={() => setJoinType("approval")}>
             <Text style={[s.chipTxt, joinType === "approval" && { color: "#FFF" }]}>Approval Required</Text>
           </Pressable>
         </View>
@@ -301,7 +303,7 @@ export default function CreateEvent() {
                 const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
                 const sel = d.getTime() === new Date(date).setHours(0, 0, 0, 0);
                 return (
-                  <Pressable key={i} testID={`date-opt-${i}`} style={[s.dateRow, sel && s.dateRowOn]} onPress={() => { setDate(d); setDateOpen(false); }}>
+                  <Pressable key={i} testID={`date-opt-${i}`} style={[s.dateRow, sel && [s.dateRowOn, onSoft]]} onPress={() => { setDate(d); setDateOpen(false); }}>
                     <Text style={[s.dateRowTxt, sel && { color: colors.teal, fontWeight: "800" }]}>
                       {i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
                     </Text>
@@ -320,6 +322,7 @@ export default function CreateEvent() {
         title={timeOpen === "start" ? "Start time" : "End time"}
         initial={timeOpen === "end" ? endMin : startMin}
         bottomInset={insets.bottom}
+        isBiz={isBiz}
         onClose={() => setTimeOpen(null)}
         onDone={(mins) => {
           if (timeOpen === "start") {
@@ -335,8 +338,10 @@ export default function CreateEvent() {
 }
 
 /** Native-style 12-hour time picker (hour / minutes / AM-PM columns) — any time, 5-min steps. */
-function TimeSheet({ visible, title, initial, bottomInset, onClose, onDone }:
-  { visible: boolean; title: string; initial: number; bottomInset: number; onClose: () => void; onDone: (mins: number) => void }) {
+function TimeSheet({ visible, title, initial, bottomInset, isBiz, onClose, onDone }:
+  { visible: boolean; title: string; initial: number; bottomInset: number; isBiz?: boolean; onClose: () => void; onDone: (mins: number) => void }) {
+  const on = isBiz ? { backgroundColor: colors.cobalt, borderColor: colors.cobalt } : null;
+  const onSoft = isBiz ? { backgroundColor: colors.cobaltSoft } : null;
   const [h, setH] = useState(9);
   const [m, setM] = useState(30);
   const [ap, setAp] = useState<"AM" | "PM">("PM");
@@ -359,27 +364,27 @@ function TimeSheet({ visible, title, initial, bottomInset, onClose, onDone }:
           <View style={s.wheelRow}>
             <ScrollView style={s.wheelCol} showsVerticalScrollIndicator={false}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((hh) => (
-                <Pressable key={hh} testID={`time-hour-${hh}`} style={[s.wheelOpt, h === hh && s.wheelOptOn]} onPress={() => setH(hh)}>
+                <Pressable key={hh} testID={`time-hour-${hh}`} style={[s.wheelOpt, h === hh && [s.wheelOptOn, onSoft]]} onPress={() => setH(hh)}>
                   <Text style={[s.wheelTxt, h === hh && s.wheelTxtOn]}>{hh}</Text>
                 </Pressable>
               ))}
             </ScrollView>
             <ScrollView style={s.wheelCol} showsVerticalScrollIndicator={false}>
               {Array.from({ length: 12 }, (_, i) => i * 5).map((mm) => (
-                <Pressable key={mm} testID={`time-min-${mm}`} style={[s.wheelOpt, m === mm && s.wheelOptOn]} onPress={() => setM(mm)}>
+                <Pressable key={mm} testID={`time-min-${mm}`} style={[s.wheelOpt, m === mm && [s.wheelOptOn, onSoft]]} onPress={() => setM(mm)}>
                   <Text style={[s.wheelTxt, m === mm && s.wheelTxtOn]}>{String(mm).padStart(2, "0")}</Text>
                 </Pressable>
               ))}
             </ScrollView>
             <View style={[s.wheelCol, { justifyContent: "center", gap: 10 }]}>
               {(["AM", "PM"] as const).map((a) => (
-                <Pressable key={a} testID={`time-${a}`} style={[s.apBtn, ap === a && s.apBtnOn]} onPress={() => setAp(a)}>
+                <Pressable key={a} testID={`time-${a}`} style={[s.apBtn, ap === a && [s.apBtnOn, on]]} onPress={() => setAp(a)}>
                   <Text style={[s.apTxt, ap === a && { color: "#FFF" }]}>{a}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
-          <Pressable testID="time-done" style={s.sheetDone} onPress={commit}>
+          <Pressable testID="time-done" style={[s.sheetDone, isBiz && { backgroundColor: colors.cobalt }]} onPress={commit}>
             <Text style={s.sheetDoneTxt}>Set {`${h}:${String(m).padStart(2, "0")} ${ap}`}</Text>
           </Pressable>
         </Pressable>

@@ -128,8 +128,8 @@ export default function EventDetail() {
             <EventPoster uri={ev.cover_image} radius={18} style={{ marginBottom: spacing.lg }} />
           </Pressable>
         ) : (
-          <View style={[s.cover, shadow.card]}>
-            <Ionicons name={icon as any} size={44} color={colors.orange} />
+          <View style={[s.cover, shadow.card, ev.host_type === "business" && { backgroundColor: colors.cobaltSoft }]}>
+            <Ionicons name={icon as any} size={44} color={ev.host_type === "business" ? colors.cobalt : colors.orange} />
           </View>
         )}
         {ev.status === "cancelled" && <View style={s.cancelBanner} testID="cancelled-banner"><Text style={s.cancelTxt}>EVENT CANCELLED</Text></View>}
@@ -202,7 +202,7 @@ export default function EventDetail() {
         {/* host management */}
         {ev.is_host && !closed && (
           <View style={s.hostTools}>
-            <Pressable testID="edit-event" style={s.toolBtn} onPress={() => router.push(`/create-event?id=${ev.id}`)}><Ionicons name="create-outline" size={16} color={colors.text} /><Text style={s.toolTxt}>Edit Event</Text></Pressable>
+            <Pressable testID="edit-event" style={[s.toolBtn, ev.host_type === "business" && { borderColor: colors.cobalt }]} onPress={() => router.push(`/create-event?id=${ev.id}`)}><Ionicons name="create-outline" size={16} color={ev.host_type === "business" ? colors.cobalt : colors.text} /><Text style={[s.toolTxt, ev.host_type === "business" && { color: colors.cobalt }]}>Edit Event</Text></Pressable>
             <Pressable testID="cancel-event" style={s.toolBtn} onPress={doCancel}><Ionicons name="close-circle-outline" size={16} color="#DC2626" /><Text style={[s.toolTxt, { color: "#DC2626" }]}>Cancel Event</Text></Pressable>
           </View>
         )}
@@ -226,7 +226,7 @@ export default function EventDetail() {
               <Text style={[s.ctaTxt, { color: colors.teal }]}>REQUEST SENT · Tap to withdraw</Text>
             </Pressable>
           ) : (
-            <Pressable testID="join-event" style={[s.cta, full && { opacity: 0.5 }]} onPress={doJoin} disabled={busy || full}>
+            <Pressable testID="join-event" style={[s.cta, ev.host_type === "business" && { backgroundColor: colors.cobalt }, full && { opacity: 0.5 }]} onPress={doJoin} disabled={busy || full}>
               {busy ? <ActivityIndicator color="#FFF" /> : <Text style={s.ctaTxt}>{full ? "EVENT FULL" : ev.join_type === "approval" ? "REQUEST TO JOIN" : "JOIN EVENT"}</Text>}
             </Pressable>
           )}

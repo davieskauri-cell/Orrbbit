@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, font, shadow } from "@/src/theme";
 import { LogoMark, Wordmark } from "@/src/components/Logo";
+import { api } from "@/src/lib/api";
+import { openBusinessDashboard } from "@/src/lib/businessLinks";
 import { getBusinessOverview, getMyBusiness, BizOverview, Business } from "@/src/services/businessService";
 import { myEvents, OrbEvent } from "@/src/services/eventService";
 
@@ -43,6 +45,7 @@ export default function BusinessHome() {
   const [ov, setOv] = useState<BizOverview | null>(null);
   const [biz, setBiz] = useState<Business | null>(null);
   const [upcoming, setUpcoming] = useState<OrbEvent[]>([]);
+  const [activity, setActivity] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(() => {
@@ -58,6 +61,7 @@ export default function BusinessHome() {
     }).catch(() => {});
     getMyBusiness().then((r) => setBiz(r.business)).catch(() => {});
     myEvents().then((r) => setUpcoming(r.hosting.filter((e) => e.status === "active" || e.status === "full").slice(0, 4))).catch(() => {});
+    api<{ notifications: any[] }>("/notifications").then((r) => setActivity(r.notifications.slice(0, 4))).catch(() => {});
   }, [router]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -117,6 +121,21 @@ export default function BusinessHome() {
         <Text style={st.ctaTxt}>Create Event</Text>
       </Pressable>
 
+      <Text style={[st.section, { marginTop: spacing.xl, marginBottom: spacing.md }]}>Quick Actions</Text>
+      <View style={st.quickRow}>
+        {[
+          { label: "Create Event", key: "create-event", icon: "add-circle-outline", onPress: () => router.push("/create-event") },
+          { label: "View Profile", key: "view-profile", icon: "storefront-outline", onPress: () => router.push("/(business)/profile") },
+          { label: "Open Dashboard", key: "open-dashboard", icon: "desktop-outline", onPress: openBusinessDashboard },
+          { label: "View Reviews", key: "view-reviews", icon: "star-outline", onPress: () => router.push("/business-reviews") },
+        ].map((q) => (
+          <Pressable key={q.label} testID={`biz-quick-${q.key}`} onPress={q.onPress} style={st.quick}>
+            <View style={st.quickIcon}><Ionicons name={q.icon as any} size={18} color={colors.cobalt} /></View>
+            <Text style={st.quickTxt}>{q.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       <View style={st.sectionRow}>
         <Text style={st.section}>Upcoming Events</Text>
         <Pressable onPress={() => router.push("/(business)/events")} hitSlop={8}>
@@ -144,6 +163,35 @@ export default function BusinessHome() {
           <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
         </Pressable>
       ))}
+
+      <View style={st.sectionRow}>
+        <Text style={st.section}>Recent Activity</Text>
+        <Pressable onPress={() => router.push("/(business)/notifications")} hitSlop={8}>
+          <Text style={st.seeAll}>See All</Text>
+        </Pressable>
+      </View>
+      {activity.length === 0 ? (
+        <View style={st.emptyBox}>
+          <Text style={st.empty}>Attendee activity, reviews and verification updates appear here.</Text>
+        </View>
+      ) : activity.map((n) => {
+        const t = String(n.type || "");
+        const look = t.includes("review") ? { icon: "star", color: "#B45309", bg: "#FEF3C7" }
+          : t.includes("verification") ? { icon: "shield-checkmark", color: colors.purple, bg: "#F1EBFE" }
+            : t.includes("cancel") || t.includes("full") ? { icon: "alert-circle", color: "#DC2626", bg: "#FEE2E2" }
+              : { icon: "person-add", color: colors.orange, bg: colors.orangeSoft };
+        return (
+          <View key={n.id} style={st.actRow}>
+            <View style={[st.actIcon, { backgroundColor: look.bg }]}>
+              <Ionicons name={look.icon as any} size={14} color={look.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={st.actTxt} numberOfLines={2}>{n.title || n.message}</Text>
+              <Text style={st.actMeta}>{String(n.created_at || "").slice(0, 16).replace("T", " ")}</Text>
+            </View>
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -182,4 +230,12 @@ const st = StyleSheet.create({
   evThumbFallback: { backgroundColor: colors.cobaltSoft, alignItems: "center", justifyContent: "center" },
   evTitle: { color: colors.text, fontSize: font.base, fontWeight: "700" },
   evMeta: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2 },
+  quickRow: { flexDirection: "row", gap: spacing.sm },
+  quick: { flex: 1, alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: spacing.md, backgroundColor: colors.surface, minHeight: 72 },
+  quickIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.cobaltSoft, alignItems: "center", justifyContent: "center" },
+  quickTxt: { color: colors.text, fontSize: 10, fontWeight: "700", textAlign: "center", paddingHorizontal: 2 },
+  actRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.card },
+  actIcon: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  actTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600", lineHeight: 18 },
+  actMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 2 },
 });

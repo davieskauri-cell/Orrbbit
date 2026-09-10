@@ -174,6 +174,9 @@ export default function ControlBusinessVerification() {
                     ["Business Phone", detail.business.phone || "—"],
                     ["Website", detail.business.website || "—"],
                     ["Owner account", detail.owner.email],
+                    ["Account State", detail.owner.admin_status || "active"],
+                    ["Active Events", String((detail.events || []).filter((e: any) => ["active", "full"].includes(e.status)).length)],
+                    ["Reviews", `${detail.review_count ?? 0}${detail.average_rating != null ? ` · avg ${detail.average_rating}` : ""}`],
                   ].map(([k, v]) => (
                     <View key={k as string} style={st.kvItem}>
                       <Text style={st.kvKey}>{k}</Text>
@@ -181,6 +184,21 @@ export default function ControlBusinessVerification() {
                     </View>
                   ))}
                 </View>
+                {(() => {
+                  const s = detail.business.subscription || { status: "not_subscribed" };
+                  const bad = ["cancelled", "expired", "billing_issue"].includes(s.status);
+                  return (
+                    <View style={[st.box, bad && { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" }]} testID="bv-subscription">
+                      <Text style={[st.kv, { fontWeight: "800" }]}>Subscription: <Text style={{ color: bad ? "#B91C1C" : s.status === "active" ? "#15803D" : CC.sub, textTransform: "capitalize" }}>{String(s.status).replace("_", " ")}</Text></Text>
+                      <Text style={st.meta}>
+                        {s.started_at ? `Started ${String(s.started_at).slice(0, 10)} · ` : ""}
+                        {s.renews_at ? `Renews ${String(s.renews_at).slice(0, 10)} · ` : ""}
+                        Platform: {s.platform || "—"}
+                      </Text>
+                      {bad && <Text style={[st.meta, { color: "#B91C1C", fontWeight: "700" }]}>⚠ Subscription is {String(s.status).replace("_", " ")} — Business publishing may be blocked.</Text>}
+                    </View>
+                  );
+                })()}
                 {(detail.verifications || []).map((v: any) => (
                   <View key={v.id} style={st.box}>
                     <Text style={st.kv}>Legal name: {v.legal_name} · {v.registration_label || "Registration"}: {v.abn || "—"}</Text>
@@ -202,6 +220,30 @@ export default function ControlBusinessVerification() {
                   <Btn title="Reinstate" variant="outline" onPress={() => act("reinstate")} />
                 </View>
                 <Text style={st.meta}>Every action is audited and triggers the central in-app + email pipeline.</Text>
+                {(detail.events || []).length > 0 && (
+                  <View style={st.box}>
+                    <Text style={[st.kv, { fontWeight: "800" }]}>Events ({(detail.events || []).length})</Text>
+                    {(detail.events || []).slice(0, 5).map((e: any) => (
+                      <Text key={e.id} style={st.meta}>• {e.title} · {e.category} · {e.status} · {String(e.start_datetime).slice(0, 10)}</Text>
+                    ))}
+                  </View>
+                )}
+                {(detail.emails || []).length > 0 && (
+                  <View style={st.box}>
+                    <Text style={[st.kv, { fontWeight: "800" }]}>Email Records ({(detail.emails || []).length})</Text>
+                    {(detail.emails || []).slice(0, 5).map((m: any, i: number) => (
+                      <Text key={i} style={st.meta}>• {String(m.created_at || "").slice(0, 16)} — {m.template_key || m.key || m.subject || "email"} · {m.status}</Text>
+                    ))}
+                  </View>
+                )}
+                {(detail.audit || []).length > 0 && (
+                  <View style={st.box}>
+                    <Text style={[st.kv, { fontWeight: "800" }]}>Audit History ({(detail.audit || []).length})</Text>
+                    {(detail.audit || []).slice(0, 5).map((a: any, i: number) => (
+                      <Text key={i} style={st.meta}>• {String(a.created_at || "").slice(0, 16)} — {a.action}{a.admin_email ? ` by ${a.admin_email}` : ""}{a.reason ? ` — ${a.reason}` : ""}</Text>
+                    ))}
+                  </View>
+                )}
               </>
             )}
           </Card>

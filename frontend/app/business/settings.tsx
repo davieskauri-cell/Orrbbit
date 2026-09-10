@@ -1,15 +1,66 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Switch } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import BizShell, { BizCard } from "@/src/business/BizShell";
 import { colors, spacing, font } from "@/src/theme";
 import { showAlert } from "@/src/lib/alert";
+import { openLegal } from "@/src/lib/legalLinks";
+import { openBusinessDashboard, copyBusinessDashboardLink } from "@/src/lib/businessLinks";
+import { useAuth } from "@/src/context/AuthContext";
+import { api } from "@/src/lib/api";
 import { getMyBusiness, saveBusiness, submitBusinessVerification, Business } from "@/src/services/businessService";
 
+const NOTIF_PREFS = [
+  { key: "events", label: "Event notifications" },
+  { key: "attendees", label: "Attendee notifications" },
+  { key: "reviews", label: "Review notifications" },
+  { key: "verification", label: "Verification notifications" },
+  { key: "account", label: "Account notifications" },
+];
+
 export default function BizSettings() {
+  const router = useRouter();
+  const { signOut } = useAuth();
   const [biz, setBiz] = useState<Business | null>(null);
   const [form, setForm] = useState<any>({});
   const [busy, setBusy] = useState(false);
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({});
+
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem("biz_notif_prefs").then((v) => {
+      const stored = v ? JSON.parse(v) : {};
+      const merged: Record<string, boolean> = {};
+      NOTIF_PREFS.forEach((p) => { merged[p.key] = stored[p.key] !== false; });
+      setPrefs(merged);
+    }).catch(() => {});
+  }, []));
+
+  const togglePref = (key: string) => {
+    setPrefs((p) => {
+      const next = { ...p, [key]: !p[key] };
+      AsyncStorage.setItem("biz_notif_prefs", JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const deleteAccount = () => {
+    showAlert(
+      "Delete Business Account?",
+      "This permanently deletes your business account, Business Profile and cancels your hosted events. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete", style: "destructive",
+          onPress: async () => {
+            try { await api("/users/me", { method: "DELETE" }); await signOut(); }
+            catch (e: any) { showAlert("Delete account", e?.message || "Could not delete your account."); }
+          },
+        },
+      ]
+    );
+  };
 
   useFocusEffect(useCallback(() => {
     getMyBusiness().then((r) => {
@@ -72,7 +123,55 @@ export default function BizSettings() {
           </Pressable>
         </BizCard>
       )}
+      <BizCard>
+        <Text style={st.vTitle}>Notifications</Text>
+        {NOTIF_PREFS.map((p) => (
+          <View key={p.key} style={st.prefRow}>
+            <Text style={st.prefTxt}>{p.label}</Text>
+            <Switch testID={`bizset-notif-${p.key}`} value={prefs[p.key] !== false} onValueChange={() => togglePref(p.key)}
+              trackColor={{ true: colors.cobalt, false: colors.border }} thumbColor="#FFF" />
+          </View>
+        ))}
+      </BizCard>
+      <BizCard>
+        <Text style={st.vTitle}>Subscription</Text>
+        <LinkRow testID="bizset-sub" icon="card-outline" label="Orrbbit Business — Manage Subscription" onPress={() => router.push("/business/subscription")} />
+      </BizCard>
+      <BizCard>
+        <Text style={st.vTitle}>Web access</Text>
+        <LinkRow testID="bizset-open-dashboard" icon="desktop-outline" label="Open Business Dashboard" onPress={openBusinessDashboard} />
+        <LinkRow testID="bizset-copy-dashboard" icon="copy-outline" label="Copy Dashboard Link" onPress={copyBusinessDashboardLink} />
+      </BizCard>
+      <BizCard>
+        <Text style={st.vTitle}>Legal</Text>
+        <LinkRow icon="document-text-outline" label="Terms of Service" onPress={() => openLegal("terms")} />
+        <LinkRow icon="lock-closed-outline" label="Privacy Policy" onPress={() => openLegal("privacy")} />
+        <LinkRow icon="shield-outline" label="Safety Centre" onPress={() => openLegal("safety")} />
+        <LinkRow icon="people-outline" label="Community Guidelines" onPress={() => openLegal("community_guidelines")} />
+        <LinkRow icon="receipt-outline" label="Refund / Cancellation Policy" onPress={() => openLegal("refunds")} />
+      </BizCard>
+      <BizCard>
+        <Text style={st.vTitle}>Support</Text>
+        <LinkRow icon="help-buoy-outline" label="Contact Support" onPress={() => openLegal("support")} />
+        <LinkRow icon="book-outline" label="Help Centre" onPress={() => openLegal("support")} />
+        <LinkRow icon="key-outline" label="Password / Security" onPress={() => router.push("/(auth)/forgot-password")} />
+      </BizCard>
+      <BizCard>
+        <Text style={st.vTitle}>Account actions</Text>
+        <LinkRow testID="bizset-signout" icon="log-out-outline" label="Sign Out" danger onPress={signOut} />
+        <LinkRow testID="bizset-delete" icon="trash-outline" label="Delete Business Account" danger onPress={deleteAccount} />
+      </BizCard>
     </BizShell>
+  );
+}
+
+function LinkRow({ icon, label, onPress, danger, testID }: { icon: string; label: string; onPress: () => void; danger?: boolean; testID?: string }) {
+  return (
+    <Pressable testID={testID} onPress={onPress} style={st.linkRow}>
+      <Ionicons name={icon as any} size={17} color={danger ? "#DC2626" : colors.cobalt} />
+      <Text style={[st.linkTxt, danger && { color: "#DC2626" }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+    </Pressable>
   );
 }
 
@@ -83,4 +182,8 @@ const st = StyleSheet.create({
   ctaTxt: { color: "#FFF", fontWeight: "800", fontSize: font.base },
   vTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   vSub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 4 },
+  prefRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.card, minHeight: 44 },
+  prefTxt: { color: colors.text, fontSize: font.base, fontWeight: "600" },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.card, minHeight: 44 },
+  linkTxt: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "600" },
 });

@@ -5,8 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, font } from "@/src/theme";
 import { useAuth } from "@/src/context/AuthContext";
+import { api } from "@/src/lib/api";
 import { getMyBusiness, submitBusinessVerification, Business } from "@/src/services/businessService";
 import { showAlert } from "@/src/lib/alert";
+import { openLegal } from "@/src/lib/legalLinks";
+import { openBusinessDashboard, copyBusinessDashboardLink } from "@/src/lib/businessLinks";
 import { VerifBadge } from "./index";
 
 export default function BusinessProfileTab() {
@@ -34,6 +37,28 @@ export default function BusinessProfileTab() {
   };
 
   const sub = biz?.subscription;
+
+  const deleteAccount = () => {
+    showAlert(
+      "Delete Business Account?",
+      "This permanently deletes your business account, Business Profile and cancels your hosted events. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete", style: "destructive",
+          onPress: async () => {
+            try {
+              await api("/users/me", { method: "DELETE" });
+              await signOut();
+            } catch (e: any) {
+              showAlert("Delete account", e?.message || "Could not delete your account.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView style={st.wrap} contentContainerStyle={{ paddingTop: insets.top + spacing.lg, padding: spacing.xl, paddingBottom: insets.bottom + spacing.xxxl }}>
       <Text style={st.title}>Business Profile</Text>
@@ -76,20 +101,67 @@ export default function BusinessProfileTab() {
             )}
           </View>
 
-          <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
-            <Pressable testID="biz-edit-profile" onPress={() => router.push("/(auth)/business-setup")} style={st.rowBtn}>
-              <Ionicons name="create-outline" size={18} color={colors.text} /><Text style={st.rowTxt}>Edit Business Profile</Text>
-            </Pressable>
-            <Pressable testID="biz-view-public" onPress={() => router.push(`/business/${biz.slug || biz.id}`)} style={st.rowBtn}>
-              <Ionicons name="eye-outline" size={18} color={colors.text} /><Text style={st.rowTxt}>View Public Profile</Text>
-            </Pressable>
-            <Pressable testID="biz-logout" onPress={signOut} style={st.rowBtn}>
-              <Ionicons name="log-out-outline" size={18} color="#DC2626" /><Text style={[st.rowTxt, { color: "#DC2626" }]}>Log out</Text>
-            </Pressable>
-          </View>
+          <Section title="ACCOUNT">
+            <Row testID="biz-edit-profile" icon="create-outline" label="Edit Business Profile" onPress={() => router.push("/(auth)/business-setup")} />
+            <Row testID="biz-menu-verification" icon="shield-checkmark-outline" label="Business Verification" badge={biz.verification_status} onPress={() => router.push("/(auth)/business-setup")} />
+            <Row testID="biz-menu-contact" icon="call-outline" label="Business Contact Details" onPress={() => router.push("/business/settings")} />
+          </Section>
+          <Section title="BUSINESS">
+            <Row testID="biz-menu-events" icon="calendar-outline" label="My Events" onPress={() => router.push("/(business)/events")} />
+            <Row testID="biz-menu-reviews" icon="star-outline" label="Reviews & Ratings" onPress={() => router.push("/business-reviews")} />
+            <Row testID="biz-menu-insights" icon="bar-chart-outline" label="Insights / Analytics" onPress={() => router.push("/(business)/insights")} />
+            <Row testID="biz-menu-notifications" icon="notifications-outline" label="Notifications" onPress={() => router.push("/(business)/notifications")} />
+          </Section>
+          <Section title="SUBSCRIPTION">
+            <Row testID="biz-menu-plan" icon="ribbon-outline" label="Orrbbit Business Plan" badge={(sub?.status || "not subscribed").replace("_", " ")} onPress={() => router.push("/business-subscription")} />
+            <Row testID="biz-menu-manage-sub" icon="card-outline" label="Manage Subscription" onPress={() => router.push("/business-subscription")} />
+          </Section>
+          <Section title="WEB ACCESS">
+            <Row testID="biz-open-dashboard" icon="desktop-outline" label="Open Business Web Dashboard" onPress={openBusinessDashboard} />
+            <Row testID="biz-copy-dashboard" icon="copy-outline" label="Copy Business Dashboard Link" onPress={copyBusinessDashboardLink} />
+            <Row testID="biz-view-public" icon="eye-outline" label="View Public Business Profile" onPress={() => router.push(`/business/${biz.slug || biz.id}`)} />
+          </Section>
+          <Section title="SUPPORT & LEGAL">
+            <Row icon="help-buoy-outline" label="Help & Support" onPress={() => openLegal("support")} />
+            <Row icon="document-text-outline" label="Terms of Service" onPress={() => openLegal("terms")} />
+            <Row icon="lock-closed-outline" label="Privacy Policy" onPress={() => openLegal("privacy")} />
+            <Row icon="people-outline" label="Community Guidelines" onPress={() => openLegal("community_guidelines")} />
+            <Row icon="shield-outline" label="Safety Centre" onPress={() => openLegal("safety")} />
+            <Row icon="receipt-outline" label="Payments / Cancellation / Refund Policy" onPress={() => openLegal("refunds")} />
+            <Row icon="briefcase-outline" label="Business Policies" onPress={() => openLegal("policies")} />
+          </Section>
+          <Section title="ACCOUNT SETTINGS">
+            <Row testID="biz-menu-settings" icon="settings-outline" label="Notification Settings" onPress={() => router.push("/business/settings")} />
+            <Row icon="mail-outline" label="Email Preferences" onPress={() => router.push("/email-preferences")} />
+            <Row icon="key-outline" label="Password / Security" onPress={() => router.push("/(auth)/forgot-password")} />
+            <Row testID="biz-logout" icon="log-out-outline" label="Sign Out" danger onPress={signOut} />
+          </Section>
+          <Section title="DANGER ZONE">
+            <Row testID="biz-delete-account" icon="trash-outline" label="Delete Business Account" danger onPress={deleteAccount} />
+          </Section>
         </>
       )}
     </ScrollView>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginTop: spacing.xl }}>
+      <Text style={st.sectionLbl}>{title}</Text>
+      <View style={st.sectionBox}>{children}</View>
+    </View>
+  );
+}
+
+function Row({ icon, label, onPress, badge, danger, testID }: { icon: string; label: string; onPress: () => void; badge?: string; danger?: boolean; testID?: string }) {
+  return (
+    <Pressable testID={testID} onPress={onPress} style={st.menuRow}>
+      <Ionicons name={icon as any} size={18} color={danger ? "#DC2626" : colors.cobalt} />
+      <Text style={[st.menuTxt, danger && { color: "#DC2626" }]}>{label}</Text>
+      {!!badge && <View style={st.menuBadge}><Text style={st.menuBadgeTxt}>{badge}</Text></View>}
+      <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
+    </Pressable>
   );
 }
 
@@ -115,4 +187,10 @@ const st = StyleSheet.create({
   subNote: { color: colors.textSecondary, fontSize: font.sm, marginTop: 6, lineHeight: 17 },
   rowBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: spacing.lg },
   rowTxt: { color: colors.text, fontSize: font.base, fontWeight: "700" },
+  sectionLbl: { color: colors.textTertiary, fontSize: 11, fontWeight: "800", letterSpacing: 1, marginBottom: spacing.sm },
+  sectionBox: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, overflow: "hidden" },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: spacing.lg, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.card, minHeight: 48 },
+  menuTxt: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "600" },
+  menuBadge: { backgroundColor: colors.cobaltSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  menuBadgeTxt: { color: colors.cobalt, fontSize: 10, fontWeight: "800" },
 });
