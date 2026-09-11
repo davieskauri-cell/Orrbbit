@@ -169,10 +169,12 @@ _t("welcome", "Welcome to Orrbbit 🎉", "Welcome to Orrbbit, {name}!",
    cta=("Open Orrbbit", "/"), trigger="On registration")
 
 # ---------------------------------------------------------------- BUSINESS (mandatory transactional)
-_t("business_verification_approved", "Your business is now Verified on Orrbbit ✓",
-   "Verified Business",
-   "Great news, {name} — <b>{business_name}</b> has been verified. Your Verified Business badge is now live and your Business Hosted Events carry the verified mark.",
-   cta=("Open Business Dashboard", "/business/dashboard"), trigger="Admin approves business verification")
+_t("business_verification_approved", "Your Orrbbit Business account has been verified ✓",
+   "Your Business is verified",
+   "Great news, {name} — your Orrbbit Business account for <b>{business_name}</b> has been verified. "
+   "Your account is now active and you can access your Business dashboard, host Business Events and "
+   "display your Verified Business badge.",
+   cta=("Access Business Dashboard", "__CTX_LINK__"), trigger="Admin approves business verification")
 _t("business_verification_more_info", "More information needed for your Orrbbit business verification",
    "More information required",
    "We need a little more information to verify <b>{business_name}</b>. {note} Please update your verification details and resubmit.",

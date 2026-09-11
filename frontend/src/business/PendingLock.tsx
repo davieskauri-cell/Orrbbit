@@ -15,21 +15,29 @@ export default function PendingLock({ biz, status }: { biz?: Business | null; st
   const { signOut } = useAuth();
   const moreInfo = status === "More Info Required" || status === "Reverification Required";
   const inProgress = status === "In Progress" || status === "Not Submitted";
+  const rejected = status === "Rejected";
+  const blocked = status === "Suspended" || status === "Revoked";
+  const title = blocked
+    ? (status === "Suspended" ? "Business account suspended" : "Business verification revoked")
+    : rejected ? "Verification not approved"
+      : moreInfo ? "More information required"
+        : inProgress ? "Finish your verification" : "Verification Pending";
+  const message = blocked
+    ? `Your Orrbbit Business account has been ${status.toLowerCase()}. Business features are unavailable. Please contact support if you believe this is a mistake.`
+    : rejected
+      ? "Your Business verification was not approved. Review your submitted details and resubmit, or contact support for help."
+      : moreInfo
+        ? "Orrbbit needs more information to verify your business. Continue verification to respond."
+        : inProgress
+          ? "Complete and submit your business verification to unlock your Business Dashboard."
+          : "Your Orrbbit Business account is currently being reviewed. We'll notify you by email once your Business has been approved or if we need more information.";
   return (
     <View style={st.wrap} testID="biz-pending-lock">
       <View style={st.iconCircle}>
-        <Ionicons name={moreInfo ? "alert-circle" : "time"} size={40} color={colors.cobalt} />
+        <Ionicons name={blocked ? "ban" : moreInfo || rejected ? "alert-circle" : "time"} size={40} color={colors.cobalt} />
       </View>
-      <Text style={st.title}>
-        {moreInfo ? "More information required" : inProgress ? "Finish your verification" : "Verification Pending"}
-      </Text>
-      <Text style={st.txt}>
-        {moreInfo
-          ? "Orrbbit needs more information to verify your business. Continue verification to respond."
-          : inProgress
-            ? "Complete and submit your business verification to unlock your Business Dashboard."
-            : "Your Business verification has been submitted and is currently being reviewed by Orrbbit. We'll email you as soon as your Business is approved or if we need more information."}
-      </Text>
+      <Text style={st.title}>{title}</Text>
+      <Text style={st.txt}>{message}</Text>
       {biz && (
         <View style={st.card}>
           <Text style={st.cardTitle}>Submitted details</Text>
@@ -47,9 +55,11 @@ export default function PendingLock({ biz, status }: { biz?: Business | null; st
           ))}
         </View>
       )}
-      <Pressable testID="biz-lock-continue" onPress={() => router.push("/(auth)/business-setup")} style={st.primary}>
-        <Text style={st.primaryTxt}>{moreInfo || inProgress ? "Continue Verification" : "View Verification Status"}</Text>
-      </Pressable>
+      {!blocked && (
+        <Pressable testID="biz-lock-continue" onPress={() => router.push("/(auth)/business-setup")} style={st.primary}>
+          <Text style={st.primaryTxt}>{rejected ? "Review & Resubmit" : moreInfo || inProgress ? "Continue Verification" : "View Verification Status"}</Text>
+        </Pressable>
+      )}
       <Pressable onPress={() => openLegal("support")} style={st.linkRow} hitSlop={8}>
         <Text style={st.linkTxt}>Contact Support</Text>
       </Pressable>

@@ -24,6 +24,7 @@ export type OrbEvent = {
   offer?: string | null;
   is_host: boolean;
   my_status?: string | null;
+  location_locked?: boolean;
 };
 
 export const EVENT_CATEGORY_ICONS: Record<string, string> = {

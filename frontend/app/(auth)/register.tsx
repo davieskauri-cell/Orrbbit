@@ -331,6 +331,9 @@ export default function Register() {
               onPress={submitAge}
               style={{ marginTop: spacing.xl }}
             />
+            <Pressable testID="register-return-login-age" onPress={() => router.replace("/(auth)/login")} style={styles.linkRow}>
+              <Text style={[styles.linkText, { color: colors.teal, fontWeight: "700" }]}>Return to Login</Text>
+            </Pressable>
           </>
         )}
 
@@ -384,6 +387,9 @@ export default function Register() {
               disabled={!acceptPolicies}
               style={{ marginTop: spacing.xl, opacity: acceptPolicies ? 1 : 0.5 }}
             />
+            <Pressable testID="register-return-login-consent" onPress={() => router.replace("/(auth)/login")} style={styles.linkRow}>
+              <Text style={[styles.linkText, { color: colors.teal, fontWeight: "700" }]}>Return to Login</Text>
+            </Pressable>
           </>
         )}
 

@@ -8,6 +8,7 @@ import { showAlert } from "@/src/lib/alert";
 import { useApp } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { createEvent, editEvent, getEvent, EVENT_CATEGORY_ICONS } from "@/src/services/eventService";
+import { getBusinessOverview } from "@/src/services/businessService";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import EventPoster from "@/src/components/EventPoster";
@@ -72,6 +73,19 @@ export default function CreateEvent() {
   const [joinType, setJoinType] = useState<"everyone" | "approval">("everyone");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Business event publishing is locked until verification approval (backend enforces
+  // this too — direct routes / deep links can never bypass the server 403).
+  useEffect(() => {
+    if (!isBiz) return;
+    getBusinessOverview().then((o) => {
+      if (o.verification_status !== "Verified") {
+        showAlert("Verification required", "Your Business must be verified before you can create or manage events.");
+        router.replace("/(business)");
+      }
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBiz]);
 
   const crossesMidnight = endMin <= startMin;
   const durMin = (endMin - startMin + 1440) % 1440;
@@ -287,6 +301,17 @@ export default function CreateEvent() {
             <Text style={[s.chipTxt, joinType === "approval" && { color: "#FFF" }]}>Approval Required</Text>
           </Pressable>
         </View>
+        {joinType === "approval" && !isBiz && (
+          <View style={s.approvalNote} testID="approval-helper">
+            <Ionicons name="lock-closed" size={15} color={colors.orange} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.approvalNoteTitle}>Approval Required</Text>
+              <Text style={s.approvalNoteTxt}>
+                You will need to approve attendees before they can join. The exact event address will only be shared with attendees after you approve them.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <Pressable testID="submit-event" style={[s.cta, isBiz && { backgroundColor: colors.cobalt }, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy}>
           {busy ? <ActivityIndicator color="#FFF" /> : <Text style={s.ctaTxt}>{editing ? "SAVE CHANGES" : "CREATE EVENT"}</Text>}
@@ -405,6 +430,9 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   chipTxt: { color: colors.text, fontSize: font.sm, fontWeight: "600" },
   privNote: { color: colors.textTertiary, fontSize: font.micro, marginTop: 6, lineHeight: 16 },
+  approvalNote: { flexDirection: "row", gap: 10, backgroundColor: colors.orangeSoft, borderRadius: 12, padding: spacing.md, marginTop: 10 },
+  approvalNoteTitle: { color: colors.text, fontSize: font.sm, fontWeight: "800" },
+  approvalNoteTxt: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 18, marginTop: 2 },
   field: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, backgroundColor: "#FFF" },
   fieldTxt: { flex: 1, color: colors.text, fontSize: font.base, fontWeight: "700" },
   fieldLabel: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "600", marginBottom: 6 },

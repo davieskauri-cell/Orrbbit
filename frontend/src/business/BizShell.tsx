@@ -45,8 +45,12 @@ export default function BizShell({ title, children }: { title: string; children:
   }, [token, pathname]);
 
   // While not Verified, only status/subscription/settings/support are available.
-  const LOCK_EXEMPT = ["/business/subscription", "/business/settings", "/business/notifications", "/business/verify"];
-  const locked = vStatus !== null && vStatus !== "Verified" && !LOCK_EXEMPT.includes(pathname);
+  const LOCK_EXEMPT = ["/business/subscription", "/business/settings", "/business/verify"];
+  const lockedMode = vStatus !== null && vStatus !== "Verified";
+  const locked = lockedMode && !LOCK_EXEMPT.includes(pathname);
+  // Pending businesses never see operational Business navigation — only
+  // subscription status and account settings remain reachable.
+  const visibleNav = lockedMode ? NAV.filter((n) => n.label === "Subscription" || n.label === "Settings") : NAV;
 
   if (loading) return <View style={st.center}><ActivityIndicator color={colors.cobalt} /></View>;
   if (!token) return <Redirect href="/business/login" />;
@@ -54,7 +58,7 @@ export default function BizShell({ title, children }: { title: string; children:
 
   const navItems = (
     <>
-      {NAV.map((n) => {
+      {visibleNav.map((n) => {
         const active = pathname === n.path;
         return (
           <Pressable key={n.path} testID={`biznav-${n.label}`} onPress={() => { setMenuOpen(false); router.push(n.path as any); }}

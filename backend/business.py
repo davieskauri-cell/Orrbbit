@@ -424,6 +424,20 @@ def bind(server):
     @business_router.get("/me/overview")
     async def business_overview(user: dict = Depends(get_current_user)):
         biz = await _require_biz(user)
+        vs = biz.get("verification_status", "Not Submitted")
+        if vs != "Verified":
+            # SERVER-SIDE PLATFORM LOCK: non-Verified businesses (Pending / In Review /
+            # More Info / Rejected / Suspended / Revoked) see verification + subscription
+            # status ONLY — operational dashboard data is never returned, not just hidden.
+            return {
+                "business_name": biz["name"], "verified": False, "verification_status": vs,
+                "active_events": 0, "upcoming_events": 0, "people_going": 0,
+                "event_views": 0, "event_impressions": 0, "profile_views": 0,
+                "average_rating": None, "review_count": 0,
+                "events_hosted": 0, "completed_events": 0,
+                "can_publish": False,
+                "subscription_status": (biz.get("subscription") or {}).get("status", "not_subscribed"),
+            }
         now = _now().isoformat()
         evs = await db.events.find({"creator_user_id": user["id"]}, {"_id": 0}).to_list(300)
         active = [e for e in evs if e.get("status") in ("active", "full")]
@@ -471,6 +485,9 @@ def bind(server):
     @business_router.get("/me/reviews")
     async def business_reviews(user: dict = Depends(get_current_user)):
         biz = await _require_biz(user)
+        # Locked until Control Centre approval — same server-side rule as analytics.
+        if biz.get("verification_status") != "Verified":
+            raise HTTPException(status_code=403, detail="Business reviews unlock after verification approval")
         avg, n, dist = await _rating(biz["id"])
         rows = await db.event_reviews.find(
             {"business_id": biz["id"], "status": "visible"},
@@ -755,10 +772,14 @@ def bind(server):
              "$push": {"history": {"action": body.action, "by": admin.get("email"),
                                    "note": (body.note or "")[:300], "at": now_iso()}}})
         # central admin-action communication pipeline: audit + notify + email + delivery status
+        # approval email CTA links DIRECTLY to the Orrbbit Business Dashboard (never the
+        # generic open-in-app interstitial) — Orrbbit-owned destination only.
+        _dash = f"{(os.environ.get('CUSTOMER_WEB_BASE_URL') or 'https://orrbbit.com').rstrip('/')}/business/dashboard"
         result = await notify_user_action(
             admin=admin, action=f"business_verification_{body.action}", user_id=b["user_id"],
             title=title, body_text=body_text + ((f" Note: {body.note}") if body.note else ""),
-            email_template=tpl, email_ctx={"business_name": b["name"], "note": body.note or ""},
+            email_template=tpl, email_ctx={"business_name": b["name"], "note": body.note or "",
+                                           "action_url": _dash},
             entity_type="business", entity_id=biz_id,
             old_value={"verification_status": old}, extra_new={"verification_status": new_status})
         return {"ok": True, "status": new_status, "communication": result}

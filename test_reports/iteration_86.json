@@ -1,0 +1,47 @@
+{
+  "summary": "Iter86 ORRBBIT Business Access Lock + Onboarding + Personal Event Privacy QA. Backend 54/54 pass. New /app/backend/tests/test_iter86_privacy_and_lock.py (11/11): (1) Business platform full lock while In Progress and Pending Review — /business/me/overview returns zeroed stats + verified:false + can_publish:false (only status+subscription), /business/me/analytics 403, /business/me/reviews 403, POST /api/events 403. (2) Control Centre approve → verification_status='Verified', in-app notification created, email_event 'business_verification_approved' recorded, analytics+reviews now 200, overview verified:true. (3) Approval email preview HTML has direct href ending in /business/dashboard on the 'Access Business Dashboard' CTA — NO /api/email/open interstitial. (4) Personal event join_type='everyone' shows exact location_display to any viewer. (5) join_type='approval' event: non-host/non-accepted viewer sees location_locked:true, location_display='General area only — exact location shared after approval', distance coarsened to 100m step, bearing to 45deg step, 'Secret' never leaks, no lat/lng in payload, nearby feed same behaviour. (6) Pending request still locked, my_status='pending'. (7) Host attendee endpoint returns pending+accepted+DECLINED sections. (8) Accept unlocks exact address for that attendee; declined viewer stays locked. (9) Notifications: accepted title='You're approved! 🎉' with no address, declined body contains 'location remains private' with no address. (10) Revoke (remove) immediately re-locks the address for that attendee. (11) Host always sees own exact address. Regression 43/43 in isolation (test_business_platform 10/10, test_iter84_business_lifecycle 10/10, test_iter85_business_release 5/5, test_iter60_events 7/7, test_display_name 6/6, test_iter81_business_secure_link 5/5). FRONTEND mobile 390x844 (Playwright, JSON-stringified auth_token localStorage): (a) /account-type shows 'Return to Login' (testID account-type-return-login) — tap navigates to /login. (b) /register — step 1 age shows Return to Login (register-return-login-age), step 2 consent shows Return to Login (register-return-login-consent) — both navigate to /login without corrupt state. (c) Business full lock — created fresh business account in In Progress, deep-linked to /(business)/events and /(business)/insights: BOTH land on biz-full-lock overlay (biz-pending-lock card + 'Refresh status' biz-lock-refresh + Contact Support + Log out biz-lock-logout). Tabs never render. Submitted details card shows Business/Category/Country/Verification=In Progress/Subscription=active. (d) After Mongo set verification_status='Verified' and reload: biz-full-lock gone, one-time 'Your business is verified!' screen with 'Go to Dashboard' shown, full Business tabs then render. (e) /create-event as demo user, tap 'Approval Required' chip → approval-helper renders exact spec copy 'You will need to approve attendees before they can join. The exact event address will only be shared with attendees after you approve them.' No react-native red screens. All QA seed data cleaned. Non-blocking web-only shadow*/pointerEvents deprecation warnings carried over — cosmetic only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "global (web)", "issues": ["Cosmetic RN-web deprecation warnings 'shadow*' and 'props.pointerEvents' carried over from iter84/85 — not user-facing."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter86_privacy_and_lock.py",
+    "/app/test_reports/pytest/pytest_iter86.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_business_platform.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_iter84_business_lifecycle.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_iter85_business_release.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_iter60_events.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_display_name.xml",
+    "/app/test_reports/pytest/pytest_iter86_test_iter81_business_secure_link.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "events.py _payload (lines 111-122) — location_locked correctly gated on host_type=='personal' AND join_type=='approval' AND not host AND my_status!='accepted'. Address label is REPLACED (not just hidden) and distance/bearing coarsened server-side. lat/lng are already never included in _payload. Every event surface (detail, nearby, my-events) flows through _payload so no leaks.",
+    "events.py manage_request (lines 483-492) — accept notification is 'You're approved! 🎉 / Your attendance for X has been confirmed and the event location is now available.' with NO address; decline body says 'wasn't approved. The event location remains private.' with no address. Compliant.",
+    "events.py attendees endpoint (lines 458-470) — host now sees statuses = ['accepted','pending','declined']; non-host viewers still only see accepted. Correct.",
+    "business.py business_overview (lines 428-440) — when verification_status != 'Verified' returns zeroed stats + can_publish:false + status + subscription only. business_analytics + business_reviews return 403 with clear message. Server enforcement complements the frontend full lock.",
+    "business.py control_business_verification (line 777) — action_url in email_ctx = f\"{CUSTOMER_WEB_BASE_URL}/business/dashboard\" — feeds __CTX_LINK__ placeholder in email_templates business_verification_approved template so the 'Access Business Dashboard' CTA links DIRECTLY to https://orrbbit.com/business/dashboard (verified via /control/email/templates/business_verification_approved/preview HTML — no /api/email/open in the CTA href).",
+    "app/(business)/_layout.tsx — fetches overview on mount; renders biz-full-lock ScrollView (with biz-lock-refresh) when verification_status != 'Verified' INSTEAD of <Tabs>, so deep links to /(business)/events, /(business)/insights, /(business)/profile, /(business)/notifications all land on the lock. fail-closed on fetch error (vStatus='Status Unavailable' stays non-Verified).",
+    "create-event.tsx — approval-helper testID renders with exact spec copy when 'Approval Required' chip is selected in personal mode."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter86_privacy_and_lock.py (new — 11 tests)"
+  ],
+  "success_rate": {
+    "backend": "54/54 (100%) — 11/11 iter86 + 43/43 regression (business_platform + iter84 + iter85 + iter60_events + display_name + iter81_business_secure_link)",
+    "frontend": "8/8 (100%) — account-type Return to Login → /login; register age+consent Return to Login → /login; business deep-link /(business)/events → biz-full-lock; /(business)/insights deep-link → biz-full-lock (tabs suppressed); refresh + verified → tabs unlock; create-event approval-helper spec copy"
+  },
+  "seed_data_creation": "Backend iter86 fixtures create their own unique qa.biz86/qa.host86/qa.v186/qa.v286@example.com users (tag=uuid4[:8]) with email_verified=True via Mongo; module-scope teardown deletes users/events/attendees/business_profiles/business_verifications/consent_records/notifications/email_events/email_deliveries — verified 0 residual. UI QA also created a temporary qa.uilock.* business account which was cleaned in the same script. Residual iter86 QA users after run: 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter86 focused suite lives at /app/backend/tests/test_iter86_privacy_and_lock.py (11 tests). Run alongside test_business_platform + test_iter84 + test_iter85 + test_iter60_events + test_display_name + test_iter81_business_secure_link = 54 total for business+events regression. Registration requires date_of_birth + accept_policies:true. QA admin login returns 'token' (not access_token). Event coords: Melbourne -37.8136/144.9631. Never run entire tests/ dir at once — pre-existing order-dependent failure in test_iter68_cancel test_02 (unrelated maintenance-mode side-effect). Never UI-test /control (production origin override). Frontend Playwright: preload localStorage.setItem('auth_token', JSON.stringify(token)) before goto('/'). Business full-lock verified end-to-end: backend + frontend both fail-closed. Personal approval-event address is redacted at _payload level so ALL event surfaces are safe.",
+  "rca_of_issue": "N/A — no bugs found. All spec items verified: (1) FRONTEND Return to Login on account-type + register age/consent ✓, (2) FRONTEND business full lock hides tabs on all (business) deep links + shows biz-full-lock + refresh + logout + submitted details ✓, (3) Verified unlock ✓, (4) BACKEND enforcement — /me/analytics 403, /me/reviews 403, POST /api/events 403 pre-verify; /me/overview zeroed with status+subscription only ✓, (5) Control approve email CTA links DIRECTLY to /business/dashboard with no /api/email/open interstitial ✓, (6) Personal event privacy — locked location + coarsened distance/bearing/no lat-lng for non-host/non-accepted viewers, everyone events unredacted, host always sees exact address, approve/decline notifications carry no address, host attendee sections include pending+accepted+declined, revoke re-locks instantly ✓, (7) create-event approval-helper exact spec copy ✓."
+}

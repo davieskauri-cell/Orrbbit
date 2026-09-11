@@ -58,6 +58,12 @@ export default function AccountType() {
           <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
         </Pressable>
       ))}
+
+      <Pressable testID="account-type-return-login" onPress={() => router.replace("/(auth)/login")} style={st.loginRow} hitSlop={8}>
+        <Text style={st.loginTxt}>
+          Already have an account? <Text style={{ color: colors.teal, fontWeight: "700" }}>Return to Login</Text>
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -90,4 +96,6 @@ const st = StyleSheet.create({
   },
   cardTitle: { color: colors.text, fontSize: font.xl, fontWeight: "800" },
   cardDesc: { color: colors.textSecondary, fontSize: font.base, marginTop: 4, lineHeight: 20 },
+  loginRow: { alignItems: "center", justifyContent: "center", marginTop: spacing.lg, minHeight: 44 },
+  loginTxt: { color: colors.textSecondary, fontSize: font.base },
 });

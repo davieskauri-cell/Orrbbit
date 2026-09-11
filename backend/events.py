@@ -100,11 +100,26 @@ def bind(server):
             brg = (round(bearing_between(vlat, vlng, ev["lat"], ev["lng"]) / 10) * 10) % 360
         me = await db.event_attendees.find_one({"event_id": ev["id"], "user_id": viewer["id"]})
         cap = ev.get("capacity")
+        my_status = (me or {}).get("join_status")
+        is_host = ev["creator_user_id"] == viewer["id"]
+        # PERSONAL approval-required events: the exact location stays PRIVATE until the
+        # host approves this attendee. Backend-authoritative (never a UI-only hide):
+        # the display label is redacted and distance/bearing are coarsened so the
+        # private address can't be recovered from this or any secondary payload
+        # (event detail, nearby/radar, my-events all flow through this function).
+        # Approval revocation (remove/decline) instantly re-locks — status is re-read here.
+        location_locked = (host_type == "personal" and ev.get("join_type") == "approval"
+                           and not is_host and my_status != "accepted")
+        if location_locked:
+            dist = max(round(dist / 100) * 100, 100)
+            brg = (round(brg / 45) * 45) % 360
         return {
             "id": ev["id"], "title": ev["title"], "description": ev.get("description", ""),
             "category": ev["category"], "cover_image": ev.get("cover_image"),
-            "location_display": ev.get("location_display") or "Approximate area shown on radar",
-            "location_privacy_type": ev.get("location_privacy_type", "area"),
+            "location_display": ("General area only — exact location shared after approval" if location_locked
+                                 else (ev.get("location_display") or "Approximate area shown on radar")),
+            "location_privacy_type": "area" if location_locked else ev.get("location_privacy_type", "area"),
+            "location_locked": location_locked,
             "visibility_radius": ev.get("visibility_radius", 500),
             "start_datetime": ev["start_datetime"], "end_datetime": ev["end_datetime"],
             "timezone": ev.get("timezone", "local"),
@@ -122,8 +137,8 @@ def bind(server):
                       "business_id": biz["id"]} if biz else
                      {"id": (host or {}).get("id"), "name": (host or {}).get("display_name") or (host or {}).get("name") or "Orrbbit member",
                       "photo_url": (host or {}).get("photo_url"), "verified": bool((host or {}).get("verified"))}),
-            "is_host": ev["creator_user_id"] == viewer["id"],
-            "my_status": (me or {}).get("join_status"),
+            "is_host": is_host,
+            "my_status": my_status,
         }
 
     async def _cancel_orphan(ev: dict):
@@ -314,6 +329,10 @@ def bind(server):
             raise HTTPException(status_code=403, detail="Only the host can edit this event")
         if ev["status"] in ("cancelled", "completed"):
             raise HTTPException(status_code=400, detail="This event can no longer be edited")
+        if ev.get("host_type") == "business":
+            biz = await db.business_profiles.find_one({"user_id": user["id"]})
+            if not biz or biz.get("verification_status") != "Verified":
+                raise HTTPException(status_code=403, detail="Business verification must be approved to manage Business Events")
         upd = {"title": body.title.strip()[:60], "description": (body.description or "").strip()[:400],
                "category": body.category if body.category in EVENT_CATEGORIES else ev["category"],
                "location_display": (body.location_display or "").strip()[:60],
@@ -437,7 +456,8 @@ def bind(server):
         if not ev:
             raise HTTPException(status_code=404, detail="Event not found")
         is_host = ev["creator_user_id"] == user["id"]
-        statuses = ["accepted", "pending"] if is_host else ["accepted"]
+        # host sees pending + approved + declined for attendee management sections
+        statuses = ["accepted", "pending", "declined"] if is_host else ["accepted"]
         rows = await db.event_attendees.find({"event_id": event_id, "join_status": {"$in": statuses}}).to_list(500)
         out = []
         for a in rows:
@@ -461,10 +481,15 @@ def bind(server):
             {"event_id": event_id, "user_id": attendee_id, "join_status": {"$in": ["pending", "accepted"]}},
             {"$set": {"join_status": new_status}})
         if r.modified_count and action == "accept":
-            await notify(attendee_id, "event_accepted", "You're in 🎉", f"Your request to join \"{ev['title']}\" was accepted.", meta={"event_id": event_id})
+            # privacy-first: the exact address is never placed in the notification —
+            # tapping it opens the authenticated Event Details where location is now unlocked
+            await notify(attendee_id, "event_accepted", "You're approved! 🎉",
+                         f"Your attendance for \"{ev['title']}\" has been confirmed and the event location is now available.",
+                         meta={"event_id": event_id})
         elif r.modified_count and action == "decline":
             await notify(attendee_id, "event_declined", "Request update",
-                         f"Your request to join \"{ev['title']}\" wasn't accepted this time.", meta={"event_id": event_id})
+                         f"Your request to join \"{ev['title']}\" wasn't approved. The event location remains private.",
+                         meta={"event_id": event_id})
         return {"ok": True, "join_status": new_status}
 
     @events_router.post("/{event_id}/report")

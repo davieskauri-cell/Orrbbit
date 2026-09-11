@@ -112,6 +112,7 @@ export default function EventDetail() {
   const icon = EVENT_CATEGORY_ICONS[ev.category] || "flame";
   const joined = ev.my_status === "accepted";
   const pending = ev.my_status === "pending";
+  const declined = ev.my_status === "declined";
   const closed = ev.status === "cancelled" || ev.status === "completed";
   const full = ev.status === "full" && !joined;
 
@@ -144,9 +145,37 @@ export default function EventDetail() {
 
         <View style={s.rows}>
           <Row icon="time-outline" text={`${when(ev.start_datetime)}  →  ${new Date(ev.end_datetime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`} />
-          <Row icon="location-outline" text={ev.location_display} sub="Exact locations stay hidden until people meet" />
+          {ev.location_locked ? (
+            <Row icon="lock-closed-outline" text={ev.location_display}
+              sub="Exact event location will be provided once the host approves your request." />
+          ) : (
+            <Row icon="location-outline" text={ev.location_display} sub="Exact locations stay hidden until people meet" />
+          )}
           <Row icon="people-outline" text={`${ev.going} going${ev.capacity ? ` · ${ev.spots_left} spot${ev.spots_left === 1 ? "" : "s"} left of ${ev.capacity}` : ""}`} />
         </View>
+
+        {/* attendance status — approval-required Personal Events */}
+        {ev.host_type === "personal" && ev.join_type === "approval" && !ev.is_host && !closed && (
+          <View
+            testID="attendance-status"
+            style={[s.statusCard, joined ? s.statusApproved : declined ? s.statusDeclined : s.statusPending]}
+          >
+            <Ionicons
+              name={joined ? "checkmark-circle" : declined ? "close-circle" : pending ? "hourglass" : "lock-closed"}
+              size={16}
+              color={joined ? "#15803D" : declined ? "#B91C1C" : "#B45309"}
+            />
+            <Text style={[s.statusTxt, { color: joined ? "#15803D" : declined ? "#B91C1C" : "#B45309" }]}>
+              {joined
+                ? "Attendance approved — the exact event location is now visible above."
+                : declined
+                  ? "Attendance request not approved. Event location remains private."
+                  : pending
+                    ? "Attendance request pending. Location unlocked once approved."
+                    : "Exact event location will be provided once the host approves your request."}
+            </Text>
+          </View>
+        )}
 
         {!!ev.description && <Text style={s.desc}>{ev.description}</Text>}
 
@@ -178,24 +207,46 @@ export default function EventDetail() {
         {atts && atts.length === 0 && (
           <Text style={s.emptyAtt}>No one has joined yet. Be the first person in.</Text>
         )}
-        {atts && atts.map((a) => (
+        {atts && isHostView ? (
+          // host attendee management — clear sections with individual approve/decline
+          ([["PENDING REQUESTS", "pending"], ["APPROVED ATTENDEES", "accepted"], ["DECLINED REQUESTS", "declined"]] as const).map(([label, status]) => {
+            const group = atts.filter((a) => a.join_status === status);
+            if (group.length === 0) return null;
+            return (
+              <View key={status} testID={`att-section-${status}`}>
+                <Text style={s.attSection}>{label} ({group.length})</Text>
+                {group.map((a) => (
+                  <View key={a.id} style={s.attRow}>
+                    <Pressable style={s.attMain} onPress={() => router.push(`/person/${a.id}`)} testID={`attendee-${a.id}`}>
+                      <Avatar uri={a.photo_url} name={a.name} size={40} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.attName}>{a.name}{a.age ? `, ${a.age}` : ""}</Text>
+                        {a.join_status === "pending" ? <Text style={s.attPending}>Requested to join</Text> : null}
+                        {a.join_status === "declined" ? <Text style={[s.attPending, { color: "#B91C1C" }]}>Declined — no location access</Text> : null}
+                      </View>
+                    </Pressable>
+                    {a.join_status === "pending" && (
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Pressable testID={`accept-${a.id}`} style={s.acceptBtn} onPress={() => manageAttendee(String(id), a.id, "accept").then(() => { loadAtts(); load(); })}><Text style={s.acceptTxt}>Approve</Text></Pressable>
+                        <Pressable testID={`decline-${a.id}`} style={s.declineBtn} onPress={() => manageAttendee(String(id), a.id, "decline").then(loadAtts)}><Text style={s.declineTxt}>Decline</Text></Pressable>
+                      </View>
+                    )}
+                    {a.join_status === "accepted" && (
+                      <Pressable style={s.declineBtn} onPress={() => manageAttendee(String(id), a.id, "remove").then(() => { loadAtts(); load(); })}><Text style={s.declineTxt}>Remove</Text></Pressable>
+                    )}
+                  </View>
+                ))}
+              </View>
+            );
+          })
+        ) : atts && atts.map((a) => (
           <View key={a.id} style={s.attRow}>
             <Pressable style={s.attMain} onPress={() => router.push(`/person/${a.id}`)} testID={`attendee-${a.id}`}>
               <Avatar uri={a.photo_url} name={a.name} size={40} />
               <View style={{ flex: 1 }}>
                 <Text style={s.attName}>{a.name}{a.age ? `, ${a.age}` : ""}</Text>
-                {a.join_status === "pending" ? <Text style={s.attPending}>Requested to join</Text> : null}
               </View>
             </Pressable>
-            {isHostView && a.join_status === "pending" && (
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Pressable testID={`accept-${a.id}`} style={s.acceptBtn} onPress={() => manageAttendee(String(id), a.id, "accept").then(() => { loadAtts(); load(); })}><Text style={s.acceptTxt}>Accept</Text></Pressable>
-                <Pressable testID={`decline-${a.id}`} style={s.declineBtn} onPress={() => manageAttendee(String(id), a.id, "decline").then(loadAtts)}><Text style={s.declineTxt}>Decline</Text></Pressable>
-              </View>
-            )}
-            {isHostView && a.join_status === "accepted" && (
-              <Pressable style={s.declineBtn} onPress={() => manageAttendee(String(id), a.id, "remove").then(() => { loadAtts(); load(); })}><Text style={s.declineTxt}>Remove</Text></Pressable>
-            )}
           </View>
         ))}
 
@@ -304,6 +355,12 @@ const s = StyleSheet.create({
   attToggle: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10 },
   attToggleTxt: { color: colors.teal, fontWeight: "700", fontSize: font.base },
   emptyAtt: { color: colors.textTertiary, fontSize: font.sm, paddingVertical: 8 },
+  attSection: { color: colors.textTertiary, fontSize: 11, fontWeight: "800", letterSpacing: 1, marginTop: spacing.md, marginBottom: 2 },
+  statusCard: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderRadius: 12, padding: spacing.md, marginBottom: spacing.lg },
+  statusApproved: { backgroundColor: "#E7F8EE" },
+  statusDeclined: { backgroundColor: "#FEE2E2" },
+  statusPending: { backgroundColor: "#FEF3C7" },
+  statusTxt: { flex: 1, fontSize: font.sm, fontWeight: "700", lineHeight: 19 },
   attRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   attMain: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   attName: { color: colors.text, fontWeight: "700", fontSize: font.base },
