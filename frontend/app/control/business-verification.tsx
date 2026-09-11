@@ -57,8 +57,8 @@ export default function ControlBusinessVerification() {
 
   const load = useCallback(() => {
     const p = filter === "All" ? "" : `?status=${encodeURIComponent(filter)}`;
-    req(`/control/businesses${p}`).then((r: any) => setRows(r.businesses)).catch(() => setRows([]));
-    req(`/control/businesses`).then((r: any) => {
+    req(`/businesses${p}`).then((r: any) => setRows(r.businesses)).catch(() => setRows([]));
+    req(`/businesses`).then((r: any) => {
       const c: Record<string, number> = {};
       (r.businesses || []).forEach((b: any) => { c[b.verification_status] = (c[b.verification_status] || 0) + 1; });
       setCounts(c);
@@ -80,12 +80,12 @@ export default function ControlBusinessVerification() {
 
   const open = (b: any) => {
     setSel(b); setDetail(null); setMsg(null); setNote("");
-    req(`/control/businesses/${b.id}`).then(setDetail).catch(() => {});
+    req(`/businesses/${b.id}`).then(setDetail).catch(() => {});
   };
 
   const act = async (action: string) => {
     try {
-      const r: any = await req(`/control/businesses/${sel.id}/verification`, {
+      const r: any = await req(`/businesses/${sel.id}/verification`, {
         method: "POST", body: JSON.stringify({ action, note: note.trim() }) });
       setMsg(`✓ ${action} → ${r.status} · in-app: ${r.communication?.notification} · email: ${r.communication?.email}`);
       load(); open(sel);

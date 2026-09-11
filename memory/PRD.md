@@ -834,3 +834,9 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - Computer-verification email now opens the browser verification form DIRECTLY (no app interstitial); /business/verify → business-setup form; full browser completion verified E2E.
 - Google autocomplete remains BLOCKED on GOOGLE_PLACES_API_KEY (backend env; enable "Places API" in an Orrbbit Google Cloud project); country-conflict validation added.
 - Owner gates: Publish redeploy; orrbbit.com domain + CUSTOMER_WEB_BASE_URL; GOOGLE_PLACES_API_KEY; Emergent-side sender-domain config for true Orrbbit FROM address.
+
+## Iter89 — Control Centre business API path fix (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- Fixed redundant `/control` prefix in `app/control/businesses.tsx` (5 calls) and `app/control/business-verification.tsx` (4 calls). All Control Centre requests go through `useCC().req` which already prepends `/api/control`, so the old paths hit `/api/control/control/...` (404) and Business screens showed empty data. Now `/businesses...` and `/business-reviews...` match backend routes in `backend/business.py` (control_biz_router, prefix `/api/control`).
+- Verified in Preview UI (QA admin login): Businesses list shows "Business accounts (1)" (The Park Hotel), Business Verification queue shows the pending application; all business API calls returned 200.
+- Note: `EXPO_PUBLIC_CONTROL_BACKEND_URL` points the Control Centre at LIVE production (`*.emergent.host`); it was temporarily flipped to preview for verification and RESTORED afterwards. Owner must Publish for this frontend fix to reach production Control Centre.
+- Google Places key: user said "Disregard this action. Not needed" — no key configured, address autocomplete remains manual-entry.

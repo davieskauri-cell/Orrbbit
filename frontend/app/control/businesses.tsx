@@ -26,18 +26,18 @@ export default function ControlBusinesses() {
     const p = new URLSearchParams();
     if (status !== "All") p.set("status", status);
     if (sub) p.set("subscription", sub);
-    req(`/control/businesses?${p}`).then((r: any) => setRows(r.businesses)).catch(() => setRows([]));
+    req(`/businesses?${p}`).then((r: any) => setRows(r.businesses)).catch(() => setRows([]));
   }, [req, status, sub]);
   useEffect(() => { load(); }, [load]);
 
   const openDetail = (b: any) => {
     setSel(b); setDetail(null); setTab("overview"); setMsg(null);
-    req(`/control/businesses/${b.id}`).then(setDetail).catch(() => {});
+    req(`/businesses/${b.id}`).then(setDetail).catch(() => {});
   };
 
   const verify = async (action: string) => {
     try {
-      const r: any = await req(`/control/businesses/${sel.id}/verification`, {
+      const r: any = await req(`/businesses/${sel.id}/verification`, {
         method: "POST", body: JSON.stringify({ action, note: note.trim() }) });
       setMsg(`✓ ${action} → ${r.status} · notification: ${r.communication?.notification} · email: ${r.communication?.email}`);
       setNote(""); load(); openDetail({ ...sel });
@@ -45,13 +45,13 @@ export default function ControlBusinesses() {
   };
 
   const loadReviews = useCallback(() => {
-    req(`/control/business-reviews?filter=${revFilter}`).then((r: any) => setReviews(r.reviews)).catch(() => setReviews([]));
+    req(`/business-reviews?filter=${revFilter}`).then((r: any) => setReviews(r.reviews)).catch(() => setReviews([]));
   }, [req, revFilter]);
   useEffect(() => { if (tab === "reviews") loadReviews(); }, [tab, loadReviews]);
 
   const reviewAction = async (id: string, action: "remove" | "restore") => {
     try {
-      await req(`/control/business-reviews/${id}/action`, { method: "POST", body: JSON.stringify({ action, reason: action === "remove" ? "Admin moderation" : "" }) });
+      await req(`/business-reviews/${id}/action`, { method: "POST", body: JSON.stringify({ action, reason: action === "remove" ? "Admin moderation" : "" }) });
       loadReviews(); setMsg(`✓ review ${action}d (audited)`);
     } catch (e: any) { setMsg(`✗ ${e?.message}`); }
   };
