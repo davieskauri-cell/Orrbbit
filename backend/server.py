@@ -1056,13 +1056,23 @@ async def delete_account(body: DeleteAccountIn, user: dict = Depends(get_current
 
 @api_router.get("/demo-accounts")
 async def demo_accounts():
-    users = await db.users.find({"is_demo": True}).to_list(50)
+    users = await db.users.find({"is_demo": True}).to_list(400)
     order = {a["email"]: i for i, a in enumerate(DEMO_ACCOUNTS)}
-    users.sort(key=lambda u: (order.get(u["email"], 99), u.get("city", "")))
-    return [
-        {"email": u["email"], "name": u.get("name"), "age": u.get("age"), "vibe": u.get("vibe"), "photo_url": u.get("photo_url"), "bio": u.get("bio", ""), "city": u.get("city", "Melbourne"), "mode": u.get("mode", "Social"), "verified": u.get("verified", False), "active_now": u.get("active_now", True)}
-        for u in users
-    ]
+    out = []
+    for u in sorted(users, key=lambda u: (order.get(u["email"], 99), u.get("city", ""))):
+        row = {"email": u["email"], "name": u.get("name"), "age": u.get("age"), "vibe": u.get("vibe"),
+               "photo_url": u.get("photo_url"), "bio": u.get("bio", ""), "city": u.get("city", "Melbourne"),
+               "mode": u.get("mode", "Social"), "verified": u.get("verified", False),
+               "active_now": u.get("active_now", True),
+               "account_type": u.get("account_type", "personal")}
+        if row["account_type"] == "business":
+            biz = await db.business_profiles.find_one({"user_id": u["id"]}, {"name": 1, "logo_url": 1, "category": 1, "verification_status": 1})
+            if biz:
+                row.update({"business_name": biz.get("name"), "photo_url": biz.get("logo_url") or row["photo_url"],
+                            "business_category": biz.get("category"),
+                            "verified": biz.get("verification_status") == "Verified"})
+        out.append(row)
+    return out
 
 
 @api_router.get("/vibes")
@@ -3774,7 +3784,7 @@ DEMO_EVENT_FIXTURES = [
      ["emily", "sophie", "willow", "ezra", "iris"], True),
     ("james@intro.demo", "Startup Founders Meetup", "Networking",
      "Monthly founder drinks — early stage friendly. Two-minute intros then open networking. All welcome.",
-     "Higher Ground area", 620, 320, 6, 3, 30, "approval",
+     "Higher Ground, 650 Little Bourke St", 620, 320, 6, 3, 30, "approval",
      ["ryan", "tom", "oscar", "theo", "grace", "aria", "lucas", "maya", "priya", "dev", "harvey", "georgia"], False),
     ("mia@intro.demo", "Sunset Walk along the Yarra", "Walking / Running",
      "Easy 5km river loop at golden hour. All paces welcome — we regroup at the bridges.",
@@ -3820,7 +3830,10 @@ async def seed_demo_events():
             "cover_image": f"https://picsum.photos/seed/orrbbit-ev-{ev_id[:8]}/800/500",
             "lat": base_lat + (dist * math.cos(rad)) / 111320,
             "lng": base_lng + (dist * math.sin(rad)) / (111320 * math.cos(math.radians(base_lat))),
-            "location_display": loc, "location_privacy_type": "area",
+            "location_display": loc,
+            # approval events showcase the location-privacy flow: exact venue stays
+            # locked until the host approves the attendee
+            "location_privacy_type": "venue" if join_type == "approval" else "area",
             "visibility_radius": 750, "timezone": "local",
             "start_datetime": start.isoformat(),
             "end_datetime": (start + timedelta(hours=dur_h)).isoformat(),
@@ -3846,6 +3859,156 @@ async def seed_demo_events():
     return count
 
 
+DEMO_BIZ_EMAIL = "business@intro.demo"
+
+
+async def seed_demo_business():
+    """Verified Business demo — full dashboard experience: profile, active subscription,
+    live/upcoming/completed Business Events with attendees, reviews, insights numbers
+    and notifications. Re-seeded on every startup / demo reset (idempotent)."""
+    now = datetime.now(timezone.utc)
+    user_doc = {
+        "email": DEMO_BIZ_EMAIL, "name": "Aroha Davies", "display_name": "Aroha",
+        "account_type": "business", "age": 34, "date_of_birth": _dob_for_age(34),
+        "email_verified": True, "is_demo": True, "demo_fixture": "business",
+        "demo_schema_version": DEMO_SCHEMA_VERSION,
+        "current_city": "Melbourne, Australia",
+        "visible": False, "ghost_mode": False, "paused": False, "quiet_mode": False,
+        "verified": True, "active_now": True, "trial_mode_active": False,
+        "plan": "free", "lat": None, "lng": None, "last_active": now_iso(),
+    }
+    existing = await db.users.find_one({"email": DEMO_BIZ_EMAIL})
+    if existing:
+        await db.users.update_one({"email": DEMO_BIZ_EMAIL}, {"$set": user_doc})
+        uid = existing["id"]
+    else:
+        user_doc.update({"id": str(uuid.uuid4()),
+                         "hashed_password": pwd_context.hash(DEMO_PASSWORD),
+                         "created_at": now_iso()})
+        await db.users.insert_one(dict(user_doc))
+        uid = user_doc["id"]
+    prev = await db.business_profiles.find_one({"user_id": uid})
+    biz_id = (prev or {}).get("id") or str(uuid.uuid4())
+    import business as _bizmod
+    biz = {
+        "id": biz_id, "user_id": uid, "slug": "the-wharf-kitchen",
+        "name": "The Wharf Kitchen", "category": "Restaurant", "secondary_category": "Bar / Venue",
+        "description": ("Waterfront eatery and bar on the Docklands wharf — seasonal menus, local "
+                        "wines and a busy calendar of live music, trivia and tasting events."),
+        "location_display": "12 Wharf Lane, Docklands VIC", "lat": -37.8149, "lng": 144.9426,
+        "email": DEMO_BIZ_EMAIL, "phone": "+61 3 9000 1234",
+        "website": "https://thewharfkitchen.example.com", "socials": "@thewharfkitchen",
+        "opening_hours": "Tue–Sun · 11:00am – late",
+        "country": "Australia", "country_code": "AU",
+        "abn": "12 345 678 901", "registration_number": "12 345 678 901",
+        "primary_contact": "Aroha Davies",
+        "verification_status": "Verified", "verification_note": "",
+        "logo_url": "https://picsum.photos/seed/orrbbit-biz-logo/240/240",
+        "cover_url": "https://picsum.photos/seed/orrbbit-biz-cover/1000/420",
+        "profile_views": 412, "demo": True,
+        "subscription": {"status": "active", "product_id": _bizmod.BUSINESS_PRODUCT_ID,
+                         "platform": "sandbox", "sandbox": True,
+                         "transaction_ref": "demo-business-subscription",
+                         "started_at": (now - timedelta(days=61)).isoformat(),
+                         "renews_at": (now + timedelta(days=12)).isoformat()},
+        "created_at": (now - timedelta(days=64)).isoformat(), "updated_at": now_iso(),
+    }
+    await db.business_profiles.replace_one({"user_id": uid}, biz, upsert=True)
+    # verification history record (Verified, with submitted → approved trail)
+    await db.business_verifications.delete_many({"business_id": biz_id, "demo": True})
+    await db.business_verifications.insert_one({
+        "id": str(uuid.uuid4()), "business_id": biz_id, "user_id": uid, "demo": True,
+        "legal_name": "The Wharf Kitchen Pty Ltd", "country": "Australia",
+        "registration_label": "ABN", "abn": "12 345 678 901",
+        "email": DEMO_BIZ_EMAIL, "phone": "+61 3 9000 1234",
+        "website": biz["website"], "address": biz["location_display"],
+        "primary_contact": "Aroha Davies", "document_name": "business-registration.pdf",
+        "status": "Verified", "submitted_at": (now - timedelta(days=62)).isoformat(),
+        "reviewed_at": (now - timedelta(days=60)).isoformat(), "reviewer": "Orrbbit Team",
+        "history": [{"action": "submitted", "by": uid, "at": (now - timedelta(days=62)).isoformat()},
+                    {"action": "approve", "by": "Orrbbit Team", "at": (now - timedelta(days=60)).isoformat()}],
+        "notes": []})
+    # Business demo events — one live now, one upcoming, one completed (drives reviews)
+    old_ids = [e["id"] async for e in db.events.find({"creator_user_id": uid}, {"id": 1})]
+    if old_ids:
+        await db.event_attendees.delete_many({"event_id": {"$in": old_ids}})
+        await db.events.delete_many({"id": {"$in": old_ids}})
+    fixtures = [
+        # title, category, desc, offer, start_offset_h, dur_h, cap, status, going, views, imps, dist, brg
+        ("Live Jazz on the Wharf", "Live Music",
+         "The Kingfisher Quartet play from early evening. Walk-ins welcome — grab a spot on the deck.",
+         "2-for-1 cocktails until 9pm", -1, 4, None, "active",
+         ["sophie", "jake", "emily", "olivia", "ruby", "felix", "hazel", "milo"], 168, 540, 420, 240),
+        ("Wharf Trivia Night", "Entertainment",
+         "Teams of up to 6. Free entry, winning table eats free. Hosted by our own quizmaster Nico.",
+         "Winning team eats free", 26, 3, 40, "active",
+         ["liam", "mia", "sarah", "ryan", "tom", "grace"], 96, 310, 420, 240),
+        ("Winter Menu Tasting Evening", "Food",
+         "Six-course preview of the new winter menu with matched local wines. Limited seats.",
+         None, -26, 3, 24, "completed",
+         ["kauri", "olivia", "james", "sophie", "emily", "jake"], 214, 690, 420, 240),
+    ]
+    review_event_id = None
+    for (title, cat, desc, offer, start_h, dur_h, cap, status_, going, views, imps, dist, brg) in fixtures:
+        ev_id = str(uuid.uuid4())
+        start = now + timedelta(hours=start_h)
+        await db.events.insert_one({
+            "id": ev_id, "creator_user_id": uid, "host_type": "business", "business_id": biz_id,
+            "title": title, "description": desc, "category": cat, "offer": offer,
+            "cover_image": f"https://picsum.photos/seed/orrbbit-bizev-{ev_id[:8]}/800/500",
+            "lat": biz["lat"], "lng": biz["lng"],
+            "location_display": "The Wharf Kitchen, 12 Wharf Lane, Docklands",
+            "location_privacy_type": "venue", "visibility_radius": 1000, "timezone": "local",
+            "start_datetime": start.isoformat(),
+            "end_datetime": (start + timedelta(hours=dur_h)).isoformat(),
+            "capacity": cap, "join_type": "everyone", "status": status_,
+            "views": views, "impressions": imps,
+            "demo": True, "demo_env": True, "demo_dist": dist, "demo_bearing": brg,
+            "created_at": (now - timedelta(days=7)).isoformat(), "updated_at": now_iso(),
+        })
+        if status_ == "completed":
+            review_event_id = ev_id
+        for i, gname in enumerate(going):
+            g_uid = await _demo_user_id(gname)
+            if g_uid:
+                await db.event_attendees.insert_one({
+                    "id": str(uuid.uuid4()), "event_id": ev_id, "user_id": g_uid,
+                    "join_status": "accepted",
+                    "joined_at": (now - timedelta(hours=3 + i)).isoformat(), "demo_env": True})
+    # reviews on the completed event
+    await db.event_reviews.delete_many({"business_id": biz_id})
+    reviews = [
+        ("kauri", 5, "Unreal night — the six courses were superb and the wine pairings spot on.", ["Great food", "Well organised"]),
+        ("olivia", 5, "Beautiful venue right on the water. Staff were lovely, will be back for jazz night.", ["Great atmosphere", "Friendly staff"]),
+        ("james", 4, "Really good tasting event. A little slow between courses but worth it.", ["Great food"]),
+        ("sophie", 5, "One of the best hosted events I've joined on Orrbbit — felt genuinely welcoming.", ["Great atmosphere", "Would return"]),
+        ("emily", 3, "Food was great but it got very loud later in the evening.", []),
+    ]
+    for i, (rname, rating, text, tags) in enumerate(reviews):
+        r_uid = await _demo_user_id(rname)
+        if r_uid and review_event_id:
+            await db.event_reviews.insert_one({
+                "id": str(uuid.uuid4()), "business_id": biz_id, "event_id": review_event_id,
+                "user_id": r_uid, "rating": rating, "text": text, "tags": tags,
+                "status": "visible", "demo": True,
+                "created_at": (now - timedelta(hours=18 - i * 2)).isoformat()})
+    # dashboard notifications
+    await db.notifications.delete_many({"user_id": uid})
+    notifs = [
+        ("event_joined", "New attendee", "Sophie joined \"Live Jazz on the Wharf\".", 2),
+        ("review_received", "New 5★ review", "Kauri reviewed \"Winter Menu Tasting Evening\": \"Unreal night…\"", 14),
+        ("event_almost_full", "Your event is filling up", "\"Wharf Trivia Night\" — 6 of 40 spots filled and climbing.", 20),
+        ("business_verification_approve", "Business verification approved", "The Wharf Kitchen is now a Verified Business on Orrbbit.", 24 * 60),
+    ]
+    for (ntype, title, body_, mins_ago) in notifs:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": uid, "type": ntype, "title": title,
+            "body": body_, "read": mins_ago > 60, "demo_env": True,
+            "created_at": (now - timedelta(minutes=mins_ago)).isoformat()})
+    logger.info("Seeded demo business '%s' (%d events)", biz["name"], len(fixtures))
+    return biz_id
+
+
 @api_router.post("/demo/reset")
 async def reset_demo(user: dict = Depends(get_current_user)):
     """Restore all demo accounts and data to the original seeded state. Demo accounts only."""
@@ -3856,6 +4019,7 @@ async def reset_demo(user: dict = Depends(get_current_user)):
     await seed_demo_accounts()
     counts = await seed_demo_environment(force=True)
     counts["events"] = await seed_demo_events()
+    await seed_demo_business()
     import professional_flow as _pf
     import sys as _s
     await _pf.seed_pro_flow_demo(_s.modules[__name__], force=True)
@@ -4170,6 +4334,7 @@ async def seed_demo_accounts():
     await seed_professional_demo()
     await seed_demo_environment()
     await seed_demo_events()
+    await seed_demo_business()
     await _pro_flow.seed_pro_flow_demo(_sys.modules[__name__])
 
 

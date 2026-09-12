@@ -21,6 +21,9 @@ type DemoAccount = {
   city: string;
   mode: string;
   verified: boolean;
+  account_type?: string;
+  business_name?: string;
+  business_category?: string;
 };
 
 function FilterChips({ label, options, value, onChange, testPrefix }: {
@@ -83,9 +86,9 @@ export default function DemoAccountsScreen() {
   const switchTo = async (email: string) => {
     setSwitching(email);
     try {
-      await demoLogin(email);
+      const u: any = await demoLogin(email);
       await refresh();
-      router.replace("/(tabs)");
+      router.replace(u?.account_type === "business" ? "/(business)" : "/(tabs)");
     } catch {
       setSwitching(null);
     }
@@ -187,23 +190,31 @@ export default function DemoAccountsScreen() {
       {filtered.map((a) => {
         const current = user?.email === a.email;
         const vibe = vibeMap[a.vibe];
+        const isBiz = a.account_type === "business";
         return (
           <Pressable
             key={a.email}
-            testID={`demo-account-${a.name.toLowerCase()}`}
-            style={[styles.row, current && styles.rowActive]}
+            testID={`demo-account-${(isBiz ? a.business_name || a.name : a.name).toLowerCase().replace(/ /g, "-")}`}
+            style={[styles.row, current && styles.rowActive, isBiz && styles.rowBiz]}
             onPress={() => !current && switchTo(a.email)}
           >
-            <Avatar uri={a.photo_url} name={a.name} size={52} ringColor={vibe?.color} />
+            <Avatar uri={a.photo_url} name={isBiz ? a.business_name || a.name : a.name} size={52} ringColor={isBiz ? colors.cobalt : vibe?.color} />
             <View style={{ flex: 1, gap: 4 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Text style={styles.name}>
-                  {a.name}, {a.age}
+                  {isBiz ? a.business_name || a.name : `${a.name}, ${a.age}`}
                 </Text>
                 {a.verified && <Ionicons name="checkmark-circle" size={15} color={colors.teal} />}
               </View>
-              <VibePill vibe={vibe} small />
-              <Text style={styles.cityTag}>{a.city} · {a.mode || "Social"}</Text>
+              {isBiz ? (
+                <View style={styles.bizBadge}>
+                  <Ionicons name="storefront" size={10} color="#FFF" />
+                  <Text style={styles.bizBadgeTxt}>BUSINESS · VERIFIED DEMO</Text>
+                </View>
+              ) : (
+                <VibePill vibe={vibe} small />
+              )}
+              <Text style={styles.cityTag}>{a.city} · {isBiz ? a.business_category || "Business" : a.mode || "Social"}</Text>
             </View>
             {switching === a.email ? (
               <ActivityIndicator color={colors.orange} />
@@ -237,6 +248,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   rowActive: { borderColor: colors.teal, backgroundColor: colors.tealSoft },
+  rowBiz: { borderColor: colors.cobalt, backgroundColor: colors.cobaltSoft },
+  bizBadge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.cobalt, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
+  bizBadgeTxt: { color: "#FFF", fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
   name: { color: colors.text, fontSize: font.lg, fontWeight: "700" },
   cityTag: { color: colors.textTertiary, fontSize: 11, fontWeight: "600" },
   filterBlock: { marginBottom: spacing.sm },

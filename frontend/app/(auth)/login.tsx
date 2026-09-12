@@ -26,6 +26,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  const [bizDemoBusy, setBizDemoBusy] = useState(false);
 
   const go = (u: { vibe: string | null; email_verified?: boolean; is_demo?: boolean; account_type?: string }) =>
     router.replace(
@@ -56,6 +57,19 @@ export default function Login() {
       setError(e.message || "Demo login failed");
     } finally {
       setDemoBusy(false);
+    }
+  };
+
+  const bizDemo = async () => {
+    setError(null);
+    setBizDemoBusy(true);
+    try {
+      const u = await demoLogin("business@intro.demo");
+      go(u);
+    } catch (e: any) {
+      setError(e.message || "Business demo login failed");
+    } finally {
+      setBizDemoBusy(false);
     }
   };
 
@@ -117,6 +131,14 @@ export default function Login() {
           style={{ marginTop: spacing.md, borderColor: colors.teal }}
         />
         <Text style={styles.demoHint}>No account needed — explore Orrbbit with realistic sample data.</Text>
+        <SecondaryButton
+          testID="login-business-demo"
+          title={bizDemoBusy ? "Loading business demo…" : "Try Business Demo"}
+          onPress={bizDemo}
+          color={colors.cobalt}
+          style={{ marginTop: spacing.md, borderColor: colors.cobalt }}
+        />
+        <Text style={styles.demoHint}>See the Business side — a Verified Business with live events, reviews and insights.</Text>
 
         <Pressable onPress={() => router.replace("/(auth)/register")} style={styles.linkRow}>
           <Text style={styles.linkText}>New here? </Text>

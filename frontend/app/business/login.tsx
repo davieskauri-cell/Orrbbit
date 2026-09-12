@@ -8,10 +8,11 @@ import { useAuth } from "@/src/context/AuthContext";
 /** Business login at orrbbit.com/business/login — SAME account as the mobile app. */
 export default function BusinessLogin() {
   const router = useRouter();
-  const { token, user, signIn, signOut } = useAuth();
+  const { token, user, signIn, signOut, demoLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (token && user?.account_type === "business") return <Redirect href="/business/dashboard" />;
@@ -34,6 +35,19 @@ export default function BusinessLogin() {
     }
   };
 
+  const tryDemo = async () => {
+    setError(null);
+    setDemoBusy(true);
+    try {
+      await demoLogin("business@intro.demo");
+      router.replace("/business/dashboard");
+    } catch (e: any) {
+      setError(e?.message || "Business demo unavailable right now.");
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
   return (
     <View style={st.wrap}>
       <View style={st.card}>
@@ -49,6 +63,10 @@ export default function BusinessLogin() {
         <Pressable testID="bizlogin-submit" onPress={submit} disabled={busy} style={[st.cta, busy && { opacity: 0.6 }]}>
           {busy ? <ActivityIndicator color="#FFF" /> : <Text style={st.ctaTxt}>Log in</Text>}
         </Pressable>
+        <Pressable testID="bizlogin-demo" onPress={tryDemo} disabled={demoBusy} style={[st.demoCta, demoBusy && { opacity: 0.6 }]}>
+          {demoBusy ? <ActivityIndicator color={colors.cobalt} /> : <Text style={st.demoCtaTxt}>Try Business Demo</Text>}
+        </Pressable>
+        <Text style={st.demoHint}>No account needed — explore a fully set-up Verified Business with live events, reviews and insights.</Text>
         <Text style={st.hint}>New to Orrbbit Business? Create a Business account in the Orrbbit app.</Text>
       </View>
     </View>
@@ -66,5 +84,8 @@ const st = StyleSheet.create({
   error: { color: "#DC2626", fontSize: font.sm, marginBottom: spacing.md },
   cta: { backgroundColor: colors.cobalt, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
   ctaTxt: { color: "#FFF", fontSize: font.base, fontWeight: "800" },
+  demoCta: { borderWidth: 1.5, borderColor: colors.cobalt, borderRadius: 14, paddingVertical: 13, alignItems: "center", marginTop: spacing.md },
+  demoCtaTxt: { color: colors.cobalt, fontSize: font.base, fontWeight: "800" },
+  demoHint: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.sm, textAlign: "center", lineHeight: 17 },
   hint: { color: colors.textTertiary, fontSize: font.sm, marginTop: spacing.lg, textAlign: "center", lineHeight: 18 },
 });
