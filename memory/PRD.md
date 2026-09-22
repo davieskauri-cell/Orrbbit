@@ -859,3 +859,9 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - New Today tab (People Mode home): greeting by time of day, live stat card (events/people/radius), Around-you avatar row + online count, Live events / People looking to chat / Professionals nearby cards, purple Active Zone banner, Happening-near-you event preview. All data from existing APIs; taps open existing Events/Radar/Professional/Event Detail experiences.
 - People Mode bottom nav is exactly Today | Radar | Nearby | Encounters | Profile (Pings removed from nav only; Professional mode keeps Requests/Sessions unchanged). Today is the first screen after login for People users.
 - BASELINE NOTE: this build was rolled back to the Iter90 stable baseline per user instruction — Iter91-93 items (photo verification, tagline revert, Explore removal, Benefits row, verification delete button) are not present in this codebase.
+
+## Iter95 — Today dashboard polish (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- Bell on Today shows a live unread-notifications badge (orange, 9+ cap) fed by GET /api/notifications `unread`; opens the existing /notifications screen. Badge clears on return (useFocusEffect reload) after notifications are read.
+- Today auto-refreshes live counts (events/professionals/unread) every 30s and on tab focus; nearby people already poll every 8s via AppContext.
+- Pull-to-refresh on Today now also refreshes nearby people (AppContext refresh) alongside events/pros/unread.
+- Files: frontend/app/(tabs)/today.tsx only. Verified in Preview: badge "3" → open bell → Read all → back → badge gone; live counts 9 events / 57 people / 500m radius.
