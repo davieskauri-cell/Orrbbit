@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, Pressable, Image, RefreshControl, StyleSheet } from "react-native";
-import { useRouter, Redirect } from "expo-router";
+import { useRouter, Redirect, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
@@ -37,9 +37,10 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { nearby, coords, vibeMap, appMode, requestLocation } = useApp();
+  const { nearby, coords, vibeMap, appMode, requestLocation, refresh: refreshNearby } = useApp();
   const [events, setEvents] = useState<OrbEvent[]>([]);
   const [proCount, setProCount] = useState<number | null>(null);
+  const [unread, setUnread] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   // Today is the first screen after login — kick off the existing location flow
@@ -49,6 +50,11 @@ export default function TodayScreen() {
   }, []);
 
   const load = useCallback(async () => {
+    // unread badge doesn't need coords
+    try {
+      const n: any = await api("/notifications");
+      setUnread(n.unread || 0);
+    } catch {}
     if (!coords) return;
     try {
       const r: any = await nearbyEvents(coords.lat, coords.lng);
@@ -61,7 +67,19 @@ export default function TodayScreen() {
   }, [coords]);
   useEffect(() => { load(); }, [load]);
 
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+  // refresh live counts every 30s while Today is open, and whenever it regains focus
+  // (nearby people already poll every 8s via AppContext)
+  useEffect(() => {
+    const t = setInterval(load, 30000);
+    return () => clearInterval(t);
+  }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([load(), refreshNearby()]);
+    setRefreshing(false);
+  };
 
   // Today is People Mode only — Professional mode keeps its existing home
   if (appMode === "professional") return <Redirect href="/(tabs)" />;
@@ -97,6 +115,11 @@ export default function TodayScreen() {
         <View style={{ flexDirection: "row", gap: 10 }}>
           <Pressable testID="today-bell" onPress={() => router.push("/notifications")} style={st.iconBtn} hitSlop={6}>
             <Ionicons name="notifications-outline" size={21} color={colors.text} />
+            {unread > 0 && (
+              <View style={st.bellBadge} testID="today-bell-badge">
+                <Text style={st.bellBadgeTxt}>{unread > 9 ? "9+" : unread}</Text>
+              </View>
+            )}
           </Pressable>
           <Pressable testID="today-settings" onPress={() => router.push("/(tabs)/profile")} style={st.iconBtn} hitSlop={6}>
             <Ionicons name="settings-outline" size={21} color={colors.text} />
@@ -221,6 +244,8 @@ const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
+  bellBadge: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: colors.orange, alignItems: "center", justifyContent: "center", paddingHorizontal: 3, borderWidth: 1.5, borderColor: colors.background },
+  bellBadgeTxt: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
   greeting: { color: colors.text, fontSize: 26, fontWeight: "800", marginTop: spacing.lg },
   greetSub: { color: colors.textSecondary, fontSize: font.base, marginTop: 4 },
   statCard: { flexDirection: "row", backgroundColor: colors.surface, borderRadius: 18, paddingVertical: spacing.lg, marginTop: spacing.lg, alignItems: "center" },
