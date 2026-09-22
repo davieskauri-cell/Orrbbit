@@ -37,6 +37,14 @@ export default function UserRow({ user, vibeMap, onPress }: Props) {
                 color={colors.teal}
               />
             )}
+            {user.photo_verified && (
+              <Ionicons
+                testID={`photo-verified-${user.id}`}
+                name="checkmark-circle"
+                size={15}
+                color={colors.orange}
+              />
+            )}
           </View>
           <Text style={styles.distance}>{distLabel(user.distance)}</Text>
         </View>

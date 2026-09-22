@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "See people open to connect near you",
-        "NSPhotoLibraryUsageDescription": "Add profile photos from your gallery"
+        "NSPhotoLibraryUsageDescription": "Add profile photos from your gallery",
+        "NSCameraUsageDescription": "Take a live selfie to get Photo Verified"
       },
       "bundleIdentifier": "com.orrbbit.mobile"
     },
@@ -26,7 +27,8 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "CAMERA"
       ],
       "package": "com.orrbbit.mobile"
     },

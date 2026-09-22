@@ -185,6 +185,23 @@ export default function ProfileSetup() {
         <Text style={styles.label}>Your photos (minimum 2)</Text>
         <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removeAt} uploading={uploading} />
 
+        {photos.length >= 1 && !user?.photo_verified && (
+          <Pressable
+            testID="setup-photo-verification"
+            style={styles.verifyCard}
+            onPress={() => router.push("/photo-verification")}
+          >
+            <Ionicons name="camera-outline" size={20} color={colors.orange} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verifyTitle}>Get Photo Verified (optional)</Text>
+              <Text style={styles.verifySub}>
+                Take a quick live selfie to earn the orange tick. Uploading photos alone never verifies you.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          </Pressable>
+        )}
+
         <Text style={styles.label}>Short bio (required · 40+ characters)</Text>
         <TextInput
           testID="setup-bio"
@@ -235,5 +252,17 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: "top",
   },
+  verifyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  verifyTitle: { color: colors.text, fontSize: font.base, fontWeight: "800" },
+  verifySub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, lineHeight: 18 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 });

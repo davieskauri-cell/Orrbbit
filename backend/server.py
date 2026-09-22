@@ -425,7 +425,8 @@ def own_user(u: dict) -> dict:
         "languages": u.get("languages"),
         "prompts": (u.get("prompts") or [])[:MAX_PROMPTS],
         "email_verified": bool(u.get("email_verified")),
-        "photo_verified": bool(u.get("photo_verified", False)),  # future Photo Verified — never displayed yet
+        "photo_verified": bool(u.get("photo_verified", False)),  # orange Photo Verified tick (live-selfie check)
+        "photo_verification_status": (u.get("photo_verification") or {}).get("status", "not_submitted"),
         "joined": (u.get("created_at") or "")[:7],
         "people_discoverable": is_discoverable(u),
         # Onboarding gate: all REQUIRED profile fields done (email verification is gated separately)
@@ -4081,6 +4082,10 @@ app.include_router(_pwd_reset.reset_router)
 import events as _events  # noqa: E402
 _events.bind(_sys.modules[__name__])
 app.include_router(_events.events_router)
+
+import photo_verification as _photo_ver  # noqa: E402
+_photo_ver.bind(_sys.modules[__name__])
+app.include_router(_photo_ver.photo_ver_router)
 
 import legal_consent as _legal_mod  # noqa: E402
 _legal_mod.bind(_sys.modules[__name__])

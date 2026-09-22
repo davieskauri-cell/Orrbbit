@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,11 +16,13 @@ import { colors, spacing, radius, font, shadow } from "@/src/theme";
 
 const MENU = [
   { icon: "create-outline", label: "Edit Profile", route: "/edit-profile", testID: "menu-edit-profile" },
+  { icon: "camera-outline", label: "Photo Verification", route: "/photo-verification", testID: "menu-photo-verification" },
   { icon: "sparkles-outline", label: "Change Vibe", route: "/vibe", testID: "menu-change-vibe" },
   { icon: "id-card-outline", label: "Vibe Details", route: "/vibe-details", testID: "menu-vibe-details" },
   { icon: "flame-outline", label: "My Events", route: "/my-events", testID: "menu-my-events" },
   { icon: "bookmark-outline", label: "Saved", route: "/saved", testID: "menu-saved" },
   { icon: "diamond-outline", label: "Orrbbit Plans", route: "/plans", testID: "menu-plans" },
+  { icon: "heart-outline", label: "Benefits of Human Connection", route: "https://orrbbit.com/benefits-of-human-connection", testID: "menu-benefits" },
   { icon: "lock-closed-outline", label: "Privacy Settings", route: "/privacy", testID: "menu-privacy" },
   { icon: "folder-open-outline", label: "Account & Data", route: "/account-data", testID: "menu-account-data" },
   { icon: "document-text-outline", label: "Legal & Safety", route: "/legal-safety", testID: "menu-legal-safety" },
@@ -28,17 +30,6 @@ const MENU = [
   { icon: "map-outline", label: "How Map Privacy Works", route: "/location-privacy", testID: "menu-location-privacy" },
   { icon: "shield-checkmark-outline", label: "Safety", route: "/safety", testID: "menu-safety" },
   { icon: "qr-code-outline", label: "Invite People", route: "/invite", testID: "menu-invite" },
-] as const;
-
-const GLOBAL_MENU = [
-  { icon: "map-outline", label: "City Launch Mode", route: "/cities", testID: "menu-cities" },
-  { icon: "calendar-outline", label: "Event Mode", route: "/event-mode", testID: "menu-event-mode" },
-  { icon: "qr-code-outline", label: "Join Event Code", route: "/join-event", testID: "menu-join-event" },
-  { icon: "school-outline", label: "Orrbbit Campus", route: "/campus", testID: "menu-campus" },
-  { icon: "briefcase-outline", label: "Orrbbit Networking", route: "/networking", testID: "menu-networking" },
-  { icon: "people-outline", label: "Communities", route: "/communities", testID: "menu-communities" },
-  { icon: "megaphone-outline", label: "Ambassador Hub", route: "/ambassador", testID: "menu-ambassador" },
-  { icon: "hourglass-outline", label: "Join Waitlist", route: "/waitlist", testID: "menu-waitlist" },
 ] as const;
 
 const DEMO_MENU = [
@@ -116,6 +107,9 @@ export default function ProfileScreen() {
               </Text>
               {user?.verified && (
                 <Ionicons testID="my-verified-badge" name="checkmark-circle" size={18} color={colors.teal} />
+              )}
+              {user?.photo_verified && (
+                <Ionicons testID="my-photo-verified-badge" name="checkmark-circle" size={18} color={colors.orange} />
               )}
             </View>
             <VibePill vibe={vibe} small />
@@ -200,26 +194,13 @@ export default function ProfileScreen() {
             key={m.label}
             testID={m.testID}
             style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
-            onPress={() => router.push(m.route as any)}
+            onPress={() => (m.route.startsWith("http") ? Linking.openURL(m.route) : router.push(m.route as any))}
           >
             <Ionicons name={m.icon as any} size={20} color={colors.teal} />
             <Text style={styles.menuLabel}>{m.label}</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Orrbbit Worldwide · {user?.city || "Melbourne"}</Text>
-      <View style={styles.menu}>
-        {GLOBAL_MENU.map((m) => (
-          <Pressable
-            key={m.label}
-            testID={m.testID}
-            style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
-            onPress={() => router.push(m.route as any)}
-          >
-            <Ionicons name={m.icon as any} size={20} color={colors.orange} />
-            <Text style={styles.menuLabel}>{m.label}</Text>
+            {m.testID === "menu-photo-verification" && user?.photo_verified && (
+              <Ionicons name="checkmark-circle" size={16} color={colors.orange} testID="menu-photo-verified-tick" />
+            )}
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
         ))}

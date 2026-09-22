@@ -455,13 +455,21 @@ export default function RadarScreen() {
               </View>
             ) : best ? (
               <View style={[styles.bestCard, shadow.card]} testID="best-match-card">
-                <Text style={styles.bestKicker}>BEST NEARBY MATCH</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: spacing.md }}>
+                  <Ionicons name="sparkles" size={12} color={colors.orange} />
+                  <Text style={styles.bestKicker}>AI BEST NEARBY MATCH</Text>
+                </View>
                 <View style={styles.bestRow}>
                   <Avatar uri={best.photo_url} name={best.name} size={62} ringColor={bestVibe?.color} />
                   <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={styles.bestName}>
-                      {best.name}, {best.age}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                      <Text style={styles.bestName}>
+                        {best.name}, {best.age}
+                      </Text>
+                      {best.photo_verified && (
+                        <Ionicons name="checkmark-circle" size={16} color={colors.orange} testID="best-photo-verified" />
+                      )}
+                    </View>
                     <VibePill vibe={bestVibe} small />
                     <Text style={styles.bestDist}>
                       {distLabel(best.distance)}
@@ -479,6 +487,9 @@ export default function RadarScreen() {
                     Why shown: {best.mutual_reason}
                   </Text>
                 )}
+                <Text style={styles.aiNote} testID="ai-match-note">
+                  Picked by AI from live signals around you — vibe, shared interests and distance.
+                </Text>
                 <PrimaryButton
                   testID="best-view-profile"
                   title="View"
@@ -851,7 +862,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginTop: spacing.lg,
   },
-  bestKicker: { color: colors.orange, fontSize: 11, fontWeight: "800", letterSpacing: 1.5, marginBottom: spacing.md },
+  bestKicker: { color: colors.orange, fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
+  aiNote: { color: colors.textTertiary, fontSize: 11, fontWeight: "600", marginTop: spacing.sm, lineHeight: 15 },
   bestRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   bestName: { color: colors.text, fontSize: font.xl, fontWeight: "700" },
   bestDist: { color: colors.teal, fontSize: font.sm, fontWeight: "600" },

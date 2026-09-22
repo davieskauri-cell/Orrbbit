@@ -235,6 +235,9 @@ export default function PersonPreview() {
             {user.verified && (
               <Ionicons name="checkmark-circle" size={22} color={colors.teal} testID="verified-badge" />
             )}
+            {(user as any).photo_verified && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.orange} testID="photo-verified-badge" />
+            )}
           </View>
           {!!user.outside_age_preference && (
             <Text style={styles.outsideAgeNote} testID="profile-outside-age">

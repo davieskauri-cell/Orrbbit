@@ -78,6 +78,10 @@ export default function UserDetail() {
               <Text style={s.name}>{u.name}{u.age ? `, ${u.age}` : ''} {u.verified ? '✓' : ''}</Text>
               <Text style={s.sub}>{u.email}</Text>
               <Text style={s.sub}>{u.city}, {u.country} · {u.app_mode === 'professional' ? 'Professional mode' : 'People mode'} · plan: {u.plan || 'free'}</Text>
+              <Text style={[s.sub, data.photo_verification?.photo_verified && { color: CC.teal, fontWeight: '700' }]} testID="cc-photo-verification">
+                Photo Verification: {data.photo_verification?.photo_verified ? 'Verified' : data.photo_verification?.status === 'failed' ? 'Failed' : 'Not submitted'}
+                {data.photo_verification?.checked_at ? ` · ${new Date(data.photo_verification.checked_at).toLocaleDateString()}` : ''}
+              </Text>
             </View>
           </View>
           {u.bio ? <Text style={{ fontSize: 13, color: CC.text, marginBottom: 10 }}>{u.bio}</Text> : null}

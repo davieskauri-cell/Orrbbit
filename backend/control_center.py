@@ -736,7 +736,10 @@ async def control_user_detail(user_id: str, admin: dict = Depends(require_perm("
     prof = await db.professional_profiles.find_one({"user_id": user_id}, {"_id": 0})
     ver = await db.verification_submissions.find_one({"user_id": user_id}, {"_id": 0}, sort=[("submitted_at", -1)])
     logins = await db.admin_login_audit.find({"admin_id": user_id}, {"_id": 0}).to_list(5)
-    return {"user": strip(u), "counts": counts, "professional_profile": prof, "verification": ver, "login_history": logins}
+    photo_ver = {**(u.get("photo_verification") or {"status": "not_submitted"}),
+                 "photo_verified": bool(u.get("photo_verified", False))}
+    return {"user": strip(u), "counts": counts, "professional_profile": prof, "verification": ver,
+            "photo_verification": photo_ver, "login_history": logins}
 
 
 @control_router.get("/users/{user_id}/timeline")
