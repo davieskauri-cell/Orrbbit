@@ -865,3 +865,11 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - Today auto-refreshes live counts (events/professionals/unread) every 30s and on tab focus; nearby people already poll every 8s via AppContext.
 - Pull-to-refresh on Today now also refreshes nearby people (AppContext refresh) alongside events/pros/unread.
 - Files: frontend/app/(tabs)/today.tsx only. Verified in Preview: badge "3" → open bell → Read all → back → badge gone; live counts 9 events / 57 people / 500m radius.
+
+## Iter96 — Restore lost Iter91-93 features (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- Fork baseline had rolled back Iter91-93; restored on top of the untouched Today dashboard:
+- AI Photo Verification: live front-camera selfie only (gallery/links rejected 400), compared with profile photos via GPT-5 vision (Emergent key); reused/identical images rejected; orange "Photo Verified" tick (never "Identity Verified") on UserRow, person detail, profile, radar best match; entry points Profile menu row + profile-setup optional card; selfie never stored (hash+verdict only in db.photo_verifications); Control Centre user detail shows Photo Verification status. Backend self-test 8/8; new files backend/photo_verification.py, frontend/app/photo-verification.tsx, src/components/PhotoVerifiedBadge.tsx; expo-camera installed + camera permissions in app.json.
+- AI BEST NEARBY MATCH kicker + AI note restored on Radar (same match logic/data).
+- Benefits of Human Connection settings row (opens orrbbit.com/benefits-of-human-connection).
+- Orrbbit Worldwide section removed from Profile (routes/files untouched).
+- Testing agent frontend regression 8/8 pass (iteration_87.json). Known seed drift: sophie@intro.demo carries residual photo_verified=true from old DB (non-blocking); reliable not-verified demo personas: sarah@, emily@, liam@.
