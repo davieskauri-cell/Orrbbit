@@ -32,7 +32,7 @@ export default function Login() {
     router.replace(
       !u.email_verified && !u.is_demo ? "/(auth)/verify-email"
         : u.account_type === "business" ? "/(business)"
-          : u.vibe ? "/(tabs)" : "/(auth)/choose-vibe");
+          : u.vibe ? "/(tabs)/today" : "/(auth)/choose-vibe");
 
   const submit = async () => {
     setError(null);

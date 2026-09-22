@@ -48,6 +48,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName={pro ? "index" : "today"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.orange,
@@ -63,6 +64,15 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: "Today",
+          tabBarButtonTestID: "tab-today",
+          href: pro ? null : "/(tabs)/today",
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
@@ -84,6 +94,9 @@ export default function TabsLayout() {
         options={{
           title: pro ? "Requests" : "Pings",
           tabBarButtonTestID: "tab-pings",
+          // Pings removed from People Mode bottom nav (5 items) — professional keeps Requests.
+          // Ping logic/screens stay intact and reachable where already used.
+          href: pro ? "/(tabs)/pings" : null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name={pro ? "file-tray-full" : "notifications"} size={size} color={color} />
           ),

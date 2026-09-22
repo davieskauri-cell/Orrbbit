@@ -29,7 +29,7 @@ export default function Index() {
     return <Redirect href="/(auth)/profile-setup" />;
   }
   if (!user?.vibe) return <Redirect href="/(auth)/choose-vibe" />;
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href="/(tabs)/today" />;
 }
 
 const styles = StyleSheet.create({

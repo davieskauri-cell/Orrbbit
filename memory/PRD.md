@@ -854,3 +854,8 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - "Try Business Demo" buttons: mobile login screen (cobalt, under Explore Demo) and web /business/login. Demo Accounts screen lists the business (cobalt BUSINESS badge) and routes business switches to /(business).
 - Demos updated to current features: approval-required demo event now uses exact venue address (demonstrates new location-privacy lock); /api/demo-accounts returns account_type/business fields (cap raised to 400).
 - Verified: business demo login → dashboard fully populated (Verified, 2 active, 20 going, 478 views, 4.4★, Live Jazz listed); nearby shows both business events w/ offers to demo users; sophie sees approval event locked; suites test_business_platform + test_demo_refresh + test_iter86 = 24/24.
+
+## Iter94 — Orrbbit Today dashboard (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- New Today tab (People Mode home): greeting by time of day, live stat card (events/people/radius), Around-you avatar row + online count, Live events / People looking to chat / Professionals nearby cards, purple Active Zone banner, Happening-near-you event preview. All data from existing APIs; taps open existing Events/Radar/Professional/Event Detail experiences.
+- People Mode bottom nav is exactly Today | Radar | Nearby | Encounters | Profile (Pings removed from nav only; Professional mode keeps Requests/Sessions unchanged). Today is the first screen after login for People users.
+- BASELINE NOTE: this build was rolled back to the Iter90 stable baseline per user instruction — Iter91-93 items (photo verification, tagline revert, Explore removal, Benefits row, verification delete button) are not present in this codebase.
