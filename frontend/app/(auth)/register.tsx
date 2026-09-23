@@ -197,7 +197,7 @@ export default function Register() {
             <Text style={styles.sub}>
               {isBusiness
                 ? "Set up your Orrbbit Business account to build your presence and host events for your local community."
-                : "Create your Orrbbit account and start discovering people and professionals nearby."}
+                : "Create your Orrbbit account and start discovering people and events nearby."}
             </Text>
             <Pressable
               testID="register-switch-type"

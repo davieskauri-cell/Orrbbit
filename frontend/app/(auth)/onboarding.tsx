@@ -29,7 +29,7 @@ export default function Welcome() {
 
       <Text style={styles.headline}>Connect with the right people, events and opportunities nearby.</Text>
       <Text style={styles.sub}>
-        Meet people, find professional help and discover local business-hosted events — on your terms.
+        Meet people and discover local business-hosted events — on your terms.
       </Text>
 
       <View style={styles.heroCard}>

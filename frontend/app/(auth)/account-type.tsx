@@ -11,7 +11,7 @@ const OPTIONS = [
     key: "personal",
     icon: "person",
     title: "Personal",
-    desc: "Meet people, discover events and connect with professionals nearby.",
+    desc: "Meet people, discover events and explore businesses nearby.",
   },
   {
     key: "business",

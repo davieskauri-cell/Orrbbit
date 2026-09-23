@@ -1,0 +1,36 @@
+{
+  "summary": "Full pass (backend + frontend) of the controlled, reversible Professional Mode removal via FEATURE_FLAGS.professionalModeEnabled=false. All 9 requested test areas verified as working correctly. Backend: 7/7 new pytest tests pass for GET /api/business/nearby (auth-gated, 200 shape {businesses:[...]}, sorted by distance, fields present, 422 on missing lat/lng) and confirmed Professional backend endpoints (/api/professionals, PUT /api/users/me/mode with app_mode=professional) remain fully functional/untouched server-side. Frontend (mobile viewport 390x844, Playwright, demo-login token via localStorage per playbook): (1) Radar (index.tsx) — app-mode-switch/mode-people/mode-professional testIDs all absent for both hidden and visible user states; AI BEST NEARBY MATCH card (best-match-card, ai-match-note) renders correctly with map, radius, events, vibe pill, visibility toggle all functional. (2) Today dashboard — 3rd stat card is 'Businesses nearby' (testID today-businesses) with storefront icon and live count (0 for demo@intro.demo per expected distance-filtering, matches main agent's note); tapping the card navigates to Radar tab with no mode-switch side effect (app-mode-switch stayed absent). Live events / People looking to chat cards, greeting, stats, avatar row, active zone banner, Personal/Business Event tags all rendered unaffected. (3) Bottom nav confirmed exactly Today|Radar|Nearby|Encounters|Profile (5 visible tabs) — tab-pings NOT in the tab bar, /(tabs)/_layout.tsx pro flag is always false since appMode can never become 'professional' from the UI. (4) Nearby, Encounters, and manually-navigated Pings screens all render normal PEOPLE-mode content (filter chips/Crossed Paths-Mutual Vibes toggle/Accept-Decline pings rows) — no ProfessionalNearby/RequestsScreen/SessionsScreen text detected. (5) Signup copy verified verbatim: Account Type 'Personal' card, Onboarding subtitle, Register personal subtitle all match requested strings exactly. (6) Regression: Explore Demo login (kauri@intro.demo and default demo) and Try Business Demo login both work end-to-end (Business demo routes to business-verified -> dashboard flow). Visibility toggle (Turn Visibility On/Hidden), vibe pill, radar map all functional. (7) Zero console errors captured across all test runs, including no errors referencing appMode/AppModeSwitch/business-nearby.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter_professional_mode_flag.py",
+    "/app/test_reports/pytest/pytest_iter_professional_mode_flag.xml",
+    "/app/test_reports/iteration_88.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/frontend/src/config/featureFlags.ts — clean single source of truth flag, well documented for reversibility.",
+    "/app/frontend/src/context/AppContext.tsx — setAppMode() correctly no-ops for 'professional' while flag disabled (line 164), and persisted app_mode restore from AsyncStorage is also gated (line 157-161). This robustly prevents any code path from ever setting appMode='professional' from the UI, which is why the professional branches in nearby.tsx/pings.tsx/encounters.tsx/index.tsx are provably unreachable without needing to touch those files.",
+    "/app/frontend/src/components/AppModeSwitch.tsx — returns null cleanly when flag disabled (line 9), no dead DOM left behind.",
+    "/app/backend/business.py GET /api/business/nearby (line 554) — mirrors the old /api/professionals pattern correctly: radius = min(user.radius, plan_max_radius(user)), filters by verification_status=='Verified', haversine distance, sorted ascending, capped at 50 results. Clean and consistent with existing conventions in the file.",
+    "Minor observation (non-blocking): /app/frontend/app/(tabs)/today.tsx 'Live events', 'People looking to chat', and 'Businesses nearby' mini-cards all currently route onPress to router.push('/(tabs)') (Radar tab) rather than any card-specific deep link — this was already the pre-existing pattern for the first two cards, so the new Businesses card being consistent with them is correct behavior per the review request (navigate to Radar tab, no mode-switching side effect)."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (7/7 new tests pass)",
+    "frontend": "100% (all 9 requested test areas pass, 0 console errors)"
+  },
+  "seed_data_creation": "None. Reused existing demo accounts (kauri@intro.demo, demo@intro.demo, business@intro.demo via Try Business Demo) and existing seeded The Wharf Kitchen business for /api/business/nearby distance sanity check.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature-flag-based Professional Mode removal is solid — appMode can provably never become 'professional' via any UI path since AppContext.setAppMode() and the AsyncStorage restore effect are both gated by FEATURE_FLAGS.professionalModeEnabled, making the dead professional branches in index.tsx/nearby.tsx/pings.tsx/encounters.tsx/_layout.tsx safely unreachable without further code changes needed. Backend professional endpoints (/api/professionals, /api/professional/*, PUT /api/users/me/mode {app_mode:'professional'}) confirmed still live and functional at the API level, satisfying the 'fully preserved, only frontend reachability disabled' requirement. New test file /app/backend/tests/test_iter_professional_mode_flag.py can be reused for future regression on /api/business/nearby. To re-enable Professional Mode later, flip FEATURE_FLAGS.professionalModeEnabled=true in /app/frontend/src/config/featureFlags.ts — no other file needs touching per the design.",
+  "rca_of_issue": "N/A — no functional bugs found in this pass."
+}

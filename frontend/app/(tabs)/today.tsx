@@ -37,9 +37,9 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { nearby, coords, vibeMap, appMode, setAppMode, requestLocation, refresh: refreshNearby } = useApp();
+  const { nearby, coords, vibeMap, appMode, requestLocation, refresh: refreshNearby } = useApp();
   const [events, setEvents] = useState<OrbEvent[]>([]);
-  const [proCount, setProCount] = useState<number | null>(null);
+  const [bizCount, setBizCount] = useState<number | null>(null);
   const [unread, setUnread] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,8 +61,8 @@ export default function TodayScreen() {
       setEvents(r.events || []);
     } catch {}
     try {
-      const p: any = await api(`/professionals?lat=${coords.lat}&lng=${coords.lng}`);
-      setProCount((p.professionals || []).length);
+      const b: any = await api(`/business/nearby?lat=${coords.lat}&lng=${coords.lng}`);
+      setBizCount((b.businesses || []).length);
     } catch {}
   }, [coords]);
   useEffect(() => { load(); }, [load]);
@@ -183,15 +183,15 @@ export default function TodayScreen() {
           <Text style={st.miniLabel}>People looking to chat</Text>
         </Pressable>
         <Pressable
-          testID="today-pros"
+          testID="today-businesses"
           style={[st.miniCard, { backgroundColor: colors.tealSoft }]}
-          onPress={() => { setAppMode("professional"); router.push("/(tabs)"); }}
+          onPress={() => router.push("/(tabs)")}
         >
           <View style={[st.miniIcon, { backgroundColor: "#FFFFFF" }]}>
-            <Ionicons name="briefcase" size={18} color={colors.teal} />
+            <Ionicons name="storefront" size={18} color={colors.teal} />
           </View>
-          <Text style={[st.miniNum, { color: colors.teal }]}>{proCount ?? "—"}</Text>
-          <Text style={st.miniLabel}>Professionals nearby</Text>
+          <Text style={[st.miniNum, { color: colors.teal }]}>{bizCount ?? "—"}</Text>
+          <Text style={st.miniLabel}>Businesses nearby</Text>
         </Pressable>
       </View>
 

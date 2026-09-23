@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 
 business_router = APIRouter(prefix="/api/business")
@@ -147,6 +147,8 @@ def bind(server):
     notify = server.notify
     now_iso = server.now_iso
     public_name = server.public_name
+    haversine = server.haversine
+    plan_max_radius = server.plan_max_radius
 
     import control_email as _ce
     from control_center import get_current_admin, require_perm, audit, notify_user_action
@@ -547,6 +549,24 @@ def bind(server):
                      {**user, "email": biz.get("email") or user.get("email")},
                      ctx={"business_name": biz["name"]}, entity_id=biz["id"])
         return {"ok": True, "status": "cancelled"}
+
+    # --------------------------------------------------------- nearby (consumer, Today dashboard)
+    @business_router.get("/nearby")
+    async def nearby_businesses(lat: float = Query(...), lng: float = Query(...),
+                                 user: dict = Depends(get_current_user)):
+        radius = min(float(user.get("radius", 250) or 250), float(plan_max_radius(user)))
+        bizs = await db.business_profiles.find(
+            {"verification_status": "Verified"}, {"_id": 0}).to_list(500)
+        out = []
+        for b in bizs:
+            if b.get("lat") is None or b.get("lng") is None:
+                continue
+            dist = haversine(lat, lng, b["lat"], b["lng"])
+            if dist > radius:
+                continue
+            out.append({**_pub_biz(b), "distance": dist})
+        out.sort(key=lambda x: x["distance"])
+        return {"businesses": out[:50]}
 
     # --------------------------------------------------------- public profile
     @business_router.get("/public/{ref}")

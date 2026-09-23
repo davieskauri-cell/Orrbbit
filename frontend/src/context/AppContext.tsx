@@ -21,6 +21,7 @@ import {
 } from "@/src/services/locationService";
 import { showAlert } from "@/src/lib/alert";
 import { createPing, dismissPing as dismissPingApi } from "@/src/services/pingService";
+import { FEATURE_FLAGS } from "@/src/config/featureFlags";
 
 export type NearbyUser = {
   id: string;
@@ -151,12 +152,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [appMode, setAppModeState] = useState<"people" | "professional">("people");
 
   useEffect(() => {
+    // Professional Mode is temporarily disabled — never restore a persisted
+    // "professional" mode while the flag is off (data/APIs stay intact for later).
+    if (!FEATURE_FLAGS.professionalModeEnabled) return;
     AsyncStorage.getItem("intro_app_mode").then((v) => {
       if (v === "professional") setAppModeState("professional");
     });
   }, []);
 
   const setAppMode = useCallback((m: "people" | "professional") => {
+    if (m === "professional" && !FEATURE_FLAGS.professionalModeEnabled) return; // disabled, no-op
     setAppModeState(m);
     if (m === "professional") setActivePing(null); // mode isolation: drop People recommendations
     AsyncStorage.setItem("intro_app_mode", m).catch(() => {});
