@@ -314,6 +314,10 @@ export default function BusinessSetup() {
         </Pressable>
         <Text style={s.stepCount}>{step} of 6</Text>
       </View>
+      <Pressable testID="biz-return-login" onPress={() => router.replace("/(auth)/login")} style={s.returnLoginRow} hitSlop={8}>
+        <Ionicons name="arrow-back" size={14} color={colors.teal} />
+        <Text style={s.returnLoginTxt}>Return to Login</Text>
+      </Pressable>
       <Text style={s.eyebrow}>{eyebrow}</Text>
       <Text style={s.title}>{title}</Text>
       <Text style={s.sub}>{helper}</Text>
@@ -495,6 +499,8 @@ const s = StyleSheet.create({
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
   backBtn: { minHeight: 44, justifyContent: "center", marginLeft: -6 },
   stepCount: { color: colors.textSecondary, fontSize: font.sm, fontWeight: "700" },
+  returnLoginRow: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingVertical: spacing.sm, minHeight: 32 },
+  returnLoginTxt: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   eyebrow: { color: colors.text, fontSize: font.lg, fontWeight: "800" },
   title: { color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "800", letterSpacing: -0.3, marginTop: spacing.sm },
   sub: { color: colors.textSecondary, fontSize: font.base, marginTop: spacing.xs, lineHeight: 20 },

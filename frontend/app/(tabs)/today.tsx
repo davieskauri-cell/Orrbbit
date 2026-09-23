@@ -37,7 +37,7 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { nearby, coords, vibeMap, appMode, requestLocation, refresh: refreshNearby } = useApp();
+  const { nearby, coords, vibeMap, appMode, setAppMode, requestLocation, refresh: refreshNearby } = useApp();
   const [events, setEvents] = useState<OrbEvent[]>([]);
   const [proCount, setProCount] = useState<number | null>(null);
   const [unread, setUnread] = useState(0);
@@ -95,9 +95,11 @@ export default function TodayScreen() {
     return /chat|friend|social|meet|going out|hang/.test(label);
   });
   const radius = user?.radius || 750;
-  const featured = [...events]
+  // Personal + Business events together, soonest first
+  const upcoming = [...events]
     .filter((e) => e.status !== "cancelled" && new Date(e.end_datetime).getTime() >= now)
-    .sort((a, b) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())[0];
+    .sort((a, b) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime())
+    .slice(0, 3);
 
   return (
     <ScrollView
@@ -111,6 +113,7 @@ export default function TodayScreen() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <LogoMark size={30} />
           <Wordmark height={20} />
+          {user?.is_demo && <Text style={st.demoBadge} testID="demo-badge">DEMO</Text>}
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
           <Pressable testID="today-bell" onPress={() => router.push("/notifications")} style={st.iconBtn} hitSlop={6}>
@@ -179,7 +182,11 @@ export default function TodayScreen() {
           <Text style={[st.miniNum, { color: PURPLE }]}>{chatty.length}</Text>
           <Text style={st.miniLabel}>People looking to chat</Text>
         </Pressable>
-        <Pressable testID="today-pros" style={[st.miniCard, { backgroundColor: colors.tealSoft }]} onPress={() => router.push("/(tabs)/nearby")}>
+        <Pressable
+          testID="today-pros"
+          style={[st.miniCard, { backgroundColor: colors.tealSoft }]}
+          onPress={() => { setAppMode("professional"); router.push("/(tabs)"); }}
+        >
           <View style={[st.miniIcon, { backgroundColor: "#FFFFFF" }]}>
             <Ionicons name="briefcase" size={18} color={colors.teal} />
           </View>
@@ -212,25 +219,38 @@ export default function TodayScreen() {
           <Ionicons name="chevron-forward" size={14} color={colors.teal} />
         </Pressable>
       </View>
-      {featured ? (
-        <Pressable testID="today-featured-event" style={[st.eventCard, shadow.card]} onPress={() => router.push(`/event/${featured.id}`)}>
-          {featured.cover_image ? (
-            <Image source={{ uri: featured.cover_image }} style={st.eventImg} />
-          ) : (
-            <View style={[st.eventImg, { backgroundColor: colors.orangeSoft, alignItems: "center", justifyContent: "center" }]}>
-              <Ionicons name="flame" size={26} color={colors.orange} />
-            </View>
-          )}
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={st.eventTitle} numberOfLines={1}>{featured.title}</Text>
-            <Text style={st.eventMeta}>{whenLabel(featured.start_datetime)} · {distLabel(featured.distance)}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <Ionicons name="people" size={13} color={colors.textTertiary} />
-              <Text style={st.eventMeta}>{featured.going} going</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-        </Pressable>
+      {upcoming.length > 0 ? (
+        upcoming.map((ev) => {
+          const isBiz = ev.host_type === "business";
+          return (
+            <Pressable key={ev.id} testID={`today-event-${ev.id}`} style={[st.eventCard, shadow.card]} onPress={() => router.push(`/event/${ev.id}`)}>
+              {ev.cover_image ? (
+                <Image source={{ uri: ev.cover_image }} style={st.eventImg} />
+              ) : (
+                <View style={[st.eventImg, { backgroundColor: isBiz ? colors.cobaltSoft : colors.orangeSoft, alignItems: "center", justifyContent: "center" }]}>
+                  <Ionicons name={isBiz ? "storefront" : "flame"} size={26} color={isBiz ? colors.cobalt : colors.orange} />
+                </View>
+              )}
+              <View style={{ flex: 1, gap: 4 }}>
+                <View
+                  style={[st.hostTag, { backgroundColor: isBiz ? colors.cobaltSoft : colors.orangeSoft }]}
+                  testID={`today-event-tag-${ev.id}`}
+                >
+                  <Text style={[st.hostTagTxt, { color: isBiz ? colors.cobalt : colors.orange }]}>
+                    {isBiz ? "Business Event" : "Personal Event"}
+                  </Text>
+                </View>
+                <Text style={st.eventTitle} numberOfLines={1}>{ev.title}</Text>
+                <Text style={st.eventMeta}>{whenLabel(ev.start_datetime)} · {distLabel(ev.distance)}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                  <Ionicons name="people" size={13} color={colors.textTertiary} />
+                  <Text style={st.eventMeta}>{ev.going} going</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+            </Pressable>
+          );
+        })
       ) : (
         <View style={[st.eventCard, shadow.card, { alignItems: "center", justifyContent: "center" }]}>
           <Text style={st.eventMeta}>No upcoming events in your radius yet — check back soon.</Text>
@@ -243,6 +263,7 @@ export default function TodayScreen() {
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
   bellBadge: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: colors.orange, alignItems: "center", justifyContent: "center", paddingHorizontal: 3, borderWidth: 1.5, borderColor: colors.background },
   bellBadgeTxt: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
@@ -270,6 +291,8 @@ const st = StyleSheet.create({
   hnyRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   seeAll: { color: colors.teal, fontSize: font.sm, fontWeight: "700" },
   eventCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.surface, borderRadius: 16, padding: spacing.md, marginTop: spacing.md, minHeight: 84 },
+  hostTag: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  hostTagTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
   eventImg: { width: 72, height: 60, borderRadius: 12 },
   eventTitle: { color: colors.text, fontSize: font.base, fontWeight: "800" },
   eventMeta: { color: colors.textSecondary, fontSize: font.sm },

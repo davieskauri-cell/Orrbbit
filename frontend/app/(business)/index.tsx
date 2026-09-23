@@ -10,6 +10,7 @@ import { api } from "@/src/lib/api";
 import { openBusinessDashboard } from "@/src/lib/businessLinks";
 import { getBusinessOverview, getMyBusiness, BizOverview, Business } from "@/src/services/businessService";
 import PendingLock from "@/src/business/PendingLock";
+import { useAuth } from "@/src/context/AuthContext";
 import { myEvents, OrbEvent } from "@/src/services/eventService";
 
 export function Stat({ label, value, icon }: { label: string; value: any; icon: string }) {
@@ -42,6 +43,7 @@ function greeting() {
 
 export default function BusinessHome() {
   const router = useRouter();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [ov, setOv] = useState<BizOverview | null>(null);
   const [biz, setBiz] = useState<Business | null>(null);
@@ -76,6 +78,7 @@ export default function BusinessHome() {
         <View style={st.brandRow} testID="biz-home-brand">
           <LogoMark size={26} />
           <Wordmark height={17} />
+          {user?.is_demo && <Text style={st.demoBadge} testID="biz-demo-badge">DEMO</Text>}
         </View>
         <PendingLock biz={biz} status={ov.verification_status} />
       </ScrollView>
@@ -91,6 +94,7 @@ export default function BusinessHome() {
       <View style={st.brandRow} testID="biz-home-brand">
         <LogoMark size={26} />
         <Wordmark height={17} />
+        {user?.is_demo && <Text style={st.demoBadge} testID="biz-demo-badge">DEMO</Text>}
         <View style={{ flex: 1 }} />
         <Pressable testID="biz-home-bell" onPress={() => router.push("/(business)/notifications")} hitSlop={8} style={st.bell}>
           <Ionicons name="notifications-outline" size={22} color={colors.text} />
@@ -213,6 +217,7 @@ export default function BusinessHome() {
 const st = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.surface },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.lg },
+  demoBadge: { backgroundColor: colors.tealSoft, color: colors.teal, fontSize: 10, fontWeight: "800", letterSpacing: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, overflow: "hidden" },
   bell: { minWidth: 44, minHeight: 44, alignItems: "flex-end", justifyContent: "center" },
   hello: { color: colors.textSecondary, fontSize: font.base },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
