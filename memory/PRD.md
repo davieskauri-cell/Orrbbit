@@ -873,3 +873,10 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - Benefits of Human Connection settings row (opens orrbbit.com/benefits-of-human-connection).
 - Orrbbit Worldwide section removed from Profile (routes/files untouched).
 - Testing agent frontend regression 8/8 pass (iteration_87.json). Known seed drift: sophie@intro.demo carries residual photo_verified=true from old DB (non-blocking); reliable not-verified demo personas: sarah@, emily@, liam@.
+
+## Iter97 — Minor UX corrections (June 2026) — DONE IN PREVIEW; REDEPLOY REQUIRED
+- DEMO badge beside Orrbbit logo on Today (demo accounts only) and beside the Business dashboard header (business demo only) — same badge style/logic as Radar.
+- Today "Professionals nearby" card opens existing Radar with Professional Mode pre-selected.
+- Today "Happening near you" lists up to 3 upcoming events (personal + business mixed, soonest first) with "Personal Event" (orange) / "Business Event" (cobalt) tags; existing data + detail screens.
+- Business signup: visible "← Return to Login" on steps 1-5 alongside the step back-arrow. Personal signup already had return-to-login on every step (unchanged).
+- All self-tested in Preview with screenshots; QA throwaway business account removed.
