@@ -26,12 +26,41 @@ export async function getCurrentLocation(): Promise<{ lat: number; lng: number }
   return { lat: pos.coords.latitude, lng: pos.coords.longitude };
 }
 
+/**
+ * Adaptive, jitter-filtered location watcher.
+ * Samples aggressively from the OS, then decides in JS whether/when to
+ * surface an update: ignores GPS accuracy noise (a few metres of drift),
+ * and targets ~1-2s cadence while actively moving, ~3s while moving slowly,
+ * ~5s while stationary — without forcing GPS polling faster than the
+ * device/OS can genuinely provide.
+ */
 export async function watchUserLocation(
   onUpdate: (coords: { lat: number; lng: number }) => void
 ): Promise<Location.LocationSubscription> {
+  let last: { lat: number; lng: number; t: number } | null = null;
   return Location.watchPositionAsync(
-    { accuracy: Location.Accuracy.Balanced, distanceInterval: 15, timeInterval: 20000 },
-    (pos) => onUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+    { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 2, timeInterval: 1000 },
+    (pos) => {
+      const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const now = Date.now();
+      if (!last) {
+        last = { ...next, t: now };
+        onUpdate(next);
+        return;
+      }
+      const movedM = calculateDistanceBetweenUsers(last, next);
+      const elapsedMs = now - last.t;
+      // GPS drift/accuracy noise — never move the marker for a few metres of jitter
+      if (movedM < 4) return;
+      const speedMs =
+        typeof pos.coords.speed === "number" && pos.coords.speed > 0
+          ? pos.coords.speed
+          : movedM / Math.max(elapsedMs / 1000, 0.5);
+      const minIntervalMs = speedMs > 1.2 ? 1200 : speedMs > 0.3 ? 3000 : 5000;
+      if (elapsedMs < minIntervalMs) return;
+      last = { ...next, t: now };
+      onUpdate(next);
+    }
   );
 }
 

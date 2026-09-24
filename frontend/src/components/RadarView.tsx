@@ -6,8 +6,11 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
+  withSpring,
+  withDecay,
   runOnJS,
+  FadeIn,
+  FadeOut,
   type SharedValue,
 } from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
@@ -26,9 +29,21 @@ const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
 const MAX_SCALE = 3;
 const MAX_MARKERS = 24; // absolute hard cap for individual avatars
-const FOCUS_MARKERS = 4; // Focus Map: top individual matches get their own avatar
-const MAX_CLUSTERS = 4; // + up to this many cluster pills = ~6-8 total markers, matching the reference
 const EVENT_MARKER_CAP = 4; // cap event/business pins shown on the map so it never gets crowded
+
+// Focus Map budget by zoom tier — zoomed out keeps the map scannable (~6-8
+// markers), pinching in progressively reveals more individuals/clusters as
+// there's more room to read them. Matching/privacy logic never changes —
+// this only decides how many already-computed positions get their own marker.
+const ZOOM_TIERS = [
+  { focus: 4, maxClusters: 4 }, // tier 0 — default/zoomed out
+  { focus: 9, maxClusters: 5 }, // tier 1 — mid pinch
+  { focus: 16, maxClusters: 6 }, // tier 2 — zoomed in
+];
+const tierFor = (s: number) => (s >= 2.2 ? 2 : s >= 1.4 ? 1 : 0);
+
+const MARKER_SPRING = { damping: 18, stiffness: 140, mass: 0.6 } as const;
+const CAMERA_SPRING = { damping: 20, stiffness: 180 } as const;
 
 const SHORT_VIBE: Record<string, string> = {
   open_to_chat: "Chat",
@@ -81,7 +96,9 @@ const isStrong = (u: NearbyUser) => !!u.compatible && (u.score ?? 0) >= 6;
 type ZoomSV = { scale: SharedValue<number>; tx: SharedValue<number>; ty: SharedValue<number> };
 
 /** Positions crisp overlay content at a map coordinate under the current zoom/pan.
- *  Content renders at scale 1, so avatars, borders and text never pixelate. */
+ *  Content renders at scale 1, so avatars, borders and text never pixelate.
+ *  When its target coordinate changes (re-clustering, live nearby refresh),
+ *  it glides there with a spring instead of snapping — markers never jump. */
 function MapAnchor({
   cx,
   cy,
@@ -101,14 +118,32 @@ function MapAnchor({
   style?: any;
   children: React.ReactNode;
 }) {
+  const ax = useSharedValue(cx);
+  const ay = useSharedValue(cy);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      ax.value = cx;
+      ay.value = cy;
+      return;
+    }
+    ax.value = withSpring(cx, MARKER_SPRING);
+    ay.value = withSpring(cy, MARKER_SPRING);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cx, cy]);
   const a = useAnimatedStyle(() => ({
     transform: [
-      { translateX: z.tx.value + CX + (cx - CX) * z.scale.value - w / 2 },
-      { translateY: z.ty.value + oy + (cy - oy) * z.scale.value - h / 2 },
+      { translateX: z.tx.value + CX + (ax.value - CX) * z.scale.value - w / 2 },
+      { translateY: z.ty.value + oy + (ay.value - oy) * z.scale.value - h / 2 },
     ],
   }));
   return (
-    <Reanimated.View style={[styles.anchor, { width: w, height: h }, style, a]}>
+    <Reanimated.View
+      entering={FadeIn.duration(220)}
+      exiting={FadeOut.duration(150)}
+      style={[styles.anchor, { width: w, height: h }, style, a]}
+    >
       {children}
     </Reanimated.View>
   );
@@ -220,12 +255,21 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const ty = useSharedValue(0);
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
+  const tierSV = useSharedValue(0);
 
   // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in.
   // Boost updates DURING the pinch (not just on release) so detail loads immediately.
   const [tileBoost, setTileBoost] = useState(1);
-  const boostSV = useSharedValue(1);
-  const applyBoost = (s: number) => setTileBoost(s >= 1.5 ? 2 : 1);
+  const [zoomTier, setZoomTier] = useState(0); // drives the Focus Map marker budget (see ZOOM_TIERS)
+  const applyZoomState = (s: number) => {
+    setTileBoost(s >= 1.5 ? 2 : 1);
+    setZoomTier(tierFor(s));
+  };
+
+  // Follow Mode — Radar opens centred on the user and following live location.
+  // The moment they deliberately pan or pinch, following pauses (map stays put,
+  // their live position keeps updating in the background) until they tap re-centre.
+  const [followMode, setFollowMode] = useState(true);
 
   useEffect(() => {
     Animated.loop(
@@ -240,21 +284,25 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   }, [spin, pulse]);
 
   const pinch = Gesture.Pinch()
+    .onStart(() => {
+      runOnJS(setFollowMode)(false);
+    })
     .onUpdate((e) => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
-      // load higher-detail tiles as soon as the zoom threshold is crossed
-      const nb = scale.value >= 1.5 ? 2 : 1;
-      if (nb !== boostSV.value) {
-        boostSV.value = nb;
-        runOnJS(applyBoost)(scale.value);
+      // load higher-detail tiles + adjust the Focus Map budget as soon as a
+      // zoom threshold is crossed (gated so the JS thread isn't hit every frame)
+      const t = tierFor(scale.value);
+      if (t !== tierSV.value) {
+        tierSV.value = t;
+        runOnJS(applyZoomState)(scale.value);
       }
     })
     .onEnd(() => {
       savedScale.value = scale.value;
-      runOnJS(applyBoost)(scale.value);
+      runOnJS(applyZoomState)(scale.value);
       if (scale.value <= 1.01) {
-        tx.value = withTiming(0);
-        ty.value = withTiming(0);
+        tx.value = withSpring(0, CAMERA_SPRING);
+        ty.value = withSpring(0, CAMERA_SPRING);
         savedTx.value = 0;
         savedTy.value = 0;
       }
@@ -263,28 +311,44 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const pan = Gesture.Pan()
     .minDistance(12)
     .maxPointers(1)
+    .onStart(() => {
+      runOnJS(setFollowMode)(false);
+    })
     .onUpdate((e) => {
       const boundX = ((scale.value - 1) * MAP_W) / 2;
       const boundY = ((scale.value - 1) * mapH) / 2;
       tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
       ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
     })
-    .onEnd(() => {
-      savedTx.value = tx.value;
-      savedTy.value = ty.value;
+    .onEnd((e) => {
+      // natural momentum/inertia on release — feels like a native maps app
+      const boundX = ((scale.value - 1) * MAP_W) / 2;
+      const boundY = ((scale.value - 1) * mapH) / 2;
+      tx.value = withDecay(
+        { velocity: e.velocityX, clamp: [-boundX, boundX], deceleration: 0.995 },
+        () => {
+          savedTx.value = tx.value;
+        }
+      );
+      ty.value = withDecay(
+        { velocity: e.velocityY, clamp: [-boundY, boundY], deceleration: 0.995 },
+        () => {
+          savedTy.value = ty.value;
+        }
+      );
     });
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
       const target = scale.value > 1.2 ? 1 : 2;
-      scale.value = withTiming(target);
+      scale.value = withSpring(target, CAMERA_SPRING);
       savedScale.value = target;
-      boostSV.value = target >= 1.5 ? 2 : 1;
-      runOnJS(applyBoost)(target);
+      tierSV.value = tierFor(target);
+      runOnJS(applyZoomState)(target);
       if (target === 1) {
-        tx.value = withTiming(0);
-        ty.value = withTiming(0);
+        tx.value = withSpring(0, CAMERA_SPRING);
+        ty.value = withSpring(0, CAMERA_SPRING);
         savedTx.value = 0;
         savedTy.value = 0;
       }
@@ -303,25 +367,26 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   }));
 
   const recentre = () => {
-    scale.value = withTiming(1);
+    scale.value = withSpring(1, CAMERA_SPRING);
     savedScale.value = 1;
-    boostSV.value = 1;
-    applyBoost(1);
-    tx.value = withTiming(0);
-    ty.value = withTiming(0);
+    tierSV.value = 0;
+    applyZoomState(1);
+    tx.value = withSpring(0, CAMERA_SPRING);
+    ty.value = withSpring(0, CAMERA_SPRING);
     savedTx.value = 0;
     savedTy.value = 0;
+    setFollowMode(true);
   };
 
   const zoomBy = (factor: number) => {
     const target = Math.min(Math.max(savedScale.value * factor, 1), MAX_SCALE);
-    scale.value = withTiming(target);
+    scale.value = withSpring(target, CAMERA_SPRING);
     savedScale.value = target;
-    boostSV.value = target >= 1.5 ? 2 : 1;
-    applyBoost(target);
+    tierSV.value = tierFor(target);
+    applyZoomState(target);
     if (target <= 1.01) {
-      tx.value = withTiming(0);
-      ty.value = withTiming(0);
+      tx.value = withSpring(0, CAMERA_SPRING);
+      ty.value = withSpring(0, CAMERA_SPRING);
       savedTx.value = 0;
       savedTy.value = 0;
     }
@@ -353,9 +418,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         dist: approx.distance,
       };
     });
-    // Focus Map: top 8-12 most relevant get individual markers, the rest collapse
-    // into clusters (hard cap of 24 individual avatars always holds)
-    const FOCUS = Math.min(FOCUS_MARKERS, MAX_MARKERS);
+    // Focus Map: the most relevant get individual markers, the rest collapse
+    // into clusters (hard cap of 24 individual avatars always holds). The
+    // budget widens by zoom tier — pinching in progressively de-clusters.
+    const tierCfg = ZOOM_TIERS[Math.min(zoomTier, ZOOM_TIERS.length - 1)];
+    const FOCUS = Math.min(tierCfg.focus, MAX_MARKERS);
+    const MAX_CLUSTERS = tierCfg.maxClusters;
     let singles = placed;
     let clusters: { key: string; x: number; y: number; users: NearbyUser[] }[] = [];
     if (placed.length > FOCUS) {
@@ -529,7 +597,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
 
     return { singles, clusterInfo, clusters, clearCentre, placedEvents };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, mapH, maxR, radiusSetting, vibeMap, events]);
+  }, [users, mapH, maxR, radiusSetting, vibeMap, events, zoomTier]);
 
   return (
     <View style={[styles.mapArea, { height: mapH }]} testID="radar-map">
@@ -746,7 +814,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
               const w = isBiz ? 110 : size + 16;
               return (
                 <MapAnchor key={`ev-${ev.id}`} cx={x} cy={y} oy={cy} w={w} h={size + (isBiz ? 44 : 16)} z={z} style={styles.blip}>
-                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} hitSlop={8} style={{ alignItems: "center", width: w }}>
+                  <Pressable
+                    testID={`radar-event-${ev.id}`}
+                    onPress={() => onSelectEvent && onSelectEvent(ev)}
+                    hitSlop={8}
+                    style={({ pressed }) => [{ alignItems: "center", width: w }, pressed && { transform: [{ scale: 0.93 }] }]}
+                  >
                     <View style={[styles.eventGlow, isBiz && styles.eventGlowBiz, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
                     <View style={[styles.eventDot, isBiz && { backgroundColor: colors.cobalt }, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
                       <Ionicons name={(isBiz ? "storefront" : EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
@@ -778,7 +851,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
           <Ionicons name="remove" size={18} color={colors.text} />
         </Pressable>
         <Pressable testID="radar-recentre" style={styles.ctrlBtn} onPress={recentre} hitSlop={6}>
-          <Ionicons name="locate" size={16} color={colors.teal} />
+          <Ionicons name="locate" size={16} color={followMode ? colors.teal : colors.grey} />
         </Pressable>
       </View>
 

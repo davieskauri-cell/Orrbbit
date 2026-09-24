@@ -17,7 +17,6 @@ import {
   getCurrentLocation,
   getPermissionGranted,
   watchUserLocation,
-  calculateDistanceBetweenUsers,
 } from "@/src/services/locationService";
 import { showAlert } from "@/src/lib/alert";
 import { createPing, dismissPing as dismissPingApi } from "@/src/services/pingService";
@@ -214,10 +213,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     !!user?.visible && !user?.ghost_mode && !user?.paused;
 
   // LIVE foreground location: while permission is granted, follow the user as they
-  // move (≥15m + 20s thresholds in the watcher, ≥15m guard here against GPS jitter).
-  // Setting coords feeds the existing push-to-backend + nearby refresh effects, so
-  // the Radar position updates automatically — no reload needed. The subscription
-  // is stopped when the app backgrounds and resumed on foreground (no leaks).
+  // move. Adaptive cadence + jitter filtering now happens inside watchUserLocation
+  // itself (locationService.ts) — every accepted update here is already "real"
+  // movement, so we apply it directly. Setting coords feeds the existing
+  // push-to-backend + nearby refresh effects, so the Radar position updates
+  // automatically — no reload needed. The subscription is stopped when the app
+  // backgrounds and resumed on foreground (no leaks).
   const locWatch = useRef<{ remove: () => void } | null>(null);
   useEffect(() => {
     if (!token || permission !== "granted") return;
@@ -225,11 +226,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const start = async () => {
       if (disposed || locWatch.current) return;
       try {
-        const sub = await watchUserLocation((pos) => {
-          setCoords((prev) =>
-            prev && calculateDistanceBetweenUsers(prev, pos) < 15 ? prev : pos
-          );
-        });
+        const sub = await watchUserLocation((pos) => setCoords(pos));
         if (disposed) sub.remove();
         else locWatch.current = sub;
       } catch {}
@@ -277,11 +274,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  // poll nearby every 8s
+  // Lightweight "keep-alive" heartbeat — movement-triggered refresh (via the
+  // coords effect above, which now only fires on real accepted GPS movement)
+  // covers the common case, so this interval exists mainly to catch OTHER
+  // people/events changing while you're stationary. Kept long to protect
+  // battery/backend load — map pan/zoom/animation never triggers a fetch.
   useEffect(() => {
     if (nearbyPoll.current) clearInterval(nearbyPoll.current);
     if (token && coords && visibleAndActive) {
-      nearbyPoll.current = setInterval(() => refresh(), 8000);
+      nearbyPoll.current = setInterval(() => refresh(), 25000);
     }
     return () => {
       if (nearbyPoll.current) clearInterval(nearbyPoll.current);
