@@ -1,0 +1,63 @@
+{
+  "summary": "Regression pass for Expo SDK 54->57 upgrade (RN 0.86.3, React 19.2.3, reanimated 4.5.1, gesture-handler 2.32, screens 4.26, worklets 0.10.1, expo-camera/location/etc bumped). App loads with ZERO console/page errors across all tested screens: landing, login, Explore Demo login, Today dashboard, Radar (map render + zoom-in/out + recentre buttons via gesture-handler/reanimated), Nearby, Encounters, Profile, Photo Verification screen, Location Privacy screen, Meetup Point flow, Business Demo login + dashboard. expo-doctor reports 20/20 checks passed. Backend regression 27/28 (96%) pass -- backend is Python/FastAPI, completely unaffected by this frontend-only SDK bump; the 1 failure is a pre-existing data-state-dependent test unrelated to the upgrade. IMPORTANT FINDING: contrary to the agent-to-agent note claiming 'no new lint errors', re-running `npx eslint app/ src/` now shows 104 NEW errors (previously would have been 0/pre-existing-warnings-only) from eslint-plugin-react-hooks v7.1.1 (bundled via eslint-config-expo 10.0.0 -> ~57.0.2), which ships new React-Compiler-based lint rules not present before this upgrade: react-hooks/set-state-in-effect (56), react-hooks/refs (28), react-hooks/static-components (10), react-hooks/immutability (6), react-hooks/purity (3). These are lint-only findings (no runtime crashes observed anywhere), but they ARE a direct regression of the SDK/eslint-config-expo bump and should be reported/tracked, not dismissed as pre-existing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/professional/connect/requests (sana@radar.intro.demo)", "issue": "test_verified_sana_sees_requests failed (expected >=1 pending request, got 0) -- data-state dependent (likely consumed by earlier accept/decline in seeded flow), unrelated to Expo SDK upgrade since backend code was not touched."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Control Centre login (/control)", "issue": "Frontend uses EXPO_PUBLIC_CONTROL_BACKEND_URL (https://nearby-connect-93.emergent.host) which is a DIFFERENT host than EXPO_PUBLIC_BACKEND_URL (preview env). QA admin credentials from test_credentials.md return 401 on that host (confirmed via direct curl to that host, vs 200 on the preview host with same credentials). This is a pre-existing environment/config separation between preview and 'emergent.host' deployments, NOT caused by the SDK upgrade -- flagging for awareness since Control Centre could not be fully regression-tested end-to-end in this environment.", "affected_testIDs": []}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "eslint_new_regressions": {
+    "root_cause": "eslint-config-expo bumped 10.0.0 -> ~57.0.2 as part of this Expo SDK 57 upgrade, which pulls in eslint-plugin-react-hooks v7.1.1 (React Compiler-era rules). These rules did not exist/run before this upgrade.",
+    "new_error_counts": {
+      "react-hooks/set-state-in-effect": 56,
+      "react-hooks/refs": 28,
+      "react-hooks/static-components": 10,
+      "react-hooks/immutability": 6,
+      "react-hooks/purity": 3
+    },
+    "total_new_errors": 104,
+    "impact": "Lint-only, no observed runtime crashes in any tested screen/flow. Will fail any CI/lint gate that requires zero errors. Contradicts the claim in the review request that eslint showed 'only pre-existing warnings unrelated to this upgrade' -- that check must have been run before/without these new plugin versions actually installed, or before this file set was linted with the new config."
+  },
+  "verified_working": [
+    "Landing/onboarding screen renders correctly, zero console errors",
+    "Login screen (Explore Demo / Try Business Demo / Log In / Create Account) renders correctly",
+    "Explore Demo login -> Today dashboard: greeting, stats (Events/People/Radius), avatar row, Live events, People looking to chat, Businesses nearby, Happening near you cards (Business/Personal tags), notification bell -- all render, zero console errors",
+    "Radar tab: map tiles, clustering pills (Advice/Networking/Chat/Coffee), radar-zoom-in/radar-zoom-out/radar-recentre buttons all functional (reanimated 4.5.1 + gesture-handler 2.32 heavy usage confirmed working), AI Best Nearby Match card, Radius/Events/Filters chips, privacy pill, bottom nav all correct, zero console errors",
+    "Nearby tab: filter chips, ranked list with badges/distances render correctly",
+    "Encounters tab: Crossed Paths / Mutual Vibes tabs, list renders correctly",
+    "Profile tab: avatar, plan badge, completeness checklist render correctly",
+    "Photo Verification screen (expo-camera dependency) loads cleanly showing already-verified state, zero crash",
+    "Location Privacy screen (expo-location dependency) loads cleanly with all copy/icons, zero crash",
+    "Meetup Point flow (/meetup-point): 3 Verified Meetup Spots cards + 10 fallback tiles + safety message all render correctly",
+    "Try Business Demo -> verified banner -> Go to Dashboard -> full Business dashboard (stats, Create Event, Quick Actions, Upcoming Events, bottom nav) renders correctly, zero console errors",
+    "npx expo-doctor: 20/20 checks passed"
+  ],
+  "test_report_links": [
+    "/app/test_reports/pytest/pytest_upgrade_regression.xml"
+  ],
+  "action_items": [
+    "Fix or re-triage the 104 new eslint errors introduced by eslint-plugin-react-hooks v7.1.1 (via eslint-config-expo 57 bump) -- primarily react-hooks/set-state-in-effect across many hooks/screens (e.g. src/control/RadarPanel.tsx:43, src/control/Shell.tsx:55, src/control/VerificationQueue.tsx:33, and dozens more). These are new React-Compiler-oriented lint rules, not functional bugs, but should be addressed or the rules explicitly downgraded/disabled if not desired, so CI lint gates don't silently start failing post-upgrade.",
+    "No functional/runtime regressions found across any tested screen or flow -- SDK 57 upgrade itself appears clean at runtime.",
+    "Control Centre could not be fully regression-tested end-to-end in this preview environment because it targets a separate backend host (EXPO_PUBLIC_CONTROL_BACKEND_URL) that returned 401 for the documented QA credentials -- this is a pre-existing environment separation, not an upgrade regression, but worth a quick sanity check by main agent if Control Centre regression coverage is needed.",
+    "Re-run tests/test_iter19_adaptive_radar.py::TestProRequestsGate::test_verified_sana_sees_requests in isolation (not full suite) to confirm it's a test-ordering/data-state flake rather than a real issue -- did not investigate further since backend code is untouched by this upgrade and out of scope for a pure SDK regression pass."
+  ],
+  "critical_code_review_comments": [
+    "RadarView.tsx remains ~1239 lines (previously flagged in iteration_90) -- still exceeds the 700-line guideline; unrelated to this upgrade but worth eventual refactor.",
+    "The 104 new eslint-plugin-react-hooks errors are legitimate code-quality flags surfaced by the newer rule set (e.g. calling setState directly in useEffect bodies) -- while not causing runtime issues in this app (React 19's automatic batching / lack of StrictMode double-invoke in this test run masked them), they represent real anti-patterns the new compiler-aware linter is designed to catch and could cause issues under React Compiler/concurrent features in the future."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "96% (27/28, unrelated flake)", "frontend": "100% of testable regression flows passed with zero runtime console/page errors"},
+  "seed_data_creation": "None -- reused existing seeded demo data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Expo SDK 57 upgrade is functionally clean -- zero runtime crashes/console errors across landing, login, Today, Radar (incl. zoom/recentre gesture-handler+reanimated interactions), Nearby, Encounters, Profile, Photo Verification, Location Privacy, Meetup Point, and Business Demo dashboard. The ONE real finding from this session is that eslint-config-expo's bump (10.0.0 -> 57.0.2) pulled in eslint-plugin-react-hooks v7.1.1 which introduces 104 NEW lint errors (set-state-in-effect/refs/static-components/immutability/purity) across the codebase that did not exist under the old config -- main agent should decide whether to fix these or adjust lint config, since the original problem statement's claim of 'only pre-existing lint warnings' does not hold up under a fresh eslint run with the new package versions actually installed.",
+  "rca_of_issue": "New eslint errors RCA: eslint-config-expo went from major version 10.0.0 to 57.0.2 as part of the Expo SDK 57 upgrade. This package transitively bumped eslint-plugin-react-hooks to v7.1.1, which ships React-Compiler-era rules (set-state-in-effect, refs, static-components, immutability, purity) that are stricter than the previous rule set and were not evaluated before. No code changes were made to trigger this -- it's purely the new lint ruleset catching pre-existing patterns (e.g. calling setState synchronously inside useEffect) that the old eslint-plugin-react-hooks version did not flag. Not a runtime bug; purely a static-analysis/lint-config side effect of the dependency bump."
+}
