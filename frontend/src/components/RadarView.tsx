@@ -26,7 +26,9 @@ const CY = MAP_H / 2;
 const MAX_R = MAP_H / 2 - 26;
 const MAX_SCALE = 3;
 const MAX_MARKERS = 24; // absolute hard cap for individual avatars
-const FOCUS_MARKERS = 12; // Focus Map: only the most relevant people get their own marker
+const FOCUS_MARKERS = 4; // Focus Map: top individual matches get their own avatar
+const MAX_CLUSTERS = 4; // + up to this many cluster pills = ~6-8 total markers, matching the reference
+const EVENT_MARKER_CAP = 4; // cap event/business pins shown on the map so it never gets crowded
 
 const SHORT_VIBE: Record<string, string> = {
   open_to_chat: "Chat",
@@ -336,7 +338,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
 
   // memoised marker placement — recomputed only when data/geometry change,
   // not on every parent poll re-render (startup/scroll performance)
-  const { singles, clusterInfo, clusters, clearCentre } = useMemo(() => {
+  const { singles, clusterInfo, clusters, placedEvents } = useMemo(() => {
     // place nearby users (fuzzed positions only) — centre coordinates in map space
     const placed = users.map((u) => {
       const approx = getApproximateDisplayLocation(u, radiusSetting);
@@ -395,9 +397,34 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         });
         best.users.push(p.u);
       });
+      // keep the radar scannable — merge the smallest clusters into their
+      // nearest neighbour until the total marker count stays ~6-8 (singles + clusters)
+      while (clusters.length > MAX_CLUSTERS) {
+        let si = 0;
+        for (let i = 1; i < clusters.length; i++) {
+          if (clusters[i].users.length < clusters[si].users.length) si = i;
+        }
+        const small = clusters[si];
+        clusters.splice(si, 1);
+        let best2 = 0;
+        let bestD2 = Infinity;
+        clusters.forEach((c, i) => {
+          const d = Math.hypot(c.x - small.x, c.y - small.y);
+          if (d < bestD2) {
+            bestD2 = d;
+            best2 = i;
+          }
+        });
+        clusters[best2] = {
+          ...clusters[best2],
+          users: [...clusters[best2].users, ...small.users],
+          x: (clusters[best2].x + small.x) / 2,
+          y: (clusters[best2].y + small.y) / 2,
+        };
+      }
     }
     // spacing pass — avatars never stack directly on top of each other
-    const MIN_GAP = 40;
+    const MIN_GAP = 46;
     for (let i = 0; i < singles.length; i++) {
       for (let j = 0; j < i; j++) {
         const dx = singles[i].x - singles[j].x;
@@ -425,6 +452,26 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     singles = singles.map((p) => ({ ...p, ...clearCentre(p.x, p.y, p.bearing, 52) }));
     clusters = clusters.map((c) => ({ ...c, ...clearCentre(c.x, c.y, 0, 56) }));
 
+    // clusters carry wider pill labels — give them extra breathing room from
+    // people markers and from each other so labels never collide (cleaner scan)
+    const CLUSTER_GAP = 58;
+    for (let i = 0; i < clusters.length; i++) {
+      const others = [...singles, ...clusters.slice(0, i)];
+      for (const o of others) {
+        const dx = clusters[i].x - o.x;
+        const dy = clusters[i].y - o.y;
+        const d = Math.hypot(dx, dy);
+        if (d < CLUSTER_GAP) {
+          const ang = d > 0.5 ? Math.atan2(dy, dx) : (i + 1) * 0.9;
+          clusters[i] = {
+            ...clusters[i],
+            x: Math.min(Math.max(o.x + Math.cos(ang) * CLUSTER_GAP, 30), MAP_W - 30),
+            y: Math.min(Math.max(o.y + Math.sin(ang) * CLUSTER_GAP, 30), mapH - 30),
+          };
+        }
+      }
+    }
+
     // dominant vibe per cluster (drives bubble colour, label and heat zones)
     const clusterInfo = clusters.map((c) => {
       const counts: Record<string, number> = {};
@@ -432,7 +479,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         if (u.vibe) counts[u.vibe] = (counts[u.vibe] || 0) + 1;
       });
       const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      const dominant = top && top[1] / c.users.length >= 0.5 ? top[0] : null;
+      // lower plurality threshold (was strict majority) — after clusters merge to
+      // hit the marker budget, the single most common vibe still earns a readable
+      // label instead of falling back to a bare count
+      const dominant = top && top[1] / c.users.length >= 0.34 ? top[0] : null;
       const label =
         dominant === "opportunity"
           ? opportunityClusterLabel(c.users)
@@ -449,9 +499,37 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         label,
       };
     });
-    return { singles, clusterInfo, clusters, clearCentre };
+
+    // Event/business pins — capped to the nearest few and spaced away from
+    // people markers and each other so pins/labels never collide.
+    const evSorted = [...(events || [])].sort((a, b) => a.distance - b.distance).slice(0, EVENT_MARKER_CAP);
+    const EVENT_GAP = 64;
+    const placedEvents: { ev: any; x: number; y: number; isBiz: boolean; size: number }[] = [];
+    evSorted.forEach((ev, idx) => {
+      const isBiz = (ev as any).host_type === "business";
+      const rr = Math.min(ev.distance / MAX_DIST, 1) * maxR;
+      const rad = (ev.bearing * Math.PI) / 180;
+      const minR = Math.max(110, maxR * 0.55);
+      let pos = clearCentre(CX + rr * Math.sin(rad), cy - rr * Math.cos(rad), ev.bearing, minR);
+      [...singles, ...clusters, ...placedEvents].forEach((o) => {
+        const dx = pos.x - o.x;
+        const dy = pos.y - o.y;
+        const d = Math.hypot(dx, dy);
+        if (d < EVENT_GAP) {
+          const ang = d > 0.5 ? Math.atan2(dy, dx) : (idx + 1) * 1.1;
+          pos = {
+            x: Math.min(Math.max(o.x + Math.cos(ang) * EVENT_GAP, 34), MAP_W - 34),
+            y: Math.min(Math.max(o.y + Math.sin(ang) * EVENT_GAP, 34), mapH - 34),
+          };
+        }
+      });
+      const size = Math.min(40 + Math.round(Math.min(ev.going, 24) * 0.6), 54);
+      placedEvents.push({ ev, x: pos.x, y: pos.y, isBiz, size });
+    });
+
+    return { singles, clusterInfo, clusters, clearCentre, placedEvents };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, mapH, maxR, radiusSetting, vibeMap]);
+  }, [users, mapH, maxR, radiusSetting, vibeMap, events]);
 
   return (
     <View style={[styles.mapArea, { height: mapH }]} testID="radar-map">
@@ -660,31 +738,28 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
               </MapAnchor>
             ))}
 
-            {/* Event hotspots — rendered LAST so taps land; sized to stay secondary to people markers */}
-            {(events || []).map((ev) => {
-              const isBiz = (ev as any).host_type === "business";
-              const rr = Math.min(ev.distance / MAX_DIST, 1) * maxR;
-              const rad = (ev.bearing * Math.PI) / 180;
-              // keep events clear of the central People zone (min 55% of radar radius)
-              const minR = Math.max(110, maxR * 0.55);
-              const pos = clearCentre(CX + rr * Math.sin(rad), cy - rr * Math.cos(rad), ev.bearing, minR);
-              const size = Math.min(40 + Math.round(Math.min(ev.going, 24) * 0.6), 54);
+            {/* Event/business hotspots — capped + pre-spaced (see useMemo); rendered LAST
+                so taps land. Business pins keep their label; other events stay icon-only
+                to keep the map scannable, expanding into the full preview on tap. */}
+            {placedEvents.map(({ ev, x, y, isBiz, size }) => {
               const live = (ev as any).start_datetime && new Date((ev as any).start_datetime) <= new Date() && new Date() <= new Date((ev as any).end_datetime);
+              const w = isBiz ? 110 : size + 16;
               return (
-                <MapAnchor key={`ev-${ev.id}`} cx={pos.x} cy={pos.y} oy={cy} w={110} h={size + 44} z={z} style={styles.blip}>
-                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} hitSlop={8} style={{ alignItems: "center", width: 110 }}>
+                <MapAnchor key={`ev-${ev.id}`} cx={x} cy={y} oy={cy} w={w} h={size + (isBiz ? 44 : 16)} z={z} style={styles.blip}>
+                  <Pressable testID={`radar-event-${ev.id}`} onPress={() => onSelectEvent && onSelectEvent(ev)} hitSlop={8} style={{ alignItems: "center", width: w }}>
                     <View style={[styles.eventGlow, isBiz && styles.eventGlowBiz, { width: size + 14, height: size + 14, borderRadius: (size + 14) / 2 }]} />
                     <View style={[styles.eventDot, isBiz && { backgroundColor: colors.cobalt }, { width: size, height: size, borderRadius: size / 2, marginTop: -(size + 14) + 7 }]}>
                       <Ionicons name={(isBiz ? "storefront" : EVENT_CATEGORY_ICONS[ev.category] || "flame") as any} size={Math.round(size * 0.42)} color="#FFF" />
                     </View>
-                    <View style={[styles.eventPill, isBiz && { backgroundColor: colors.cobalt }]}>
-                      <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
-                      <Text style={styles.eventMeta} numberOfLines={1}>
-                        {isBiz ? "BUSINESS · " : "PERSONAL · "}
-                        {(ev as any).status === "full" ? "FULL" : live ? "● Live now" : `${ev.going} going`}
-                        {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
-                      </Text>
-                    </View>
+                    {isBiz && (
+                      <View style={[styles.eventPill, { backgroundColor: colors.cobalt }]}>
+                        <Text style={styles.eventName} numberOfLines={1}>{ev.title}</Text>
+                        <Text style={styles.eventMeta} numberOfLines={1}>
+                          BUSINESS · {(ev as any).status === "full" ? "FULL" : live ? "● Live now" : `${ev.going} going`}
+                          {" · "}{ev.distance >= 1000 ? `${(ev.distance / 1000).toFixed(1)}km` : `${ev.distance}m`}
+                        </Text>
+                      </View>
+                    )}
                   </Pressable>
                 </MapAnchor>
               );

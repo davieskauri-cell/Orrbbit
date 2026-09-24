@@ -4010,6 +4010,53 @@ async def seed_demo_business():
     return biz_id
 
 
+# Orrbbit Verified Meetup Spots — a small, curated set of Verified businesses
+# specifically approved for safe public meetups (separate flag from general
+# business verification — most Verified businesses do NOT appear here).
+DEMO_MEETUP_SPOTS = [
+    {
+        "slug": "the-daily-grind-demo", "name": "The Daily Grind", "category": "Café",
+        "lat": -37.8115, "lng": 144.9655, "location_display": "Flinders Lane, Melbourne",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-cafe/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-cafe-cover/600/400",
+    },
+    {
+        "slug": "the-commons-demo", "name": "The Commons", "category": "Coworking Space",
+        "lat": -37.8168, "lng": 144.9598, "location_display": "Collins Street, Melbourne",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-coworking/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-coworking-cover/600/400",
+    },
+    {
+        "slug": "riverside-community-center-demo", "name": "Riverside Community Center",
+        "category": "Community Venue",
+        "lat": -37.8100, "lng": 144.9696, "location_display": "Yarra River Precinct, Melbourne",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-community/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-community-cover/600/400",
+    },
+]
+
+
+async def seed_demo_meetup_spots():
+    """Idempotent — re-seeded on every startup / demo reset."""
+    ts = now_iso()
+    for spot in DEMO_MEETUP_SPOTS:
+        existing = await db.business_profiles.find_one({"slug": spot["slug"]})
+        biz_id = (existing or {}).get("id") or str(uuid.uuid4())
+        doc = {
+            "id": biz_id, "user_id": (existing or {}).get("user_id") or f"demo-meetup-{spot['slug']}",
+            "slug": spot["slug"], "name": spot["name"], "category": spot["category"],
+            "secondary_category": "", "description": f"{spot['name']} — a popular, welcoming spot near you.",
+            "location_display": spot["location_display"], "lat": spot["lat"], "lng": spot["lng"],
+            "logo_url": spot["logo_url"], "cover_url": spot["cover_url"],
+            "website": "", "phone": "", "socials": "", "opening_hours": "",
+            "country": "Australia", "country_code": "AU",
+            "verification_status": "Verified", "verification_note": "",
+            "meetup_spot_approved": True, "demo": True, "profile_views": 0,
+            "created_at": (existing or {}).get("created_at") or ts, "updated_at": ts,
+        }
+        await db.business_profiles.replace_one({"slug": spot["slug"]}, doc, upsert=True)
+
+
 @api_router.post("/demo/reset")
 async def reset_demo(user: dict = Depends(get_current_user)):
     """Restore all demo accounts and data to the original seeded state. Demo accounts only."""
@@ -4021,6 +4068,7 @@ async def reset_demo(user: dict = Depends(get_current_user)):
     counts = await seed_demo_environment(force=True)
     counts["events"] = await seed_demo_events()
     await seed_demo_business()
+    await seed_demo_meetup_spots()
     import professional_flow as _pf
     import sys as _s
     await _pf.seed_pro_flow_demo(_s.modules[__name__], force=True)
@@ -4340,6 +4388,7 @@ async def seed_demo_accounts():
     await seed_demo_environment()
     await seed_demo_events()
     await seed_demo_business()
+    await seed_demo_meetup_spots()
     await _pro_flow.seed_pro_flow_demo(_sys.modules[__name__])
 
 

@@ -568,6 +568,30 @@ def bind(server):
         out.sort(key=lambda x: x["distance"])
         return {"businesses": out[:50]}
 
+    # --------------------------------------------------------- Orrbbit Verified Meetup Spots
+    @business_router.get("/meetup-spots")
+    async def nearby_meetup_spots(lat: float = Query(...), lng: float = Query(...),
+                                   user: dict = Depends(get_current_user)):
+        """Verified businesses specifically approved for public meetups — a distinct,
+        admin-curated flag from general business verification. Never all verified
+        businesses qualify; only those explicitly marked meetup_spot_approved."""
+        # widened, safety-purpose search radius so the list stays useful even on a
+        # small People radius (this is a safety feature, not radar matching)
+        search_radius = max(float(user.get("radius", 250) or 250), 1000.0)
+        bizs = await db.business_profiles.find(
+            {"verification_status": "Verified", "meetup_spot_approved": True}, {"_id": 0}
+        ).to_list(200)
+        out = []
+        for b in bizs:
+            if b.get("lat") is None or b.get("lng") is None:
+                continue
+            dist = haversine(lat, lng, b["lat"], b["lng"])
+            if dist > search_radius:
+                continue
+            out.append({**_pub_biz(b), "distance": dist})
+        out.sort(key=lambda x: x["distance"])
+        return {"spots": out[:20]}
+
     # --------------------------------------------------------- public profile
     @business_router.get("/public/{ref}")
     async def public_business(ref: str, user: dict = Depends(get_current_user)):

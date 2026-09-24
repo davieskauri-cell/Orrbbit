@@ -32,7 +32,7 @@ export function AdaptiveRadarPillMarker({
         <Text style={styles.badgeText}>+{count}</Text>
       </View>
       <View style={[styles.pill, { backgroundColor: color }]}>
-        <Text style={styles.pillText} numberOfLines={2}>
+        <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
           {label}
         </Text>
       </View>
