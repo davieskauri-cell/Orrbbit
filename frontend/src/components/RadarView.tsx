@@ -9,8 +9,6 @@ import Reanimated, {
   withSpring,
   withDecay,
   runOnJS,
-  FadeIn,
-  FadeOut,
   type SharedValue,
 } from "react-native-reanimated";
 import Avatar from "@/src/components/Avatar";
@@ -139,11 +137,7 @@ function MapAnchor({
     ],
   }));
   return (
-    <Reanimated.View
-      entering={FadeIn.duration(220)}
-      exiting={FadeOut.duration(150)}
-      style={[styles.anchor, { width: w, height: h }, style, a]}
-    >
+    <Reanimated.View style={[styles.anchor, { width: w, height: h }, style, a]}>
       {children}
     </Reanimated.View>
   );
@@ -256,6 +250,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
   const tierSV = useSharedValue(0);
+  const followSV = useSharedValue(1); // 1 = following, 0 = exploring — gates setFollowMode so it fires once
 
   // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in.
   // Boost updates DURING the pinch (not just on release) so detail loads immediately.
@@ -285,7 +280,11 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
 
   const pinch = Gesture.Pinch()
     .onStart(() => {
-      runOnJS(setFollowMode)(false);
+      // only cross the JS thread once per explore — not on every gesture start
+      if (followSV.value) {
+        followSV.value = 0;
+        runOnJS(setFollowMode)(false);
+      }
     })
     .onUpdate((e) => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
@@ -312,7 +311,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     .minDistance(12)
     .maxPointers(1)
     .onStart(() => {
-      runOnJS(setFollowMode)(false);
+      if (followSV.value) {
+        followSV.value = 0;
+        runOnJS(setFollowMode)(false);
+      }
     })
     .onUpdate((e) => {
       const boundX = ((scale.value - 1) * MAP_W) / 2;
@@ -375,6 +377,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     ty.value = withSpring(0, CAMERA_SPRING);
     savedTx.value = 0;
     savedTy.value = 0;
+    followSV.value = 1;
     setFollowMode(true);
   };
 
