@@ -4048,6 +4048,20 @@ DEMO_MEETUP_SPOTS = [
         "logo_url": "https://picsum.photos/seed/orrbbit-meetup-sunshine/300/300",
         "cover_url": "https://picsum.photos/seed/orrbbit-meetup-sunshine-cover/600/400",
     },
+    # Werribee / Point Cook — outer-west coverage, not just inner-west Melbourne.
+    {
+        "slug": "werribee-plaza-cafe-demo", "name": "Werribee Plaza Café", "category": "Café",
+        "lat": -37.8900, "lng": 144.5900, "location_display": "Heaths Road, Werribee",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-werribee/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-werribee-cover/600/400",
+    },
+    {
+        "slug": "point-cook-community-hub-demo", "name": "Point Cook Community Hub",
+        "category": "Community Venue",
+        "lat": -37.8950, "lng": 144.5950, "location_display": "Main Street, Point Cook",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-pointcook/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-pointcook-cover/600/400",
+    },
 ]
 
 
