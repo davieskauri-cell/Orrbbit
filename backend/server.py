@@ -4033,6 +4033,21 @@ DEMO_MEETUP_SPOTS = [
         "logo_url": "https://picsum.photos/seed/orrbbit-meetup-community/300/300",
         "cover_url": "https://picsum.photos/seed/orrbbit-meetup-community-cover/600/400",
     },
+    # Melbourne's western suburbs — Verified Meetup Spots shouldn't only exist
+    # in the CBD; western-suburbs users need safe, nearby options too.
+    {
+        "slug": "footscray-corner-cafe-demo", "name": "Footscray Corner Café", "category": "Café",
+        "lat": -37.8006, "lng": 144.8997, "location_display": "Nicholson Street, Footscray",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-footscray/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-footscray-cover/600/400",
+    },
+    {
+        "slug": "sunshine-community-hub-demo", "name": "Sunshine Community Hub",
+        "category": "Community Venue",
+        "lat": -37.7880, "lng": 144.8321, "location_display": "Hampshire Road, Sunshine",
+        "logo_url": "https://picsum.photos/seed/orrbbit-meetup-sunshine/300/300",
+        "cover_url": "https://picsum.photos/seed/orrbbit-meetup-sunshine-cover/600/400",
+    },
 ]
 
 

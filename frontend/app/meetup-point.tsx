@@ -87,8 +87,7 @@ export default function MeetupPointScreen() {
       <Text style={styles.sub}>Meet somewhere public and comfortable.</Text>
 
       {/* Orrbbit Verified Meetup Spots — curated, admin-approved venues only */}
-      {(loadingSpots || spots.length > 0) && (
-        <View style={styles.verifiedSection} testID="verified-spots-section">
+      <View style={styles.verifiedSection} testID="verified-spots-section">
           <View style={styles.verifiedHeaderRow}>
             <Text style={styles.verifiedTitle}>Meet at an Orrbbit Verified Spot</Text>
             <Pressable
@@ -109,6 +108,11 @@ export default function MeetupPointScreen() {
           {loadingSpots ? (
             <View style={styles.spotsLoading}>
               <ActivityIndicator color={colors.teal} />
+            </View>
+          ) : spots.length === 0 ? (
+            <View style={styles.spotsEmpty} testID="verified-spots-empty">
+              <Ionicons name="location-outline" size={18} color={colors.textTertiary} />
+              <Text style={styles.spotsEmptyText}>No verified spots near you yet</Text>
             </View>
           ) : (
             spots.map((spot) => {
@@ -144,8 +148,7 @@ export default function MeetupPointScreen() {
               );
             })
           )}
-        </View>
-      )}
+      </View>
 
       <Text style={styles.orLabel}>Or choose a public meetup type</Text>
       <View style={styles.grid}>
@@ -201,6 +204,8 @@ const styles = StyleSheet.create({
   verifiedTitle: { color: colors.text, fontSize: font.lg, fontWeight: "800", flex: 1 },
   verifiedSub: { color: colors.textSecondary, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md, lineHeight: 18 },
   spotsLoading: { paddingVertical: spacing.lg, alignItems: "center" },
+  spotsEmpty: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.md },
+  spotsEmptyText: { color: colors.textTertiary, fontSize: font.sm, flex: 1 },
   spotCard: {
     flexDirection: "row",
     alignItems: "center",

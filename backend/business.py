@@ -576,8 +576,10 @@ def bind(server):
         admin-curated flag from general business verification. Never all verified
         businesses qualify; only those explicitly marked meetup_spot_approved."""
         # widened, safety-purpose search radius so the list stays useful even on a
-        # small People radius (this is a safety feature, not radar matching)
-        search_radius = max(float(user.get("radius", 250) or 250), 1000.0)
+        # small People radius (this is a safety feature, not radar matching) —
+        # 1km was far too tight; use a much larger floor so venues across a
+        # realistic travel distance are still surfaced
+        search_radius = max(float(user.get("radius", 250) or 250), 8000.0)
         bizs = await db.business_profiles.find(
             {"verification_status": "Verified", "meetup_spot_approved": True}, {"_id": 0}
         ).to_list(200)
