@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
   },
   tilt: {
     flex: 1,
-    transform: [{ perspective: 500 }, { rotateX: "9deg" }, { scale: 1.22 }],
+    transform: [{ scale: 1.22 }],
   },
   ring: { position: "absolute", left: 0, top: 0, borderWidth: 1.5 },
   ringLabelWrap: { position: "absolute", top: CY },
