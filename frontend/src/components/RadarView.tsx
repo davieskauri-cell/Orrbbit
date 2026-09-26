@@ -152,6 +152,7 @@ function ZoomRing({
   m,
   maxDist,
   maxR = MAX_R,
+  cy = CY,
   z,
   selected,
   active,
@@ -159,6 +160,7 @@ function ZoomRing({
   m: number;
   maxDist: number;
   maxR?: number;
+  cy?: number;
   z: ZoomSV;
   selected: boolean;
   active: boolean;
@@ -169,7 +171,10 @@ function ZoomRing({
       width: r * 2,
       height: r * 2,
       borderRadius: r,
-      transform: [{ translateX: z.tx.value }, { translateY: z.ty.value }],
+      transform: [
+        { translateX: z.tx.value + CX - r },
+        { translateY: z.ty.value + cy - r },
+      ],
     };
   });
   return (
@@ -669,17 +674,24 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
               ))}
 
             {/* selected radius fill */}
-            <View
-              pointerEvents="none"
-              style={[
-                styles.radiusFill,
-                {
-                  width: maxR * 2 * (radiusSetting / MAX_DIST),
-                  height: maxR * 2 * (radiusSetting / MAX_DIST),
-                  borderRadius: maxR * (radiusSetting / MAX_DIST),
-                },
-              ]}
-            />
+            {(() => {
+              const radiusFillSize = maxR * 2 * (radiusSetting / MAX_DIST);
+              return (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.radiusFill,
+                    {
+                      width: radiusFillSize,
+                      height: radiusFillSize,
+                      borderRadius: radiusFillSize / 2,
+                      left: CX - radiusFillSize / 2,
+                      top: cy - radiusFillSize / 2,
+                    },
+                  ]}
+                />
+              );
+            })()}
 
             {/* rotating sweep */}
             <Animated.View pointerEvents="none" style={[styles.sweep, { width: maxR, height: maxR, top: cy - maxR }, { transform: [{ rotate }] }]}>
@@ -694,14 +706,18 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
             {/* center pulse */}
             <Animated.View
               pointerEvents="none"
-              style={[styles.centerPulse, meColor ? { backgroundColor: meColor } : null, { transform: [{ scale: pulseScale }], opacity: pulseOpacity }]}
+              style={[
+                styles.centerPulse,
+                meColor ? { backgroundColor: meColor } : null,
+                { left: CX - 35, top: cy - 35, transform: [{ scale: pulseScale }], opacity: pulseOpacity },
+              ]}
             />
           </Reanimated.View>
 
           {/* OVERLAY LAYER — crisp components positioned by coordinates, never scaled */}
           <View style={styles.overlayLayer}>
             {rings.map((m) => (
-              <ZoomRing key={m} m={m} maxDist={MAX_DIST} maxR={maxR} z={z} selected={m === radiusSetting} active={m <= radiusSetting} />
+              <ZoomRing key={m} m={m} maxDist={MAX_DIST} maxR={maxR} cy={cy} z={z} selected={m === radiusSetting} active={m <= radiusSetting} />
             ))}
             {rings.map((m) => (
               <RingLabelA key={`label-${m}`} m={m} maxDist={MAX_DIST} maxR={maxR} cy={cy} z={z} />
@@ -950,7 +966,7 @@ const styles = StyleSheet.create({
     flex: 1,
     transform: [{ perspective: 500 }, { rotateX: "9deg" }, { scale: 1.22 }],
   },
-  ring: { position: "absolute", borderWidth: 1.5 },
+  ring: { position: "absolute", left: 0, top: 0, borderWidth: 1.5 },
   ringLabelWrap: { position: "absolute", top: CY },
   ringLabel: {
     color: colors.textSecondary,
