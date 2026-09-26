@@ -24,6 +24,7 @@ const MAP_W = SCREEN_W; // edge to edge
 const MAP_H = Math.min(Math.max(Math.round(SCREEN_H * 0.48), 360), 500); // radar is the hero — takes ~half the screen
 const CX = MAP_W / 2;
 const CY = MAP_H / 2;
+const AVATAR_W = 44; // "You" marker avatar width, for top-left anchoring math
 const MAX_R = MAP_H / 2 - 26;
 const MAX_SCALE = 3;
 const MAX_MARKERS = 24; // absolute hard cap for individual avatars
@@ -364,7 +365,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   // crisp overlays: markers/rings are positioned mathematically instead of scaling pixels
   const z: ZoomSV = { scale, tx, ty };
   const meAnchor = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }],
+    transform: [
+      { translateX: tx.value + CX - AVATAR_W / 2 },
+      { translateY: ty.value + cy - AVATAR_W / 2 },
+    ],
   }));
 
   const recentre = () => {
@@ -976,6 +980,8 @@ const styles = StyleSheet.create({
   },
   me: {
     position: "absolute",
+    left: 0,
+    top: 0,
     alignItems: "center",
     zIndex: 20,
     shadowColor: "#111827",
