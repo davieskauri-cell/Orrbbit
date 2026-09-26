@@ -288,13 +288,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     })
     .onUpdate((e) => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
-      // load higher-detail tiles + adjust the Focus Map budget as soon as a
-      // zoom threshold is crossed (gated so the JS thread isn't hit every frame)
-      const t = tierFor(scale.value);
-      if (t !== tierSV.value) {
-        tierSV.value = t;
-        runOnJS(applyZoomState)(scale.value);
-      }
+      // track the zoom tier on the UI thread only during the gesture — the JS
+      // thread (tile boost / Focus Map budget) syncs once, at onEnd
+      tierSV.value = tierFor(scale.value);
     })
     .onEnd(() => {
       savedScale.value = scale.value;
