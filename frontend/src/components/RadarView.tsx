@@ -38,7 +38,10 @@ const ZOOM_TIERS = [
   { focus: 9, maxClusters: 5 }, // tier 1 — mid pinch
   { focus: 16, maxClusters: 6 }, // tier 2 — zoomed in
 ];
-const tierFor = (s: number) => (s >= 2.2 ? 2 : s >= 1.4 ? 1 : 0);
+const tierFor = (s: number) => {
+  "worklet";
+  return s >= 2.2 ? 2 : s >= 1.4 ? 1 : 0;
+};
 
 const MARKER_SPRING = { damping: 18, stiffness: 140, mass: 0.6 } as const;
 const CAMERA_SPRING = { damping: 20, stiffness: 180 } as const;
