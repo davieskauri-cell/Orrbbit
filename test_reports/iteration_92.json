@@ -1,0 +1,58 @@
+{
+  "summary": "Tested the new 8-step first-time guided app tutorial feature end-to-end (backend + frontend/UI). Backend: registered new personal users get tutorial_completed=False, business users get True, PUT /api/users/me/state{tutorial_completed:true} persists and survives GET /api/auth/me re-fetch (simulated relaunch), legacy accounts without the field default to True, demo accounts are always True. Frontend: full 8-step flow verified via Playwright (localStorage token injection since email verification requires a real inbox click and there is no test-mode bypass endpoint) -- auto-appears within ~1s of landing in tabs, every step shows correct headline/eyebrow/copy/step-count exactly as specified, Today/Radar/Nearby/Encounters tab highlight rings render, vibe-pill highlight on step 4 renders around the real current-vibe-pill, Skip on step 1 closes overlay and persists completion (confirmed via GET /api/auth/me), reload after Skip/Finish does NOT re-show the tutorial, Profile > 'App Tutorial' row correctly restarts from Step 1 on demand. Demo account (kauri@intro.demo) never auto-shows the tutorial but menu-app-tutorial row still works from Profile. Business demo account (business@intro.demo) routes entirely to (business) layout and never reaches tabs/tutorial. Regression: current-vibe-pill -> /vibe navigation, Profile menu items (Edit Profile, Change Vibe visible), bottom tab navigation all still work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "verified_working": [
+    "POST /api/auth/register (personal) -> tutorial_completed=False; (business) -> tutorial_completed=True",
+    "PUT /api/users/me/state {tutorial_completed:true} persists and is reflected in subsequent GET /api/auth/me (simulated relaunch)",
+    "Unrelated state updates (e.g. {visible:true}) do not revert tutorial_completed back to False",
+    "Legacy user docs missing the tutorial_completed key default to True via own_user() bool(u.get('tutorial_completed', True))",
+    "Existing demo account (kauri@intro.demo) tutorial_completed=True (never auto-triggers)",
+    "Step 1 'Welcome to Orrbbit' auto-appears within ~1s of landing in tabs with correct tagline 'People. Places. Possibilities. Around you.', primary button 'Show me around', visible Skip",
+    "Step 2 Today: navigates to /today, tab-today highlight ring, headline 'See what's happening around you'",
+    "Step 3 Radar: navigates to /(tabs) index, tab-radar highlight ring, headline 'Discover what's around you'",
+    "Step 4 Vibe: stays on Radar, highlights real current-vibe-pill element, headline 'Let people know what you're open to'",
+    "Step 5 Nearby: navigates to /nearby, tab-nearby highlight ring, headline 'Browse nearby people'",
+    "Step 6 Encounters: navigates to /encounters, tab-encounters highlight ring, headline 'See who you've crossed paths with'",
+    "Step 7 Safe meetups: centered card no highlight, headline 'Meet somewhere public'",
+    "Step 8 Ready: centered card, headline 'Your Orrbbit starts here.', primary button 'Explore Orrbbit'; tapping it closes overlay and GET /api/auth/me confirms tutorial_completed=true afterward",
+    "Skip visible and functional on every step tested (verified step 1); tapping Skip immediately closes overlay and persists tutorial_completed=true",
+    "After Skip, full page reload as same user does NOT re-show the tutorial",
+    "Profile > 'App Tutorial' row (menu-app-tutorial) restarts tutorial from Step 1 on demand, identical to auto-triggered flow",
+    "Demo account (kauri@intro.demo): tutorial never auto-appears; Profile still shows menu-app-tutorial + menu-edit-profile working normally",
+    "Business demo account (business@intro.demo): routes to /business-verified -> (business) layout entirely, never reaches (tabs), no tutorial overlay possible",
+    "Regression: current-vibe-pill tap still navigates to /vibe correctly; bottom tab navigation (today/radar/nearby/encounters/profile) all functional"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter92_tutorial.py",
+    "/app/test_reports/pytest/pytest_iter92_tutorial.xml",
+    "/app/test_reports/pytest/pytest_iter92_regression.xml"
+  ],
+  "action_items": [
+    "No functional bugs found. Optional: consider adding a lightweight backend/test-mode hook to auto-verify email + bypass profile-setup/choose-vibe for QA automation of brand-new signups (currently required direct-mongo manipulation to simulate a fully onboarded new user for this test, since there is no test-mode bypass for email verification in server.py -- flagged only for future testability, not a bug).",
+    "Not independently tested in this session: the exact register->verify-email(real click)->profile-setup->choose-vibe UI wizard path itself (used direct DB field seeding instead to reach the tabs as a fresh, tutorial_completed=false user) -- the onboarding wizard itself was already covered in prior iterations and was not modified by this feature."
+  ],
+  "critical_code_review_comments": [
+    "TutorialContext.tsx / TutorialOverlay.tsx / tutorialRefs.ts are clean, well-scoped, single-purpose files, all well under the 700-line guideline.",
+    "persistCompleted() in TutorialContext.tsx correctly swallows PUT failures (best-effort) so a network blip won't crash the app, though it means completion could silently fail to persist in bad network conditions and the tutorial would show again next launch -- acceptable tradeoff given it's just a first-run UX aid, not a data-integrity issue.",
+    "Server-side StateUpdate.tutorial_completed and own_user()'s default-True-for-legacy-docs pattern is the correct approach to avoid ever bothering existing users.",
+    "TutorialOverlay ring geometry for tab icons uses a static TAB_ORDER array assumption about visual tab order/count -- fine for current People-mode 5-tab layout, but would silently mis-highlight if tab order/count changes for professional mode (not a bug today since tutorial is People-mode only, just a maintenance note)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter92_tutorial.py"
+  ],
+  "success_rate": {"backend": "100% (10/10 incl. regression)", "frontend": "100% of testable flows passed (8/8 steps, skip, replay, demo/business exclusion, regression)"},
+  "seed_data_creation": "Created and cleaned up ephemeral TEST_ prefixed personal accounts (register + direct mongo field seeding to simulate fully-onboarded new users, since real email verification requires an inbox click with no test-mode bypass). All TEST_ accounts deleted after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New 8-step tutorial feature is fully working end-to-end: auto-show-once for new personal users, Skip/Finish persistence via PUT /api/users/me/state, Profile replay row, and exclusion for demo/business accounts all verified. Testing required localStorage auth_token injection + direct mongo field seeding (email_verified, bio, photos, interests, vibe) to simulate a freshly-onboarded new personal user reaching the tabs, since there's no backend test-mode bypass for real email verification. Reuse /app/backend/tests/test_iter92_tutorial.py for future regression of tutorial_completed defaults/persistence.",
+  "rca_of_issue": "N/A -- no bugs found this session."
+}

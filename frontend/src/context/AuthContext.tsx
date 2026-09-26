@@ -63,6 +63,7 @@ export type User = {
   photo_verified?: boolean;
   joined?: string;
   people_discoverable?: boolean;
+  tutorial_completed?: boolean;
 };
 
 export type RegisterPayload = {

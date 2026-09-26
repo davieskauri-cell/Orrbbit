@@ -18,6 +18,7 @@ import { PrimaryButton, SecondaryButton } from "@/src/components/PrimaryButton";
 import Logo from "@/src/components/Logo";
 import AppModeSwitch from "@/src/components/AppModeSwitch";
 import ProfessionalHome from "@/src/components/ProfessionalHome";
+import { vibePillTargetRef } from "@/src/lib/tutorialRefs";
 import ProfessionalDisclaimerModal from "@/src/components/ProfessionalDisclaimerModal";
 import { colors, spacing, radius, font, shadow } from "@/src/theme";
 import { nearbyEvents, EVENT_CATEGORY_ICONS, type OrbEvent } from "@/src/services/eventService";
@@ -161,7 +162,7 @@ export default function RadarScreen() {
       <AppModeSwitch />
 
       <View style={styles.topRow}>
-        <Pressable testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeSelector}>
+        <Pressable ref={vibePillTargetRef} testID="current-vibe-pill" onPress={() => router.push("/vibe")} style={styles.vibeSelector}>
           <VibePill vibe={myVibe} small />
           <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
         </Pressable>

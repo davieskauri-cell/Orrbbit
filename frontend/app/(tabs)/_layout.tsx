@@ -4,6 +4,8 @@ import { Platform } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
+import { TutorialProvider } from "@/src/context/TutorialContext";
+import TutorialOverlay from "@/src/components/tutorial/TutorialOverlay";
 import { api } from "@/src/lib/api";
 import { colors, spacing } from "@/src/theme";
 
@@ -47,85 +49,88 @@ export default function TabsLayout() {
   }
 
   return (
-    <Tabs
-      initialRouteName={pro ? "index" : "today"}
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.orange,
-        tabBarInactiveTintColor: colors.textTertiary,
-        sceneStyle: { backgroundColor: colors.surface },
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          height: Platform.OS === "ios" ? 88 : 66,
-          paddingTop: spacing.sm,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-      }}
-    >
-      <Tabs.Screen
-        name="today"
-        options={{
-          title: "Today",
-          tabBarButtonTestID: "tab-today",
-          href: pro ? null : "/(tabs)/today",
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+    <TutorialProvider>
+      <Tabs
+        initialRouteName={pro ? "index" : "today"}
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.orange,
+          tabBarInactiveTintColor: colors.textTertiary,
+          sceneStyle: { backgroundColor: colors.surface },
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+            height: Platform.OS === "ios" ? 88 : 66,
+            paddingTop: spacing.sm,
+          },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Radar",
-          tabBarButtonTestID: "tab-radar",
-          tabBarIcon: ({ color, size }) => <Ionicons name="radio" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="nearby"
-        options={{
-          title: "Nearby",
-          tabBarButtonTestID: "tab-nearby",
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="pings"
-        options={{
-          title: pro ? "Requests" : "Pings",
-          tabBarButtonTestID: "tab-pings",
-          // Pings removed from People Mode bottom nav (5 items) — professional keeps Requests.
-          // Ping logic/screens stay intact and reachable where already used.
-          href: pro ? "/(tabs)/pings" : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={pro ? "file-tray-full" : "notifications"} size={size} color={color} />
-          ),
-          tabBarBadge: pro && badges.requests ? badges.requests : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.orange, color: "#FFF", fontSize: 10 },
-        }}
-      />
-      <Tabs.Screen
-        name="encounters"
-        options={{
-          title: pro ? "Sessions" : "Encounters",
-          tabBarButtonTestID: "tab-encounters",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={pro ? "briefcase" : "footsteps"} size={size} color={color} />
-          ),
-          tabBarBadge: pro && badges.sessions ? badges.sessions : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.orange, color: "#FFF", fontSize: 10 },
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarButtonTestID: "tab-profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="today"
+          options={{
+            title: "Today",
+            tabBarButtonTestID: "tab-today",
+            href: pro ? null : "/(tabs)/today",
+            tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Radar",
+            tabBarButtonTestID: "tab-radar",
+            tabBarIcon: ({ color, size }) => <Ionicons name="radio" size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="nearby"
+          options={{
+            title: "Nearby",
+            tabBarButtonTestID: "tab-nearby",
+            tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="pings"
+          options={{
+            title: pro ? "Requests" : "Pings",
+            tabBarButtonTestID: "tab-pings",
+            // Pings removed from People Mode bottom nav (5 items) — professional keeps Requests.
+            // Ping logic/screens stay intact and reachable where already used.
+            href: pro ? "/(tabs)/pings" : null,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name={pro ? "file-tray-full" : "notifications"} size={size} color={color} />
+            ),
+            tabBarBadge: pro && badges.requests ? badges.requests : undefined,
+            tabBarBadgeStyle: { backgroundColor: colors.orange, color: "#FFF", fontSize: 10 },
+          }}
+        />
+        <Tabs.Screen
+          name="encounters"
+          options={{
+            title: pro ? "Sessions" : "Encounters",
+            tabBarButtonTestID: "tab-encounters",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name={pro ? "briefcase" : "footsteps"} size={size} color={color} />
+            ),
+            tabBarBadge: pro && badges.sessions ? badges.sessions : undefined,
+            tabBarBadgeStyle: { backgroundColor: colors.orange, color: "#FFF", fontSize: 10 },
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            tabBarButtonTestID: "tab-profile",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person-circle" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+      <TutorialOverlay />
+    </TutorialProvider>
   );
 }

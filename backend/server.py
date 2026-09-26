@@ -151,6 +151,7 @@ class StateUpdate(BaseModel):
     people_max_age: Optional[int] = None
     people_allow_age_expansion: Optional[bool] = None
     relationship_age_prompt_seen: Optional[bool] = None
+    tutorial_completed: Optional[bool] = None
 
 
 class FeedbackIn(BaseModel):
@@ -429,6 +430,10 @@ def own_user(u: dict) -> dict:
         "photo_verification_status": (u.get("photo_verification") or {}).get("status", "not_submitted"),
         "joined": (u.get("created_at") or "")[:7],
         "people_discoverable": is_discoverable(u),
+        # First-time guided app tutorial (People Mode only) — defaults to True
+        # ("already seen") for any account that existed before this field was
+        # introduced; only brand-new personal signups get False.
+        "tutorial_completed": bool(u.get("tutorial_completed", True)),
         # Onboarding gate: all REQUIRED profile fields done (email verification is gated separately)
         # Business accounts use their own Business Profile setup gate instead.
         "profile_required_complete": bool(u.get("is_demo")) or u.get("account_type") == "business" or all(
@@ -937,6 +942,9 @@ async def register(body: RegisterIn):
         "people_max_age": 65,
         "people_allow_age_expansion": True,
         "relationship_age_prompt_seen": False,
+        # First-time guided app tutorial — only brand-new personal accounts
+        # start with this False; business accounts never see it.
+        "tutorial_completed": body.account_type == "business",
         "created_at": now_iso(),
         "last_active": now_iso(),
     }

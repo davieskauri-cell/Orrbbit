@@ -5,6 +5,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/context/AuthContext";
 import { useApp } from "@/src/context/AppContext";
+import { useTutorial } from "@/src/context/TutorialContext";
 import { api } from "@/src/lib/api";
 import { showAlert } from "@/src/lib/alert";
 import { useTestMode } from "@/src/lib/testMode";
@@ -48,6 +49,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { vibeMap } = useApp();
+  const tutorial = useTutorial();
   const vibe = user?.vibe ? vibeMap[user.vibe] : undefined;
   const [completion, setCompletion] = React.useState<any>(null);
   const [testMode, setTestModeOn] = useTestMode();
@@ -204,6 +206,15 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
         ))}
+        <Pressable
+          testID="menu-app-tutorial"
+          style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.card }]}
+          onPress={() => tutorial.start()}
+        >
+          <Ionicons name="play-circle-outline" size={20} color={colors.teal} />
+          <Text style={styles.menuLabel}>App Tutorial</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </Pressable>
       </View>
 
       {testMode && (
