@@ -267,6 +267,9 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const tierSV = useSharedValue(0);
   const followSV = useSharedValue(1); // 1 = following, 0 = exploring — gates setFollowMode so it fires once
   const pinchActive = useSharedValue(false); // true only while a pinch is live — guards Pan from stray translation
+  // touch flags for the parent ScrollView lock — released only once BOTH gestures have finalized
+  const pinchTouch = useSharedValue(false);
+  const panTouch = useSharedValue(false);
 
   // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in.
   // Boost updates DURING the pinch (not just on release) so detail loads immediately.
@@ -304,6 +307,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     // re-render — this keeps the same gesture instances alive for the whole
     // component lifetime instead.
     const pinch = Gesture.Pinch()
+      .onBegin(() => {
+        pinchTouch.value = true;
+        runOnJS(onInteractionStart)();
+      })
       .onStart(() => {
         // Zooming alone must never disable Follow Mode — the "you" marker
         // stays locked to the Radar centre while pinching. pinchActive also
@@ -313,11 +320,6 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         pinchActive.value = true;
       })
       .onUpdate((e) => {
-        // Keep pinging the interaction lock every frame while actively
-        // pinching — this is what guarantees the lock survives for the full
-        // duration of a slow/long pinch, and self-expires shortly after the
-        // last update if the platform's touch-up event doesn't fire.
-        runOnJS(onInteractionStart)();
         scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
         // track the zoom tier on the UI thread only during the gesture — the JS
         // thread (tile boost / Focus Map budget) syncs once, at onEnd
@@ -340,26 +342,16 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         // zoom the user left the pinch at is never lost on the next pinch.
         savedScale.value = scale.value;
         runOnJS(applyZoomState)(scale.value);
+        pinchTouch.value = false;
+        if (!panTouch.value) runOnJS(onInteractionEnd)();
       });
 
     const pan = Gesture.Pan()
       .minDistance(12)
       .maxPointers(1)
-      // onTouchesDown fires the instant any finger lands on the Radar (before
-      // Pan's minDistance/Pinch's 2-pointer requirement is even met), so it's
-      // the earliest possible signal to lock the parent ScrollView. onUpdate
-      // above keeps re-pinging that lock for the whole gesture; onTouchesUp/
-      // onTouchesCancelled release it immediately when they fire. The parent
-      // screen also runs a short watchdog timeout as a safety net, since
-      // onTouchesUp is not always reliable across every environment.
-      .onTouchesDown(() => {
+      .onBegin(() => {
+        panTouch.value = true;
         runOnJS(onInteractionStart)();
-      })
-      .onTouchesUp(() => {
-        runOnJS(onInteractionEnd)();
-      })
-      .onTouchesCancelled(() => {
-        runOnJS(onInteractionEnd)();
       })
       .onStart(() => {
         // Ignore the transient single-finger contact that precedes a pinch —
@@ -372,9 +364,6 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
       })
       .onUpdate((e) => {
         if (pinchActive.value) return;
-        // Same continuous ping as pinch above — keeps the lock alive for the
-        // full duration of a long drag and self-expires shortly after release.
-        runOnJS(onInteractionStart)();
         const boundX = ((scale.value - 1) * MAP_W) / 2;
         const boundY = ((scale.value - 1) * mapH) / 2;
         tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
@@ -397,6 +386,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
             savedTy.value = ty.value;
           }
         );
+      })
+      .onFinalize(() => {
+        panTouch.value = false;
+        if (!pinchTouch.value) runOnJS(onInteractionEnd)();
       });
 
     const doubleTap = Gesture.Tap()

@@ -41,36 +41,14 @@ export default function RadarScreen() {
   const [evSheet, setEvSheet] = useState(false);
   const [evPreview, setEvPreview] = useState<OrbEvent | null>(null);
 
-  // Radar touch-interaction lock — while the user is actively pinching/panning
-  // the Radar, the surrounding ScrollView (and its RefreshControl) must not
-  // scroll/refresh, otherwise iOS can steal/interrupt an in-progress pinch
-  // mid-gesture, which is what was resetting the zoom back to 1x. RadarView
-  // pings onInteractionStart continuously while a gesture is live and fires
-  // onInteractionEnd on touch-up when that event is available; a short
-  // watchdog timeout is the authoritative release so the lock can never get
-  // stuck on if a touch-up/cancel event doesn't fire on a given platform.
-  const releaseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Radar touch-interaction lock — while a finger is on the Radar the page must not
+  // scroll, otherwise iOS's scroll gesture can interrupt a pinch. RadarView calls
+  // start on gesture begin and end once all its gestures have finalized.
+  // NOTE: never swap the refreshControl prop in/out — ScrollView renders a different
+  // child tree with/without it, which remounts RadarView and resets its zoom.
   const [radarInteracting, setRadarInteracting] = useState(false);
-  const onRadarInteractionStart = React.useCallback(() => {
-    setRadarInteracting(true);
-    if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
-    releaseTimerRef.current = setTimeout(() => {
-      releaseTimerRef.current = null;
-      setRadarInteracting(false);
-    }, 450);
-  }, []);
-  const onRadarInteractionEnd = React.useCallback(() => {
-    if (releaseTimerRef.current) {
-      clearTimeout(releaseTimerRef.current);
-      releaseTimerRef.current = null;
-    }
-    setRadarInteracting(false);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
-    };
-  }, []);
+  const onRadarInteractionStart = React.useCallback(() => setRadarInteracting(true), []);
+  const onRadarInteractionEnd = React.useCallback(() => setRadarInteracting(false), []);
 
   const loadEvents = React.useCallback(() => {
     if (!eventsOn) { setOrbEvents([]); return; }
@@ -237,9 +215,7 @@ export default function RadarScreen() {
         showsVerticalScrollIndicator={false}
         scrollEnabled={!radarInteracting}
         refreshControl={
-          radarInteracting ? undefined : (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />
-          )
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} enabled={!radarInteracting} />
         }
       >
         {hidden ? (
