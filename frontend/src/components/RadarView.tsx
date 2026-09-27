@@ -266,7 +266,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const savedTy = useSharedValue(0);
   const tierSV = useSharedValue(0);
   const followSV = useSharedValue(1); // 1 = following, 0 = exploring — gates setFollowMode so it fires once
-  const pinchActive = useSharedValue(false); // true only while a pinch is live — guards Pan from stray translation
+  // true from the moment a 2nd finger lands (or the pinch activates) until EVERY
+  // finger has lifted — guards Pan from stray translation for the whole touch
+  const pinchActive = useSharedValue(false);
+  // set when the single-finger prelude to a pinch disabled Follow Mode, so the
+  // pinch can restore it (a zoom on its own must never leave Follow Mode off)
+  const panDisabledFollow = useSharedValue(false);
   // touch flags for the parent ScrollView lock — released only once BOTH gestures have finalized
   const pinchTouch = useSharedValue(false);
   const panTouch = useSharedValue(false);
@@ -318,15 +323,33 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         // that precedes a two-finger pinch, so no stray pan translation can
         // sneak in and drag the map (and Follow Mode) off-centre.
         pinchActive.value = true;
+        // Follow Mode ON → zoom is "centre anchor + scale only". Undo any
+        // translation the single-finger prelude may have applied and restore
+        // Follow Mode if that prelude briefly switched it off.
+        if (followSV.value || panDisabledFollow.value) {
+          tx.value = 0;
+          ty.value = 0;
+          savedTx.value = 0;
+          savedTy.value = 0;
+          if (panDisabledFollow.value) {
+            panDisabledFollow.value = false;
+            followSV.value = 1;
+            runOnJS(setFollowMode)(true);
+          }
+        }
       })
       .onUpdate((e) => {
         scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
         // track the zoom tier on the UI thread only during the gesture — the JS
         // thread (tile boost / Focus Map budget) syncs once, at onEnd
         tierSV.value = tierFor(scale.value);
+        // hard centre anchor while following — the focal point is never used
+        if (followSV.value) {
+          tx.value = 0;
+          ty.value = 0;
+        }
       })
       .onEnd(() => {
-        pinchActive.value = false;
         if (scale.value <= 1.01) {
           tx.value = withSpring(0, CAMERA_SPRING);
           ty.value = withSpring(0, CAMERA_SPRING);
@@ -343,7 +366,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         savedScale.value = scale.value;
         runOnJS(applyZoomState)(scale.value);
         pinchTouch.value = false;
-        if (!panTouch.value) runOnJS(onInteractionEnd)();
+        if (!panTouch.value) {
+          pinchActive.value = false;
+          runOnJS(onInteractionEnd)();
+        }
       });
 
     const pan = Gesture.Pan()
@@ -353,24 +379,46 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
         panTouch.value = true;
         runOnJS(onInteractionStart)();
       })
+      .onTouchesDown((e) => {
+        // A 2nd finger landing means this touch is a pinch, not a drag — lock
+        // Pan out immediately (before the Pinch has even activated) so the
+        // map can't be nudged off-centre in the gap between the two.
+        if (e.numberOfTouches >= 2) {
+          pinchActive.value = true;
+          tx.value = savedTx.value;
+          ty.value = savedTy.value;
+        }
+      })
       .onStart(() => {
         // Ignore the transient single-finger contact that precedes a pinch —
         // only a genuine one-finger drag should ever disable Follow Mode.
         if (pinchActive.value) return;
         if (followSV.value) {
           followSV.value = 0;
+          panDisabledFollow.value = true;
           runOnJS(setFollowMode)(false);
         }
       })
       .onUpdate((e) => {
-        if (pinchActive.value) return;
+        if (pinchActive.value) {
+          tx.value = savedTx.value;
+          ty.value = savedTy.value;
+          return;
+        }
         const boundX = ((scale.value - 1) * MAP_W) / 2;
         const boundY = ((scale.value - 1) * mapH) / 2;
         tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
         ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
       })
       .onEnd((e) => {
-        if (pinchActive.value) return;
+        if (pinchActive.value) {
+          // this drag was part of a pinch — no release momentum, no drift
+          tx.value = savedTx.value;
+          ty.value = savedTy.value;
+          return;
+        }
+        // a genuine drag completed — Follow Mode is legitimately off now
+        panDisabledFollow.value = false;
         // natural momentum/inertia on release — feels like a native maps app
         const boundX = ((scale.value - 1) * MAP_W) / 2;
         const boundY = ((scale.value - 1) * mapH) / 2;
@@ -389,7 +437,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
       })
       .onFinalize(() => {
         panTouch.value = false;
-        if (!pinchTouch.value) runOnJS(onInteractionEnd)();
+        if (!pinchTouch.value) {
+          pinchActive.value = false;
+          runOnJS(onInteractionEnd)();
+        }
       });
 
     const doubleTap = Gesture.Tap()
@@ -435,6 +486,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     savedTx.value = 0;
     savedTy.value = 0;
     followSV.value = 1;
+    panDisabledFollow.value = false;
     setFollowMode(true);
   };
 

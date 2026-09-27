@@ -880,3 +880,7 @@ NOTES: /control browser uses EXPO_PUBLIC_CONTROL_BACKEND_URL (production host) �
 - Today "Happening near you" lists up to 3 upcoming events (personal + business mixed, soonest first) with "Personal Event" (orange) / "Business Event" (cobalt) tags; existing data + detail screens.
 - Business signup: visible "← Return to Login" on steps 1-5 alongside the step back-arrow. Personal signup already had return-to-login on every step (unchanged).
 - All self-tested in Preview with screenshots; QA throwaway business account removed.
+
+## Iteration 100 — Radar Follow-Mode zoom anchoring fix (June 2026)
+Root cause: Pan gesture leaking into pinches (single-finger prelude activating Pan → tx/ty + Follow off; Pan tracking finger 1 through the pinch on iOS; `withDecay` momentum on release after pinch ended first). Fix confined to gesture block in RadarView.tsx: pan.onTouchesDown(≥2 touches) → pinchActive; pinch.onStart resets tx/ty=0 while following and restores Follow Mode if prelude disabled it; pinch.onUpdate forces tx/ty=0 while following (centre anchor + scale only, no focal point); pan.onEnd skips momentum when part of a pinch; pinchActive cleared only after BOTH gestures finalize. recentre also clears panDisabledFollow. Styles/markers/clusters/tierFor/meAnchor/MapTiles untouched.
+Testing agent iteration_100 (Preview, web): +/−, double-tap, CDP two-touch pinch from off-centre → You centre unchanged, tx/ty=0 throughout; manual drag disables Follow; recentre restores. NATIVE iOS build validation still required by user.
