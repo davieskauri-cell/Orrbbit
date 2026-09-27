@@ -1,0 +1,45 @@
+{
+  "summary": "RETEST of iteration_94's regression fix on RadarView.tsx (removal of `.requireExternalGestureToFail(pinch)` from the Pan gesture, keeping pinchActive early-return guards + pinch never touching Follow Mode). Tested via browser Preview (mobile viewport 375x667) using kauri@intro.demo (token via localStorage, already visible=true). REGRESSION IS FIXED: single-finger pan/drag now correctly activates the Pan gesture (verified via mouse down/move/up simulation with 15-20 intermediate move events) -- Follow Mode reliably turns OFF (locate icon rgb(156,163,175) grey) the moment a real drag exceeds minDistance(12), confirmed both at default zoom (scale=1) and after zooming in. When zoomed in (scale>1, so pan bounds are non-zero), the world-layer transform visibly translates during the drag (e.g. translateX(-56px) translateY(-32px)) and the 'You' marker moves with it -- confirmed via direct inline-style inspection, not just screenshots. At scale=1 the pan gesture still correctly fires onStart/disables Follow Mode, but there is zero visible translation because boundX/boundY = ((scale-1)*MAP_W)/2 evaluates to exactly 0 at scale=1 -- this is a mathematical consequence of the existing bound-clamping formula (not a new bug), so 'moving freely' is only observable once zoomed in past 1x, matching how the zoom-button/pan interaction is designed to compose. Recentre button after a manual pan (while zoomed in) smoothly springs tx/ty back toward 0 and scale back toward 1, and the locate icon returns to teal -- confirmed programmatically (transform read back near 0,0 and scale converging to 1 mid-spring, colour teal). Zoom +/- buttons work correctly while Follow Mode is off and the viewport is off-centre: pan translation (tx=-56,ty=-32) stayed fixed through 2 zoom-in/zoom-out button presses while only scale changed (2.99 -> 3.0 -> 1.85), Follow Mode stayed grey throughout, no crash, no forced re-centre. Regression-of-regression fully re-confirmed: on a fresh Follow-Mode-ON load, zoom-in x4, zoom-out x4, double-tap-in and double-tap-out all left the 'You' marker at the exact same pixel position (179,308) with the locate icon staying teal rgb(32,178,170) throughout -- zero drift, exactly matching iteration_94's earlier passing result, confirming removing requireExternalGestureToFail introduced no new breakage here. General regression: rings, clusters, business/event pins, radius discovery sheet (opens correctly listing 100m/250m/500m/750m/1km options), Filters, Events chip all render with no console errors or crashes. Genuine 2-finger pinch simulation was not attempted this session (browser/CDP multi-touch simulation is unreliable/not verified in this environment per prior sessions) -- stating this explicitly as a known Preview limitation requiring a real device/native build for full pinch confidence, per the task's own guidance, rather than guessing pass/fail.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Radar (RadarView.tsx)",
+        "issues": [
+          "Not a regression, just a UX note: single-finger pan disables Follow Mode correctly at any zoom level, but produces zero visible map movement while scale==1 (default zoom) because boundX/boundY = ((scale-1)*MAP_W)/2 clamp to exactly 0 at 1x. Users dragging at default zoom will see the locate button turn grey but the map/You marker won't visibly move until they've also zoomed in at least slightly. Consider whether this matches intended UX (e.g. maybe pan should be allowed a small fixed exploration radius even at scale=1) -- flagging for product/design confirmation, not blocking."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "verified_working": [
+    "Single-finger pan/drag now activates correctly: Follow Mode turns OFF (grey rgb(156,163,175)) on real drag exceeding minDistance, both at scale=1 and when zoomed in",
+    "When zoomed in, the map/You marker visibly translate during drag (confirmed via inline transform inspection, e.g. translateX(-56px) translateY(-32px))",
+    "Recentre button after manual pan (zoomed-in state) springs tx/ty back toward 0, scale back toward 1, and locate icon returns to teal (Follow Mode restored)",
+    "Zoom +/- buttons work correctly while Follow Mode is off / viewport off-centre: tx/ty stay fixed, only scale changes, no forced re-centre, no crash, colour stays grey",
+    "Regression-of-regression confirmed: zoom-in x4, zoom-out x4, double-tap-in, double-tap-out with Follow Mode ON all keep 'You' marker at pixel-exact position (179,308) with locate icon staying teal -- zero drift, no new breakage from removing requireExternalGestureToFail",
+    "No crashes/red-screens/console errors across all tested states; rings, clusters, event/business pins, radius discovery sheet, filters chip, events chip all render correctly"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "None blocking. Optional/low-priority: confirm with product whether single-finger pan at default zoom (scale=1) should have some visible exploratory movement, since currently it only toggles Follow Mode off with no visible map shift until the user has zoomed in past 1x (mathematical result of the existing pan-bound formula, not a code defect).",
+    "2-finger pinch gesture was not simulated this session (stated known Preview/CDP multi-touch limitation, consistent with prior iterations) -- recommend real-device/native build verification for full pinch confidence before considering the overall gesture fix 100% production-verified."
+  ],
+  "critical_code_review_comments": [
+    "Confirmed via direct source review that `.requireExternalGestureToFail(pinch)` has been removed from the Pan gesture chain (RadarView.tsx line ~318-354); pan is now `Gesture.Pan().minDistance(12).maxPointers(1)` with only the pinchActive early-return guards remaining in onStart/onUpdate/onEnd, exactly as described.",
+    "pinch.onStart/onUpdate/onEnd still correctly never touch followSV/setFollowMode, and pan.onStart/onUpdate/onEnd still correctly early-return whenever pinchActive.value is true -- both intended safety nets intact.",
+    "The zero-visible-pan-at-scale=1 behaviour stems from `boundX = ((scale.value - 1) * MAP_W) / 2` / same for boundY inside pan.onUpdate -- this is pre-existing logic, not something this session's fix touched, and is mathematically correct for a clamp-to-current-zoom-extent pan model; just calling it out since it affects how 'freely moving' looks to a tester/user at 1x zoom."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (not requested)",
+    "frontend": "All 6 requested checks passed: single-finger pan disables Follow Mode + moves map freely (once zoomed in) [PASS], recentre-after-pan restores centring/teal/tx-ty=0 [PASS], zoom +/- works while Follow Mode off & off-centre [PASS], regression-of-regression zoom/double-tap keep centred with Follow Mode ON [PASS], general regression (rings/clusters/markers/filters/radius sheet, no console errors/crashes) [PASS]; 2-finger pinch explicitly stated as untested/known Preview limitation (not guessed)."
+  },
+  "seed_data_creation": "None. Reused kauri@intro.demo (already visible=true from prior session state, no mutation needed this time).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The iteration_94 regression is CONFIRMED FIXED. Key technique used to verify pan actually moves the map (not just toggles Follow Mode): read the inline `style` attribute directly off the worldLayer Reanimated.View (first element under [data-testid='radar-map'] matching `[style*='translate']`) via page.evaluate + querySelectorAll, rather than relying on screenshot pixel-diffing (screenshots can look visually identical even when transform values changed by small px amounts, and at scale=1 they genuinely don't change at all since pan bounds clamp to 0 there -- zoom in first via radar-zoom-in x3 before testing pan if you want to see visible movement). To read the locate button colour reliably use `getComputedStyle` on the Ionicons DOM node inside [data-testid='radar-recentre'], not the button element itself. 2-finger pinch was still not simulated -- if a future task specifically needs pinch confidence, real-device/native testing is required since CDP multi-touch has been unreliable across sessions.",
+  "rca_of_issue": "N/A this session -- fix verified working, no new RCA needed. For historical reference: iteration_94's regression was caused by `.requireExternalGestureToFail(pinch)` deadlocking Pan because Pinch (minPointers=2 by default) never reliably signalled FAILED during a live single-finger touch in the web/CDP gesture-handler runtime. Removing that call (this iteration's fix) and relying solely on the pinchActive shared-value early-return guards resolved it completely with no observed side effects."
+}

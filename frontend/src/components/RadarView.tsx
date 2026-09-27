@@ -260,6 +260,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   const savedTy = useSharedValue(0);
   const tierSV = useSharedValue(0);
   const followSV = useSharedValue(1); // 1 = following, 0 = exploring — gates setFollowMode so it fires once
+  const pinchActive = useSharedValue(false); // true only while a pinch is live — guards Pan from stray translation
 
   // sharper tiles: retina baseline, swap to higher-zoom tiles while zoomed in.
   // Boost updates DURING the pinch (not just on release) so detail loads immediately.
@@ -289,11 +290,12 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
 
   const pinch = Gesture.Pinch()
     .onStart(() => {
-      // only cross the JS thread once per explore — not on every gesture start
-      if (followSV.value) {
-        followSV.value = 0;
-        runOnJS(setFollowMode)(false);
-      }
+      // Zooming alone must never disable Follow Mode — the "you" marker
+      // stays locked to the Radar centre while pinching. pinchActive also
+      // shields the Pan gesture below from the brief single-finger contact
+      // that precedes a two-finger pinch, so no stray pan translation can
+      // sneak in and drag the map (and Follow Mode) off-centre.
+      pinchActive.value = true;
     })
     .onUpdate((e) => {
       scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
@@ -302,6 +304,7 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
       tierSV.value = tierFor(scale.value);
     })
     .onEnd(() => {
+      pinchActive.value = false;
       savedScale.value = scale.value;
       runOnJS(applyZoomState)(scale.value);
       if (scale.value <= 1.01) {
@@ -316,18 +319,23 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     .minDistance(12)
     .maxPointers(1)
     .onStart(() => {
+      // Ignore the transient single-finger contact that precedes a pinch —
+      // only a genuine one-finger drag should ever disable Follow Mode.
+      if (pinchActive.value) return;
       if (followSV.value) {
         followSV.value = 0;
         runOnJS(setFollowMode)(false);
       }
     })
     .onUpdate((e) => {
+      if (pinchActive.value) return;
       const boundX = ((scale.value - 1) * MAP_W) / 2;
       const boundY = ((scale.value - 1) * mapH) / 2;
       tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
       ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
     })
     .onEnd((e) => {
+      if (pinchActive.value) return;
       // natural momentum/inertia on release — feels like a native maps app
       const boundX = ((scale.value - 1) * MAP_W) / 2;
       const boundY = ((scale.value - 1) * mapH) / 2;
