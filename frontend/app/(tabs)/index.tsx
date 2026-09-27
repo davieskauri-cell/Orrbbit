@@ -41,6 +41,37 @@ export default function RadarScreen() {
   const [evSheet, setEvSheet] = useState(false);
   const [evPreview, setEvPreview] = useState<OrbEvent | null>(null);
 
+  // Radar touch-interaction lock — while the user is actively pinching/panning
+  // the Radar, the surrounding ScrollView (and its RefreshControl) must not
+  // scroll/refresh, otherwise iOS can steal/interrupt an in-progress pinch
+  // mid-gesture, which is what was resetting the zoom back to 1x. RadarView
+  // pings onInteractionStart continuously while a gesture is live and fires
+  // onInteractionEnd on touch-up when that event is available; a short
+  // watchdog timeout is the authoritative release so the lock can never get
+  // stuck on if a touch-up/cancel event doesn't fire on a given platform.
+  const releaseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [radarInteracting, setRadarInteracting] = useState(false);
+  const onRadarInteractionStart = React.useCallback(() => {
+    setRadarInteracting(true);
+    if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+    releaseTimerRef.current = setTimeout(() => {
+      releaseTimerRef.current = null;
+      setRadarInteracting(false);
+    }, 450);
+  }, []);
+  const onRadarInteractionEnd = React.useCallback(() => {
+    if (releaseTimerRef.current) {
+      clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+    setRadarInteracting(false);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
+    };
+  }, []);
+
   const loadEvents = React.useCallback(() => {
     if (!eventsOn) { setOrbEvents([]); return; }
     const lat = coords?.lat ?? -37.8136;
@@ -204,8 +235,11 @@ export default function RadarScreen() {
       <ScrollView
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!radarInteracting}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />
+          radarInteracting ? undefined : (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.teal} />
+          )
         }
       >
         {hidden ? (
@@ -244,6 +278,8 @@ export default function RadarScreen() {
               onSelectEvent={(e) => setEvPreview(e)}
               onEventsPress={() => setEvSheet(true)}
               eventsActive={eventsOn && orbEvents.length > 0}
+              onInteractionStart={onRadarInteractionStart}
+              onInteractionEnd={onRadarInteractionEnd}
             />
 
             {preview && preview.vibe === "opportunity" ? (

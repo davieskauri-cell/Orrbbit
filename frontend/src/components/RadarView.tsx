@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated, Easing, Pressable, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -241,9 +241,15 @@ type Props = {
   onSelectEvent?: (e: any) => void;
   onEventsPress?: () => void;
   eventsActive?: boolean;
+  /** Fired the instant a pinch/pan touch begins/ends on the Radar — lets the
+   *  parent screen disable its surrounding ScrollView/RefreshControl while
+   *  the Radar is being touched, so a native scroll/refresh gesture can never
+   *  steal/interrupt an in-progress pinch or pan. */
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 };
 
-export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meColor, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height, events, onSelectEvent, onEventsPress, eventsActive }: Props) {
+export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meColor, radiusSetting, coords, onFilters, onCluster, onRadiusPress, onLearnMore, filterCount, height, events, onSelectEvent, onEventsPress, eventsActive, onInteractionStart = () => {}, onInteractionEnd = () => {} }: Props) {
   // dynamic vertical geometry — centre and max ring radius derive from the real height
   const mapH = Math.max(300, Math.round(height || MAP_H));
   const cy = mapH / 2;
@@ -266,10 +272,10 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
   // Boost updates DURING the pinch (not just on release) so detail loads immediately.
   const [tileBoost, setTileBoost] = useState(1);
   const [zoomTier, setZoomTier] = useState(0); // drives the Focus Map marker budget (see ZOOM_TIERS)
-  const applyZoomState = (s: number) => {
+  const applyZoomState = useCallback((s: number) => {
     setTileBoost(s >= 1.5 ? 2 : 1);
     setZoomTier(tierFor(s));
-  };
+  }, []);
 
   // Follow Mode — Radar opens centred on the user and following live location.
   // The moment they deliberately pan or pinch, following pauses (map stays put,
@@ -288,88 +294,130 @@ export default function RadarView({ users, vibeMap, onSelect, meUri, meName, meC
     ).start();
   }, [spin, pulse]);
 
-  const pinch = Gesture.Pinch()
-    .onStart(() => {
-      // Zooming alone must never disable Follow Mode — the "you" marker
-      // stays locked to the Radar centre while pinching. pinchActive also
-      // shields the Pan gesture below from the brief single-finger contact
-      // that precedes a two-finger pinch, so no stray pan translation can
-      // sneak in and drag the map (and Follow Mode) off-centre.
-      pinchActive.value = true;
-    })
-    .onUpdate((e) => {
-      scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
-      // track the zoom tier on the UI thread only during the gesture — the JS
-      // thread (tile boost / Focus Map budget) syncs once, at onEnd
-      tierSV.value = tierFor(scale.value);
-    })
-    .onEnd(() => {
-      pinchActive.value = false;
-      savedScale.value = scale.value;
-      runOnJS(applyZoomState)(scale.value);
-      if (scale.value <= 1.01) {
-        tx.value = withSpring(0, CAMERA_SPRING);
-        ty.value = withSpring(0, CAMERA_SPRING);
-        savedTx.value = 0;
-        savedTy.value = 0;
-      }
-    });
-
-  const pan = Gesture.Pan()
-    .minDistance(12)
-    .maxPointers(1)
-    .onStart(() => {
-      // Ignore the transient single-finger contact that precedes a pinch —
-      // only a genuine one-finger drag should ever disable Follow Mode.
-      if (pinchActive.value) return;
-      if (followSV.value) {
-        followSV.value = 0;
-        runOnJS(setFollowMode)(false);
-      }
-    })
-    .onUpdate((e) => {
-      if (pinchActive.value) return;
-      const boundX = ((scale.value - 1) * MAP_W) / 2;
-      const boundY = ((scale.value - 1) * mapH) / 2;
-      tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
-      ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
-    })
-    .onEnd((e) => {
-      if (pinchActive.value) return;
-      // natural momentum/inertia on release — feels like a native maps app
-      const boundX = ((scale.value - 1) * MAP_W) / 2;
-      const boundY = ((scale.value - 1) * mapH) / 2;
-      tx.value = withDecay(
-        { velocity: e.velocityX, clamp: [-boundX, boundX], deceleration: 0.995 },
-        () => {
-          savedTx.value = tx.value;
+  const gestures = useMemo(() => {
+    // Gesture objects are memoized here so that a re-render of RadarView
+    // (e.g. triggered by the parent screen's onInteractionStart/onInteractionEnd
+    // state changes below) never recreates them mid-touch. GestureDetector
+    // tears down and re-attaches its recognizers whenever the `gesture` prop
+    // identity changes, which was silently killing an in-progress drag the
+    // instant the interaction lock's first state update rippled through a
+    // re-render — this keeps the same gesture instances alive for the whole
+    // component lifetime instead.
+    const pinch = Gesture.Pinch()
+      .onStart(() => {
+        // Zooming alone must never disable Follow Mode — the "you" marker
+        // stays locked to the Radar centre while pinching. pinchActive also
+        // shields the Pan gesture below from the brief single-finger contact
+        // that precedes a two-finger pinch, so no stray pan translation can
+        // sneak in and drag the map (and Follow Mode) off-centre.
+        pinchActive.value = true;
+      })
+      .onUpdate((e) => {
+        // Keep pinging the interaction lock every frame while actively
+        // pinching — this is what guarantees the lock survives for the full
+        // duration of a slow/long pinch, and self-expires shortly after the
+        // last update if the platform's touch-up event doesn't fire.
+        runOnJS(onInteractionStart)();
+        scale.value = Math.min(Math.max(savedScale.value * e.scale, 1), MAX_SCALE);
+        // track the zoom tier on the UI thread only during the gesture — the JS
+        // thread (tile boost / Focus Map budget) syncs once, at onEnd
+        tierSV.value = tierFor(scale.value);
+      })
+      .onEnd(() => {
+        pinchActive.value = false;
+        if (scale.value <= 1.01) {
+          tx.value = withSpring(0, CAMERA_SPRING);
+          ty.value = withSpring(0, CAMERA_SPRING);
+          savedTx.value = 0;
+          savedTy.value = 0;
         }
-      );
-      ty.value = withDecay(
-        { velocity: e.velocityY, clamp: [-boundY, boundY], deceleration: 0.995 },
-        () => {
-          savedTy.value = ty.value;
+      })
+      .onFinalize(() => {
+        // Persist the zoom here, not in onEnd — on iOS the Radar sits inside a
+        // ScrollView (with RefreshControl), whose native scroll/refresh
+        // gesture can interrupt/cancel an in-progress pinch, which skips
+        // onEnd entirely. onFinalize always runs, interrupted or not, so the
+        // zoom the user left the pinch at is never lost on the next pinch.
+        savedScale.value = scale.value;
+        runOnJS(applyZoomState)(scale.value);
+      });
+
+    const pan = Gesture.Pan()
+      .minDistance(12)
+      .maxPointers(1)
+      // onTouchesDown fires the instant any finger lands on the Radar (before
+      // Pan's minDistance/Pinch's 2-pointer requirement is even met), so it's
+      // the earliest possible signal to lock the parent ScrollView. onUpdate
+      // above keeps re-pinging that lock for the whole gesture; onTouchesUp/
+      // onTouchesCancelled release it immediately when they fire. The parent
+      // screen also runs a short watchdog timeout as a safety net, since
+      // onTouchesUp is not always reliable across every environment.
+      .onTouchesDown(() => {
+        runOnJS(onInteractionStart)();
+      })
+      .onTouchesUp(() => {
+        runOnJS(onInteractionEnd)();
+      })
+      .onTouchesCancelled(() => {
+        runOnJS(onInteractionEnd)();
+      })
+      .onStart(() => {
+        // Ignore the transient single-finger contact that precedes a pinch —
+        // only a genuine one-finger drag should ever disable Follow Mode.
+        if (pinchActive.value) return;
+        if (followSV.value) {
+          followSV.value = 0;
+          runOnJS(setFollowMode)(false);
         }
-      );
-    });
+      })
+      .onUpdate((e) => {
+        if (pinchActive.value) return;
+        // Same continuous ping as pinch above — keeps the lock alive for the
+        // full duration of a long drag and self-expires shortly after release.
+        runOnJS(onInteractionStart)();
+        const boundX = ((scale.value - 1) * MAP_W) / 2;
+        const boundY = ((scale.value - 1) * mapH) / 2;
+        tx.value = Math.min(Math.max(savedTx.value + e.translationX, -boundX), boundX);
+        ty.value = Math.min(Math.max(savedTy.value + e.translationY, -boundY), boundY);
+      })
+      .onEnd((e) => {
+        if (pinchActive.value) return;
+        // natural momentum/inertia on release — feels like a native maps app
+        const boundX = ((scale.value - 1) * MAP_W) / 2;
+        const boundY = ((scale.value - 1) * mapH) / 2;
+        tx.value = withDecay(
+          { velocity: e.velocityX, clamp: [-boundX, boundX], deceleration: 0.995 },
+          () => {
+            savedTx.value = tx.value;
+          }
+        );
+        ty.value = withDecay(
+          { velocity: e.velocityY, clamp: [-boundY, boundY], deceleration: 0.995 },
+          () => {
+            savedTy.value = ty.value;
+          }
+        );
+      });
 
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .onEnd(() => {
-      const target = scale.value > 1.2 ? 1 : 2;
-      scale.value = withSpring(target, CAMERA_SPRING);
-      savedScale.value = target;
-      tierSV.value = tierFor(target);
-      runOnJS(applyZoomState)(target);
-      if (target === 1) {
-        tx.value = withSpring(0, CAMERA_SPRING);
-        ty.value = withSpring(0, CAMERA_SPRING);
-        savedTx.value = 0;
-        savedTy.value = 0;
-      }
-    });
+    const doubleTap = Gesture.Tap()
+      .numberOfTaps(2)
+      .onEnd(() => {
+        const target = scale.value > 1.2 ? 1 : 2;
+        scale.value = withSpring(target, CAMERA_SPRING);
+        savedScale.value = target;
+        tierSV.value = tierFor(target);
+        runOnJS(applyZoomState)(target);
+        if (target === 1) {
+          tx.value = withSpring(0, CAMERA_SPRING);
+          ty.value = withSpring(0, CAMERA_SPRING);
+          savedTx.value = 0;
+          savedTy.value = 0;
+        }
+      });
 
-  const gestures = Gesture.Race(doubleTap, Gesture.Simultaneous(pinch, pan));
+    return Gesture.Race(doubleTap, Gesture.Simultaneous(pinch, pan));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapH, applyZoomState, onInteractionStart, onInteractionEnd]);
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
