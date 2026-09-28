@@ -4180,6 +4180,9 @@ import business as _business  # noqa: E402
 _business.bind(_sys.modules[__name__])
 app.include_router(_business.business_router)
 app.include_router(_business.reviews_router)
+import website_sync as _website_sync  # noqa: E402
+_website_sync.bind(_sys.modules[__name__])
+app.include_router(_website_sync.website_router)
 app.include_router(_business.control_biz_router)
 
 
