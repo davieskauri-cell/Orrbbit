@@ -1047,12 +1047,12 @@ const styles = StyleSheet.create({
   },
   radar: { width: MAP_W, height: MAP_H },
   worldLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
   overlayLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
   },
