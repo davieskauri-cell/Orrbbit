@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from pydantic import BaseModel
 
 business_router = APIRouter(prefix="/api/business")
@@ -151,7 +151,8 @@ def bind(server):
     plan_max_radius = server.plan_max_radius
 
     import control_email as _ce
-    from control_center import get_current_admin, require_perm, audit, notify_user_action
+    from control_center import (get_current_admin, require_perm, audit, notify_user_action,
+                                 _check_recent_reauth, _client_info)
 
     async def _email(key, user, ctx=None, entity_id=None):
         """Central managed email layer — every outcome logs an email event."""
@@ -831,6 +832,46 @@ def bind(server):
             entity_type="business", entity_id=biz_id,
             old_value={"verification_status": old}, extra_new={"verification_status": new_status})
         return {"ok": True, "status": new_status, "communication": result}
+
+    @control_biz_router.delete("/businesses/{biz_id}")
+    async def control_business_delete(biz_id: str, request: Request,
+                                      admin: dict = Depends(require_perm("users"))):
+        """Admin-only hard delete of a business and its related records.
+
+        High-risk action → requires a recent re-authentication (returns 428 if
+        stale, which the Control Centre handles by prompting for re-auth). The
+        owner ACCOUNT is intentionally NOT deleted here — only the business
+        profile, its verification submissions, its hosted events (+attendees)
+        and its reviews are removed.
+        """
+        b = await db.business_profiles.find_one({"id": biz_id})
+        if not b:
+            raise HTTPException(status_code=404, detail="Business not found")
+        fresh = await db.admin_users.find_one({"id": admin["id"]})
+        _check_recent_reauth(fresh)
+        ip, _ = _client_info(request)
+        owner_id = b["user_id"]
+
+        # cascade: business-hosted events (+ their attendees and reviews)
+        biz_events = await db.events.find(
+            {"creator_user_id": owner_id, "host_type": "business"}, {"id": 1}).to_list(500)
+        event_ids = [e["id"] for e in biz_events]
+        removed = {"events": 0, "event_attendees": 0, "event_reviews": 0, "verifications": 0}
+        if event_ids:
+            r = await db.event_attendees.delete_many({"event_id": {"$in": event_ids}})
+            removed["event_attendees"] = r.deleted_count
+            r = await db.events.delete_many({"id": {"$in": event_ids}})
+            removed["events"] = r.deleted_count
+        r = await db.event_reviews.delete_many({"business_id": biz_id})
+        removed["event_reviews"] = r.deleted_count
+        r = await db.business_verifications.delete_many({"business_id": biz_id})
+        removed["verifications"] = r.deleted_count
+        await db.business_profiles.delete_one({"id": biz_id})
+
+        await audit(fresh, "business_delete", "business", biz_id,
+                    old_value={"name": b.get("name"), "owner_id": owner_id},
+                    new_value=removed, ip=ip)
+        return {"ok": True, "deleted": biz_id, "cascade": removed}
 
     @control_biz_router.get("/business-reviews")
     async def control_reviews(filter: Optional[str] = "All",
