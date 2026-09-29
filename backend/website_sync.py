@@ -26,9 +26,24 @@ import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, Header
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 website_router = APIRouter(prefix="/api/integrations/website")
+
+# Every key the website (or its country-specific forms) may use for the business
+# registration number — normalised into `business.registration_number`.
+REGISTRATION_ALIASES = ("registration_number", "abn", "registration", "registration_no", "registration_id",
+                        "business_number", "business_registration_number", "business_registration",
+                        "company_number", "nzbn", "ein", "bn", "uen", "cro_number", "siren", "siret", "gstin", "cin",
+                        "registrationNumber", "businessNumber", "companyNumber", "abn_number")
+
+
+def _first_alias(d: dict) -> str:
+    for k in REGISTRATION_ALIASES:
+        v = d.get(k)
+        if v is not None and str(v).strip():
+            return str(v).strip()
+    return ""
 
 
 class WebsiteBusinessIn(BaseModel):
@@ -51,6 +66,17 @@ class WebsiteBusinessIn(BaseModel):
     opening_hours: Optional[str] = ""
     document_name: Optional[str] = ""        # reference only — never public
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalise_registration(cls, data):
+        # Accept abn / registration / business_number / company_number ... (any case,
+        # number or string) and store it as registration_number.
+        if isinstance(data, dict):
+            reg = _first_alias(data)
+            if reg:
+                data = {**data, "registration_number": reg}
+        return data
+
 
 class WebsiteSignupIn(BaseModel):
     email: EmailStr
@@ -66,6 +92,18 @@ class WebsiteSignupIn(BaseModel):
     business: WebsiteBusinessIn
     submit_verification: bool = True
     send_emails: bool = False                # website sends its own transactional emails
+
+    @model_validator(mode="before")
+    @classmethod
+    def _lift_top_level_registration(cls, data):
+        # Websites sometimes send the registration number beside the business
+        # object instead of inside it — lift it into business.registration_number
+        # when the nested object doesn't carry one.
+        if isinstance(data, dict) and isinstance(data.get("business"), dict):
+            top = _first_alias(data)
+            if top and not _first_alias(data["business"]):
+                data = {**data, "business": {**data["business"], "registration_number": top}}
+        return data
 
 
 def bind(server):
@@ -157,6 +195,9 @@ def bind(server):
         }
         biz = await db.business_profiles.find_one({"user_id": user["id"]}, {"_id": 0})
         if biz:
+            # Reconcile: never blank out details the owner already saved (e.g. an ABN
+            # entered in the app) just because this website payload omitted them.
+            fields = {k: v for k, v in fields.items() if v not in ("", None) or k == "updated_at"}
             await db.business_profiles.update_one({"id": biz["id"]}, {"$set": fields})
             return {**biz, **fields}
         biz_id = str(uuid.uuid4())

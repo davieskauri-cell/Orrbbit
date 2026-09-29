@@ -764,7 +764,9 @@ def bind(server):
             "created_at", -1).to_list(50)
         emails = await db.email_events.find({"user_id": b["user_id"]}, {"_id": 0}).sort(
             "created_at", -1).to_list(30)
-        return {"business": b, "owner": {"id": (owner or {}).get("id"),
+        reg_label = COUNTRY_REQUIREMENTS.get(b.get("country") or "", COUNTRY_REQUIREMENTS["Other"])["registration_label"]
+        return {"business": {**b, "registration_label": reg_label},
+                "owner": {"id": (owner or {}).get("id"),
                                          "email": (owner or {}).get("email"),
                                          "admin_status": (owner or {}).get("admin_status") or "active"},
                 "verifications": subs,

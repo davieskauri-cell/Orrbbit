@@ -164,3 +164,49 @@ def test_06_lookup():
     assert r.status_code == 200 and r.json()["exists"] is True and r.json()["verification_status"] == "Pending Review"
     r = requests.get(f"{SYNC}/nobody_{TAG}@example.com", headers=HDR, timeout=30)
     assert r.json() == {"exists": False}
+
+
+@pytest.mark.parametrize("variant", ["abn_nested", "abn_numeric", "top_level_registration", "camel_business_number"])
+def test_07_registration_number_aliases_recognised(variant):
+    """ABN / registration number sent under any common key or position must be stored on
+    the business record, satisfy the verification check, and show in Control Centre."""
+    email = f"TEST_ws_reg_{variant}_{TAG}@example.com"
+    body = _payload(email, name=f"Reg Co {variant}")
+    body["business"].pop("registration_number")
+    body["business"]["country"] = "Australia"
+    if variant == "abn_nested":
+        body["business"]["abn"] = "51 824 753 556"
+    elif variant == "abn_numeric":
+        body["business"]["abn"] = 51824753556
+    elif variant == "top_level_registration":
+        body["registration_number"] = "51824753556"
+    else:
+        body["business"]["businessNumber"] = "51824753556"
+    r = requests.post(SYNC, json=body, headers=HDR, timeout=30)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["missing_for_verification"] == [], d
+    assert d["verification_status"] == "Pending Review" and d["submission_id"]
+    biz = DB.business_profiles.find_one({"id": d["business_id"]})
+    assert biz["registration_number"].replace(" ", "") == "51824753556"
+    sub = DB.business_verifications.find_one({"id": d["submission_id"]})
+    assert sub["abn"].replace(" ", "") == "51824753556" and sub["registration_label"] == "ABN"
+
+    tok = _admin_token()
+    det = requests.get(f"{API}/control/businesses/{d['business_id']}", headers={"Authorization": f"Bearer {tok}"}, timeout=30)
+    assert det.status_code == 200, det.text
+    dj = det.json()
+    assert dj["business"]["registration_label"] == "ABN"
+    assert dj["business"]["registration_number"].replace(" ", "") == "51824753556"
+    assert dj["verifications"][0]["abn"].replace(" ", "") == "51824753556"
+
+
+def test_08_reconcile_keeps_existing_registration_when_payload_omits_it():
+    email = f"TEST_ws_reg_abn_nested_{TAG}@example.com"   # created in test_07 with an ABN
+    body = _payload(email, name="Reg Co abn_nested")
+    body["business"].pop("registration_number")
+    r = requests.post(SYNC, json=body, headers=HDR, timeout=30)
+    assert r.status_code == 200, r.text
+    assert r.json()["missing_for_verification"] == []
+    biz = DB.business_profiles.find_one({"id": r.json()["business_id"]})
+    assert biz["registration_number"].replace(" ", "") == "51824753556"

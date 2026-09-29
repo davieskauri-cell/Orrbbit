@@ -176,6 +176,7 @@ export default function ControlBusinessVerification() {
                     ["Business Name", detail.business.name],
                     ["Category", detail.business.category],
                     ["Country", detail.business.country || "—"],
+                    [detail.business.registration_label || "Registration No.", detail.business.registration_number || "Missing"],
                     ["Business Address", detail.business.location_display],
                     ["Business Email", detail.business.email],
                     ["Business Phone", detail.business.phone || "—"],
